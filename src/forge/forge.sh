@@ -98,7 +98,6 @@ function unpack() {
 			cmd="unzip"
 			;;
 	esac
-	echo $cmd
 	failexit $cmd $archive
 }
 
@@ -200,7 +199,6 @@ function forge() {
 	
 	
 	local wd="$PWD"
-	log DEBUG "cd $src_dir"
 	cd $src_dir
 	
 	run_part fetch
