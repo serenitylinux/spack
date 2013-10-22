@@ -268,7 +268,7 @@ function main() {
 		esac
 	done
 	
-	if [ -z "$package"]; then
+	if [ -z "$package" ]; then
 		log ERROR "You must specify a package!"
 		usage
 	else
