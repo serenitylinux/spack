@@ -9,8 +9,6 @@ flags=""
 
 srcdir="zlib-$version"
 
-#unpack default
-
 function configure() {
 	./configure --prefix=/usr/
 	grep -A 24 '^  Copyright' zlib.h > LICENSE

@@ -73,17 +73,24 @@ function set_default() {
 
 
 function unpack() {
-	archive="$1"
+	local archive="$1"
+	local cmd="log ERROR Unable to extract $archive; exit 1;"
 	case $archive in
 		*.tar*)
 			log INFO "Extracting $archive using tar"
-			tar -xvf $archive
+			if $log_debug; then
+				cmd="tar -xvf"
+			else
+				cmd="tar -xf"
+			fi
 			;;
 		*.zip)
 			log INFO "Unzipping $archive"
-			unzip $archive
+			cmd="unzip"
 			;;
 	esac
+	echo $cmd
+	$cmd $archive
 }
 
 # Usage: fetch_func $src
