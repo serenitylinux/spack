@@ -108,7 +108,7 @@ function fetch_func() {
 			cd $(ls)
 			;;
 		*)
-			log ERROR "Unknow format!!!"
+			log ERROR "Unknow format!"
 			;;
 	esac
 }
