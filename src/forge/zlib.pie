@@ -7,8 +7,6 @@ bdeps=""
 arch="i368 x86_64"
 flags=""
 
-srcdir="zlib-$version"
-
 function configure() {
 	./configure --prefix=/usr/
 	grep -A 24 '^  Copyright' zlib.h > LICENSE

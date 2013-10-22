@@ -10,6 +10,15 @@ tmp_dir="/tmp/forge/$$"
 src_dir="$tmp_dir/src"
 dest_dir="$tmp_dir/fs"
 
+# Usage: failexit critial_command args
+function failexit() {
+	$@
+	if [ $? -ne 0 ]; then 
+		log ERROR "$1 failed, exiting"
+		exit -1
+	fi
+}
+
 #Usage: color COLOR text
 function color() {
 	local color=$1
@@ -65,7 +74,7 @@ function log() {
 #Default
 default_func="log ERROR Invalid Function; exit -1"
 function default() {
-	$default_func
+	failexit $default_func
 }
 function set_default() {
 	default_func="$1"
@@ -90,7 +99,7 @@ function unpack() {
 			;;
 	esac
 	echo $cmd
-	$cmd $archive
+	failexit $cmd $archive
 }
 
 # Usage: fetch_func $src
@@ -142,7 +151,7 @@ function run_part() {
 	local part="$1"
 	set_default "${part}_func" 
 	log DEBUG "Run Part $part"
-	$part
+	failexit $part
 }
 
 function create_package() {
