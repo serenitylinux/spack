@@ -216,8 +216,4 @@ function main() {
 	fi
 }
 
-
-
-
-
 main $@
