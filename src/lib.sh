@@ -51,9 +51,9 @@ function log() {
 	local string="$@"
 	case $level in
 		INFO)
-			$log_info && echo $(color WHITE $@) ;;
+			$log_info && color WHITE $@ && echo ;;
 		DEBUG)
-			$log_debug && color BLUE "debug: " && echo $@ ;;
+			$log_debug && color BLUE $@ && echo ;;
 		WARN)
 			$log_warn && color YELLOW "warning: " && echo $@ ;;
 		ERROR)
