@@ -36,7 +36,11 @@ function unpack() {
 			;;
 		*.zip)
 			log INFO "Unzipping $archive"
-			cmd="unzip"
+            if $log_debug; then
+			    cmd="unzip"
+            else
+                cmd="unzip -qq"
+            fi
 			;;
 	esac
 	failexit $cmd $archive
