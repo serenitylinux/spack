@@ -34,9 +34,9 @@ function extract() {
 	local pkg="$1"
 	local cmd
 	if $log_debug; then
-			cmd="tar -xvf"
-		else
-			cmd="tar -xf"
+		cmd="tar -xvf"
+	else
+		cmd="tar -xf"
 	fi
 	
 	failexit $cmd $pkg -C $tmp_dir
