@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../lib.sh
+source /usr/lib/spack/libspack
 
 pretend=false
 

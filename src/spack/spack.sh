@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source lib.sh
+source /usr/lib/spack/libspack
 
 function usage() {
 	cat <<EOT
@@ -47,7 +47,7 @@ function main() {
 		wield|install)
 			case $2 in
 				-f|--file)
-					weild $3
+					wield $3
 				;;
 				*)
 					#search repo and get package[s]

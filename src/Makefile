@@ -1,7 +1,7 @@
 install:
-	mkdir -p /usr/sbin/spack
-	install -c forge/forge.sh /usr/sbin/forge
-	install -c wield/wield.sh /usr/sbin/wield
-	install -c spack/spack.sh /usr/sbin/spack
-	install -c libspack.sh    /etc/spack.conf
+	mkdir -p /usr/lib/spack
+	install -c forge/forge.sh /usr/bin/forge
+	install -c wield/wield.sh /usr/bin/wield
+	install -c spack/spack.sh /usr/bin/spack
+	install -c libspack.sh    /usr/lib/spack/libspack
 
