@@ -84,7 +84,13 @@ function install_files() {
 
 	cd $fs_dir
 	for file in $(cd $fs_dir && find .); do
-		install -d $file /
+		if $log_info; then
+			log INFO "Installing file: $file"
+		fi
+		
+		if [ -f $file ]; then
+			install -c $file /
+		fi
 	done
 	cd - > /dev/null
 }
