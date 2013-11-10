@@ -1,11 +1,13 @@
 #!/bin/bash
 
+source lib.sh
+
 function usage() {
 	cat <<EOT
 Usage: $0
 	check
-	forge, build
-	wield, install
+	forge, build      [-f,--file]
+	wield, install    [-f,--file]
 	search
 	info
 	packages
@@ -16,30 +18,53 @@ EOT
 }
 
 function main() {
-	local option
 	local package
-	while option="$1" && [ "$option" != "" ] && shift 1; do
-		case $option in
-			check)
+	local file
+	case $1 in
+		check)
+			log ERROR "Check option not implemented"
+			exit -1
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		forge|build)
+			case $2 in
+				-f|--file)
+					file="$3"
 				;;
-			-h|--help)
-				usage
-				exit 0
+				*)
+					package="$2"
+					file=$(get_package $package)
 				;;
-			forge|build)
-				
-				;;
-			wield|install)
+			esac
 			
+			forge $file
+
+			exit 0
+			;;
+		wield|install)
+			case $2 in
+				-f|--file)
+					weild $3
 				;;
-			search)
-			
+				*)
+					#search repo and get package[s]
+					package="$2"
+					log ERROR "installation from repo not supported"
 				;;
-			*)
-				usage
-				exit 1
-		esac
-	done
+			esac
+			exit 0
+			;;
+		search)
+			log ERROR "Not Implemented"
+			exit -1
+			;;
+		*)
+			usage
+			exit 1
+	esac
 }
 
 
