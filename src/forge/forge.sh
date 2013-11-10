@@ -98,24 +98,34 @@ function run_part() {
 	failexit $part
 }
 
+function create_pkginstall() {
+	cat >> $tmp_dir/pkginstall.sh <<EOT
+$(declare -f pre_install)
+
+$(declare -f post_install)
+EOT
+}
+
 function create_package() {
-	local fs_rel="$name.fs.tar"
+	local fs_rel="fs.tar"
 	local fs="$tmp_dir/$fs_rel"
 	
 	local manifest_rel="manifest.txt"
 	local manifest="$tmp_dir/$manifest_rel"
 	
+	local pkg_install_rel="pkginstall.sh"
+
 	local result="$PWD/$name-$version.spakg"
 	
 	log INFO "Creating Package"
 	cd $dest_dir
 		tar -cf $fs *
 		find . -type f | xargs md5sum > "${manifest}"
-	cd -
+	cd - > /dev/null
 	
 	cd $tmp_dir
-		tar -cf $result $fs_rel $manifest_rel
-	cd -
+		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel
+	cd - > /dev/null
 }
 
 function setup() {
@@ -125,6 +135,20 @@ function setup() {
 
 function cleanup() {
 	rm -rf $tmp_dir
+}
+
+function create_pkginfo() {
+	cat > ./$name.pkginfo <<EOT
+name=$name
+version=$version
+info=$info
+homepage=$homepage
+flags=$flags
+deps=$deps
+message=""
+
+hooks=""
+EOT
 }
 
 # Usage: forge file.pie
@@ -155,6 +179,7 @@ function forge() {
 	run_part installpkg
 	cd $wd
 	
+	create_pkginstall
 	create_package
 	
 	cleanup

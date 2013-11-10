@@ -20,3 +20,11 @@ function installpkg() {
 	default
 	install -D -m644 LICENSE ${dest_dir}/usr/share/licenses/zlib/LICENSE
 }
+
+function pre_install() {
+	echo "I am the preinstall function"
+}
+
+function post_install() {
+	echo "I am the postinstall function"
+}

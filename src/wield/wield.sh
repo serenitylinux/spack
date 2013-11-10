@@ -45,12 +45,12 @@ function extract() {
 		log ERROR "Invalid package, missing manifest!"
 		exit 1;
 	fi
-	if [ ! -f $tmp_dir/*.fs.tar ]; then
+	if [ ! -f $tmp_dir/fs.tar ]; then
 		log ERROR "Invalid package, missing fs!"
 		exit 1;
 	fi
 	
-	failexit $cmd $tmp_dir/*.fs.tar -C $fs_dir
+	failexit $cmd $tmp_dir/fs.tar -C $fs_dir
 }
 
 function check() {
@@ -102,11 +102,16 @@ function wield_pkg() {
 	setup
 	
 	extract $pkg
+	source $tmp_dir/pkginstall.sh
 	
 	check
 	
 	if ! $pretend; then
+		pre_install
+
 		install_files
+
+		post_install
 	fi
 	
 	cleanup
