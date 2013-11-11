@@ -64,23 +64,32 @@ function fetch_func() {
 			log ERROR "Unknow format!"
 			;;
 	esac
-} fetch=default
+}
+function fetch() { default; }
 
 function configure_func() {
 	./configure
-} configure=default
+}
+function configure() { default; }
+
 
 function build_func() {
 	fakeroot make $MAKEFLAGS
-} build=default
+}
+function build() { default; }
+
 
 function testpkg_func() {
 	make test
-} testpkg=default
+}
+function testpkg() { default; }
+
 
 function installpkg_func() {
 	fakeroot make DESTDIR=$dest_dir install
-} installpkg=default
+}
+function installpkg() { default; }
+
 
 function run_part() {
 	local part="$1"
