@@ -139,12 +139,12 @@ function cleanup() {
 
 function create_pkginfo() {
 	cat > ./$name.pkginfo <<EOT
-name=$name
-version=$version
-info=$info
-homepage=$homepage
-flags=$flags
-deps=$deps
+name="$name"
+version="$version"
+info="$info"
+homepage="$homepage"
+flags="$flags"
+deps="$deps"
 message=""
 
 hooks=""
@@ -180,6 +180,7 @@ function forge() {
 	cd $wd
 	
 	create_pkginstall
+	create_pkginfo
 	create_package
 	
 	cleanup
