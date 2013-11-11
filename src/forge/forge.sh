@@ -49,16 +49,16 @@ function unpack() {
 # Usage: fetch_func $src
 function fetch_func() {
 	case $src in
+		*.git)
+			log INFO "Using git to clone $src"
+			git clone $src
+			cd $(ls)
+			;;
 		http://*|ftp://*)
 			log INFO "Downloading $src with wget"
 			wget $src
 			unpack "zlib-${version}.tar.gz"
 			cd $(ls | grep -v "tar.gz")
-			;;
-		*.git)
-			log INFO "Using git to clone $src"
-			git clone $src
-			cd $(ls)
 			;;
 		*)
 			log ERROR "Unknow format!"
