@@ -7,5 +7,5 @@ bdeps=""
 arch="any"
 flags=""
 
-function configure() { return 0; }
-function build() { return 0; }
+configure=true
+build=true
