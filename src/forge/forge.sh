@@ -154,8 +154,8 @@ function create_pkginfo() {
 	cat > ./$name.pkginfo <<EOT
 name="$name"
 version="$version"
-info="$info"
-homepage="$homepage"
+info="$desc"
+homepage="$url"
 flags="$flags"
 deps="$deps"
 message=""
