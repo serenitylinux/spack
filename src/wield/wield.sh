@@ -10,7 +10,6 @@ fs_dir="$tmp_dir/fs"
 
 
 function setup() {
-	log INFO "Setup"
 	log DEBUG "Working directory: $tmp_dir"
 	
 	mkdir $tmp_dir
@@ -18,39 +17,30 @@ function setup() {
 }
 
 function cleanup() {
-	local cmd="rm"
-	if $log_debug; then
-		cmd="$cmd -v"
-	fi
-	log INFO "Cleaning up"
 	log DEBUG "Removing directory: $tmp_dir"
-	
-	$cmd $tmp_dir -rf
+	log_cmd DEBUG rm -v $tmp_dir -rf
 }
 
 #Usage: extract pkg
 function extract() {
-	log INFO "Extracting $pkg"
-	local pkg="$1"
-	local cmd
-	if $log_debug; then
-		cmd="tar -xvf"
-	else
-		cmd="tar -xf"
-	fi
+	local package="$1"
 	
-	failexit $cmd $pkg -C $tmp_dir
+	log INFO "Extracting Package:"
+	log_cmd DEBUG tar -xvf $package -C $tmp_dir
 	
 	if [ ! -f $manifest ]; then
 		log ERROR "Invalid package, missing manifest!"
 		exit 1;
 	fi
-	if [ ! -f $tmp_dir/fs.tar ]; then
+	
+	if [ -f $tmp_dir/fs.tar ]; then
+		log INFO
+		log INFO Extracting FS:
+		log_cmd DEBUG tar -xvf $tmp_dir/fs.tar -C $fs_dir
+	else
 		log ERROR "Invalid package, missing fs!"
 		exit 1;
 	fi
-	
-	failexit $cmd $tmp_dir/fs.tar -C $fs_dir
 }
 
 function check() {
@@ -58,17 +48,9 @@ function check() {
 	local msum
 	
 	cd $fs_dir
-	msum=$(md5sum -c $manifest)
-	if [ $? -ne 0 ]; then
-		echo $msum | grep -v ": OK"
-		log ERROR "Corrupt/missing files!"
-		exit 1;
-	fi
 	
-	log DEBUG "md5sum:"
-	if $log_debug; then
-		echo "$msum"
-	fi
+	log DEBUG md5sum $manifest
+	log_cmd DEBUG md5sum -c $manifest
 	
 	cd - > /dev/null
 	
@@ -95,26 +77,36 @@ function install_files() {
 	cd - > /dev/null
 }
 
+function run_step() {
+	local part="$@"
+	
+	log INFO
+	log INFO "Running $part"
+	log_cmd INFO breaker
+	
+	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
+}
+
 #Usage: wield pkg.spkg
 function wield_pkg() {
-	local pkg="$1"
+	local package="$1"
 	
-	setup
+	run_step setup
 	
-	extract $pkg
+	run_step extract $package
 	source $tmp_dir/pkginstall.sh
 	
-	check
+	run_step check
 	
 	if ! $pretend; then
-		pre_install
+		run_step pre_install
 
-		install_files
+		run_step install_files
 
-		post_install
+		run_step post_install
 	fi
 	
-	cleanup
+	run_step cleanup
 }
 
 function usage() {
@@ -163,6 +155,11 @@ function main() {
 				usage;;
 		esac
 	done
+	
+	if ! $pretend; then
+		require_root
+	fi
+	
 	if [ -z "$package" ]; then
 		log ERROR "You must specify a package!"
 		usage
