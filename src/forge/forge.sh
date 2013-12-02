@@ -153,8 +153,9 @@ EOT
 }
 
 function create_package() {
-	breaker
+	log INFO
 	log INFO "Creating Package"
+	breaker
 	
 	create_pkginstall
 	create_pkginfo
@@ -178,7 +179,9 @@ function create_package() {
 		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel
 	cd - > /dev/null
 	
-	echo
+	log INFO
+	print_result true
+	log INFO
 }
 
 function setup() {
@@ -233,11 +236,10 @@ function forge() {
 	run_part installpkg
 	cd $wd
 	
-	failexit create_package
+	failexit "Could not create $1 package" create_package
 	
 	cleanup
 	
-	breaker
 	echo $(color GREEN "$name forged successfully")
 }
 

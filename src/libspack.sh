@@ -99,11 +99,12 @@ function breaker() {
 
 function print_result() {
 	$@
-	echo
 	if [ $? -eq 0 ]; then
+		log INFO
 		log_cmd INFO echo $(color GREEN "Success")
 	else
-		log_cmd INFO echo $(color RED "Error")
+		log ERROR
+		log_cmd ERROR echo $(color RED "Error")
 	fi
 }
 
