@@ -92,9 +92,7 @@ function log_cmd() {
 }
 
 function breaker() {
-	if $log_info; then
-		color BROWN $(printf %$(tput cols)s | tr " " "=")
-	fi
+	log_cmd INFO color BROWN $(printf %$(tput cols)s | tr " " "=")
 }
 
 function print_result() {

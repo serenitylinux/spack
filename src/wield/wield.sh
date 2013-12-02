@@ -35,7 +35,7 @@ function extract() {
 	
 	if [ -f $tmp_dir/fs.tar ]; then
 		log INFO
-		log INFO Extracting FS:
+		log INFO "Extracting FS:"
 		log_cmd DEBUG tar -xvf $tmp_dir/fs.tar -C $fs_dir
 	else
 		log ERROR "Invalid package, missing fs!"
@@ -66,9 +66,7 @@ function install_files() {
 
 	cd $fs_dir
 	for file in $(cd $fs_dir && find .); do
-		if $log_info; then
-			log INFO "Installing file: $file"
-		fi
+		log INFO "Installing file: $file"
 		
 		if [ -f $file ]; then
 			install -c $file /
@@ -80,17 +78,17 @@ function install_files() {
 function run_step() {
 	local part="$@"
 	
-	log INFO
 	log INFO "Running $part"
 	log_cmd INFO breaker
 	
 	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
+	log INFO
 }
 
 #Usage: wield pkg.spkg
 function wield_pkg() {
 	local package="$1"
-	
+	color GREEN "Wielding $package with the force of a $(color RED GOD)!"; echo; echo
 	run_step setup
 	
 	run_step extract $package
@@ -107,6 +105,8 @@ function wield_pkg() {
 	fi
 	
 	run_step cleanup
+	
+	color GREEN "Your heart is pure and accepts the gift of $name"; echo
 }
 
 function usage() {
@@ -147,7 +147,7 @@ function main() {
 				if [ -f $option ]; then
 					package=$option
 				else
-					echo "Unknown package: $option"
+					log ERROR "Unknown package: $option"
 					exit 1
 				fi;;
 			*)

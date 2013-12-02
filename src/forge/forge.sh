@@ -29,30 +29,21 @@ function set_default() {
 function unpack() {
 	local archive="$1"
 	local cmd=""
-	local flags=""
 	case $archive in
 		*.tar*)
 			log DEBUG "Extracting $archive using tar"
-			cmd="tar"
-			if $log_debug; then
-				flags="-xvf"
-			else
-				flags="-xf"
-			fi
+			cmd="tar -xf"
 			;;
 		*.zip)
 			log INFO "Unzipping $archive"
-			
-			if ! $log_debug; then
-			    flags="-qq"
-			fi
+			cmd="unzip"
 			;;
 		*)
 			log ERROR Unable to extract $archive
 			return 1
 		;;
 	esac
-	$cmd $flags $archive
+	log_cmd DEBUG $cmd $archive
 	return $?
 }
 
@@ -261,7 +252,7 @@ function main() {
 				if [ -f $option ]; then
 					package=$option
 				else
-					echo "Unknown package file: $option"
+					log ERROR "Unknown package file: $option"
 					exit 1
 				fi;;
 			*)
