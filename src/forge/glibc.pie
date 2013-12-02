@@ -1,3 +1,4 @@
+# vim: ft=sh
 name="glibc"
 version="2.18"
 desc="GNU Standard C Library"
@@ -11,6 +12,9 @@ srcdir="$name-$version"
 
 
 function configure() {
+	# needs this to build with make 4.0
+	sed -r -i 's/(3..89..)/\1 | 4.*/' ./configure
+
 	pushd ..
 	mkdir build
 	pushd build
