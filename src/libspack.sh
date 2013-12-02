@@ -58,7 +58,7 @@ function log() {
 			fi;;
 		ERROR)
 			if $log_error; then
-				if is_integer 1; then
+				if is_integer $1; then
 					color RED "ERROR $1: "
 					shift
 				else
@@ -110,4 +110,37 @@ function print_result() {
 
 function is_integer() {
 	[[ $1 =~ ^-?[0-9]+$ ]]
+}
+
+
+function gracefull_failure() {
+	trap exit EXIT
+	local code="$?"
+	local message="$@"
+	set +e
+	echo
+	log ERROR $code $message
+	cleanup
+	exit 1
+}
+
+function failexit() {
+	local message="$1"
+	shift
+	local func="$@"
+	
+	set -e
+	trap "gracefull_failure $message" EXIT
+	
+	$func
+	
+	trap exit EXIT
+	set +e
+}
+
+function require_root() {
+	if [[ $EUID -ne 0 ]]; then
+		log ERROR "You must be root to run this function, try sudo $0"
+		exit -1
+	fi
 }

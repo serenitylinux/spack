@@ -14,31 +14,6 @@ dest_dir="$tmp_dir/fs"
 
 STARTDIR="$PWD"
 
-function gracefull_failure() {
-	local code="$?"
-	local message="$@"
-	set +e
-	echo
-	log ERROR $code $message
-	cleanup
-	exit 1
-}
-
-function failexit() {
-	local message="$1"
-	shift
-	local func="$@"
-	
-	set -e
-	trap "gracefull_failure $message" EXIT
-	
-	$func
-	
-	trap exit EXIT
-	set +e
-}
-
-
 function none() { echo "Nothing to do!"; }
 
 #Default
