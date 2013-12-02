@@ -6,6 +6,8 @@ src="$url/current/zlib-${version}.tar.gz"
 bdeps=""
 arch="i368 x86_64"
 flags=""
+srcdir="$name-$version"
+
 
 function configure() {
 	./configure --prefix=/usr/

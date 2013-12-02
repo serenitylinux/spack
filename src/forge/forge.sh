@@ -12,6 +12,8 @@ tmp_dir="/tmp/forge/$$"
 src_dir="$tmp_dir/src"
 dest_dir="$tmp_dir/fs"
 
+function none() { return 0; }
+
 #Default
 default_func="log ERROR Invalid Function; exit -1"
 function default() {
@@ -50,16 +52,15 @@ function unpack() {
 function fetch_func() {
 	case $src in
 		*.git)
-			log INFO "Using git to clone $src"
+			log DEBUG "Using git to clone $src"
 			git clone $src
-			cd $(ls)
+			cd $srcdir
 			;;
 		http://*|ftp://*)
-			log INFO "Downloading $src with wget"
+			log DEBUG "Downloading $src with wget"
 			wget $src
-			local dlfile=$(ls)
-			unpack $dlfile
-			cd $(ls | grep -v "$dlfile")
+			unpack $(ls)
+			cd $srcdir
 			;;
 		*)
 			log ERROR "Unknow format!"
@@ -87,7 +88,7 @@ function testpkg() { default; }
 
 
 function installpkg_func() {
-	fakeroot make DESTDIR=$dest_dir install
+	make DESTDIR=$dest_dir install
 }
 function installpkg() { default; }
 

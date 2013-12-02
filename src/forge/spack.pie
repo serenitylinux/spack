@@ -6,6 +6,7 @@ src="http://gitlab.cslabs.clarkson.edu/meshca/spack.git"
 bdeps=""
 arch="any"
 flags=""
+srcdir="$name"
 
-function configure() { return 0; }
-function build() { return 0; }
+function configure() { none; }
+function build() { none; }
