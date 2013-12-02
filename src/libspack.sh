@@ -11,13 +11,13 @@ function color() {
 		BLACK|black)
 			r_color="0;30";;
 		RED|red)
-			r_color="0;31";;
+			r_color="1;31";;
 		GREEN|green)
-			r_color="0;32";;
+			r_color="1;32";;
 		BROWN|brown)
 			r_color="0;33";;
 		BLUE|blue)
-			r_color="0;34";;
+			r_color="1;34";;
 		PURPLE|purple)
 			r_color="0;35";;
 		CYAN|cyan)
@@ -99,6 +99,7 @@ function breaker() {
 
 function print_result() {
 	$@
+	echo
 	if [ $? -eq 0 ]; then
 		log_cmd INFO echo $(color GREEN "Success")
 	else

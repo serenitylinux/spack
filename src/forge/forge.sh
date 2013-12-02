@@ -39,7 +39,7 @@ function failexit() {
 }
 
 
-function none() { return 0; }
+function none() { echo "Nothing to do!"; }
 
 #Default
 default_func="log ERROR Invalid Function; exit -1"
@@ -136,9 +136,11 @@ function installpkg() { default; }
 function run_part() {
 	local part="$1"
 	
-	set_default "${part}_func" 
-	breaker
+	echo 
 	log INFO "Running $part"
+	breaker
+	
+	set_default "${part}_func"
 	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
 }
 
@@ -175,6 +177,8 @@ function create_package() {
 	cd $tmp_dir
 		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel
 	cd - > /dev/null
+	
+	echo
 }
 
 function setup() {
