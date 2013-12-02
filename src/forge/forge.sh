@@ -12,6 +12,33 @@ tmp_dir="/tmp/forge/$$"
 src_dir="$tmp_dir/src"
 dest_dir="$tmp_dir/fs"
 
+STARTDIR="$PWD"
+
+function gracefull_failure() {
+	local code="$?"
+	local message="$@"
+	set +e
+	echo
+	log ERROR $code $message
+	cleanup
+	exit 1
+}
+
+function failexit() {
+	local message="$1"
+	shift
+	local func="$@"
+	
+	set -e
+	trap "gracefull_failure $message" EXIT
+	
+	$func
+	
+	trap exit EXIT
+	set +e
+}
+
+
 function none() { return 0; }
 
 #Default
@@ -45,14 +72,13 @@ function unpack() {
 			    flags="-qq"
 			fi
 			;;
+		*)
+			log ERROR Unable to extract $archive
+			return 1
+		;;
 	esac
-	if [ -z $cmd ]; then
-		log ERROR Unable to extract $archive
-		return 1
-	else
-		$cmd $flags $archive
-		return $?
-	fi
+	$cmd $flags $archive
+	return $?
 }
 
 # Usage: fetch_func $src
@@ -107,25 +133,13 @@ function installpkg_func() {
 }
 function installpkg() { default; }
 
-
-function run_failed() {
-	local res="$?"
-	set +e
-	echo
-	log ERROR "$part failed for $name with error code $res, exiting"
-	exit 1
-}
-
 function run_part() {
-	set -e
-	trap run_failed EXIT
 	local part="$1"
+	
 	set_default "${part}_func" 
 	breaker
 	log INFO "Running $part"
-	print_result log_cmd INFO $part
-	trap exit EXIT
-	set +e
+	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
 }
 
 function create_pkginstall() {
@@ -138,6 +152,11 @@ EOT
 
 function create_package() {
 	breaker
+	log INFO "Creating Package"
+	
+	create_pkginstall
+	create_pkginfo
+	
 	local fs_rel="fs.tar"
 	local fs="$tmp_dir/$fs_rel"
 	
@@ -148,7 +167,6 @@ function create_package() {
 
 	local result="$PWD/$name-$version.spakg"
 	
-	log INFO "Creating Package"
 	cd $dest_dir
 		tar -cf $fs *
 		find . -type f | xargs md5sum > "${manifest}"
@@ -165,6 +183,7 @@ function setup() {
 }
 
 function cleanup() {
+	cd $STARTDIR
 	rm -rf $tmp_dir
 }
 
@@ -210,9 +229,7 @@ function forge() {
 	run_part installpkg
 	cd $wd
 	
-	create_pkginstall
-	create_pkginfo
-	create_package
+	failexit create_package
 	
 	cleanup
 	

@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# Usage: failexit critial_command args
-function failexit() {
-	$@
-	if [ $? -ne 0 ]; then 
-		log ERROR "$1 failed, exiting"
-		exit -1
-	fi
-}
-
 #Usage: color COLOR text
 function color() {
 	local color=$1
@@ -67,7 +58,12 @@ function log() {
 			fi;;
 		ERROR)
 			if $log_error; then
-				color RED "ERROR: "
+				if is_integer 1; then
+					color RED "ERROR $1: "
+					shift
+				else
+					color RED "ERROR: "
+				fi
 				echo $@ 
 			fi;;
 	esac
@@ -108,4 +104,8 @@ function print_result() {
 	else
 		log_cmd INFO echo $(color RED "Error")
 	fi
+}
+
+function is_integer() {
+	[[ $1 =~ ^-?[0-9]+$ ]]
 }
