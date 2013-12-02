@@ -57,8 +57,9 @@ function fetch_func() {
 		http://*|ftp://*)
 			log INFO "Downloading $src with wget"
 			wget $src
-			unpack "zlib-${version}.tar.gz"
-			cd $(ls | grep -v "tar.gz")
+			local dlfile=$(ls)
+			unpack $dlfile
+			cd $(ls | grep -v "$dlfile")
 			;;
 		*)
 			log ERROR "Unknow format!"
@@ -74,7 +75,7 @@ function configure() { default; }
 
 
 function build_func() {
-	fakeroot make $MAKEFLAGS
+	make $MAKEFLAGS
 }
 function build() { default; }
 
