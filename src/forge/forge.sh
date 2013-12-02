@@ -27,25 +27,26 @@ function set_default() {
 function unpack() {
 	local archive="$1"
 	local cmd="log ERROR Unable to extract $archive; exit 1;"
+	local flags=""
 	case $archive in
 		*.tar*)
 			log DEBUG "Extracting $archive using tar"
+			cmd="tar"
 			if $log_debug; then
-				cmd="tar -xvf"
+				flags="-xvf"
 			else
-				cmd="tar -xf"
+				flags="-xf"
 			fi
 			;;
 		*.zip)
 			log INFO "Unzipping $archive"
-            if $log_debug; then
-			    cmd="unzip"
-            else
-                cmd="unzip -qq"
-            fi
+			
+			if ! $log_debug; then
+			    flags="-qq"
+			fi
 			;;
 	esac
-	failexit $cmd $archive
+	failexit $cmd $flags $archive
 }
 
 # Usage: fetch_func $src
@@ -53,12 +54,20 @@ function fetch_func() {
 	case $src in
 		*.git)
 			log DEBUG "Using git to clone $src"
-			git clone $src
+			local flags=""
+			if ! $log_debug; then
+				flags="-q"
+			fi
+			git clone $src $flags
 			cd $srcdir
 			;;
 		http://*|ftp://*)
 			log DEBUG "Downloading $src with wget"
-			wget $src
+			local flags=""
+			if ! $log_debug; then
+				flags="-q"
+			fi
+			wget $src $flags
 			unpack $(ls)
 			cd $srcdir
 			;;
