@@ -136,9 +136,9 @@ function installpkg() { default; }
 function run_part() {
 	local part="$1"
 	
-	echo 
+	log INFO
 	log INFO "Running $part"
-	breaker
+	log_cmd INFO breaker
 	
 	set_default "${part}_func"
 	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
