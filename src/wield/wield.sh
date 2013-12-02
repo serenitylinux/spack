@@ -41,6 +41,16 @@ function extract() {
 		log ERROR "Invalid package, missing fs!"
 		exit 1;
 	fi
+	
+	
+	local pkginfo="$tmp_dir/$(ls *.pkginfo)"
+	echo $pkginfo
+	if [ -f $pkginfo ]; then
+		source $pkginfo
+	else
+		log ERROR "Invalid package, could not find pkginfo!"
+		exit -1
+	fi
 }
 
 function check() {

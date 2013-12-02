@@ -110,6 +110,20 @@ function run_part() {
 	failexit "Section $part failed for package $name, exiting" print_result log_cmd INFO $part
 }
 
+function create_pkginfo() {
+	cat > ./$name.pkginfo <<EOT
+name="$name"
+version="$version"
+info="$desc"
+homepage="$url"
+flags="$flags"
+deps="$deps"
+message=""
+
+hooks=""
+EOT
+}
+
 function create_pkginstall() {
 	cat >> $tmp_dir/pkginstall.sh <<EOT
 $(declare -f pre_install)
@@ -123,8 +137,8 @@ function create_package() {
 	log INFO "Creating Package"
 	breaker
 	
-	create_pkginstall
 	create_pkginfo
+	create_pkginstall
 	
 	local fs_rel="fs.tar"
 	local fs="$tmp_dir/$fs_rel"
@@ -133,6 +147,10 @@ function create_package() {
 	local manifest="$tmp_dir/$manifest_rel"
 	
 	local pkg_install_rel="pkginstall.sh"
+	
+	local pkg_info_rel="$name.pkginfo"
+	local pkg_info="$tmp_dir/$pkg_info_rel"
+	cp $pkg_info_rel $pkg_info
 
 	local result="$PWD/$name-$version.spakg"
 	
@@ -142,7 +160,7 @@ function create_package() {
 	cd - > /dev/null
 	
 	cd $tmp_dir
-		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel
+		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel $pkg_info_rel
 	cd - > /dev/null
 	
 	log INFO
@@ -158,20 +176,6 @@ function setup() {
 function cleanup() {
 	cd $STARTDIR
 	rm -rf $tmp_dir
-}
-
-function create_pkginfo() {
-	cat > ./$name.pkginfo <<EOT
-name="$name"
-version="$version"
-info="$desc"
-homepage="$url"
-flags="$flags"
-deps="$deps"
-message=""
-
-hooks=""
-EOT
 }
 
 # Usage: forge file.pie
