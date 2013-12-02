@@ -51,13 +51,25 @@ function log() {
 	local string="$@"
 	case $level in
 		INFO)
-			$log_info && color WHITE $@ && echo ;;
+			if $log_info; then
+				color WHITE $@
+				echo
+			fi;;
 		DEBUG)
-			$log_debug && color BLUE $@ && echo ;;
+			if $log_debug; then
+				color BLUE $@
+				echo
+			fi;;
 		WARN)
-			$log_warn && color YELLOW "warning: " && echo $@ ;;
+			if $log_warn; then
+				color YELLOW "Warning: "
+				echo $@
+			fi;;
 		ERROR)
-			$log_error && color RED "error: " && echo $@ ;;
+			if $log_error; then
+				color RED "ERROR: "
+				echo $@ 
+			fi;;
 	esac
 }
 
@@ -86,5 +98,14 @@ function log_cmd() {
 function breaker() {
 	if $log_info; then
 		color BROWN $(printf %$(tput cols)s | tr " " "=")
+	fi
+}
+
+function print_result() {
+	$@
+	if [ $? -eq 0 ]; then
+		log_cmd INFO echo $(color GREEN "Success")
+	else
+		log_cmd INFO echo $(color RED "Error")
 	fi
 }

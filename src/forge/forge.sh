@@ -17,7 +17,7 @@ function none() { return 0; }
 #Default
 default_func="log ERROR Invalid Function; exit -1"
 function default() {
-	failexit $default_func
+	$default_func
 }
 function set_default() {
 	default_func="$1"
@@ -26,7 +26,7 @@ function set_default() {
 
 function unpack() {
 	local archive="$1"
-	local cmd="log ERROR Unable to extract $archive; exit 1;"
+	local cmd=""
 	local flags=""
 	case $archive in
 		*.tar*)
@@ -46,7 +46,13 @@ function unpack() {
 			fi
 			;;
 	esac
-	failexit $cmd $flags $archive
+	if [ -z $cmd ]; then
+		log ERROR Unable to extract $archive
+		return 1
+	else
+		$cmd $flags $archive
+		return $?
+	fi
 }
 
 # Usage: fetch_func $src
@@ -64,7 +70,7 @@ function fetch_func() {
 		http://*|ftp://*)
 			log DEBUG "Downloading $src with wget"
 			local flags=""
-			if ! $log_debug; then
+			if ! $log_info; then
 				flags="-q"
 			fi
 			wget $src $flags
@@ -72,7 +78,7 @@ function fetch_func() {
 			cd $srcdir
 			;;
 		*)
-			log ERROR "Unknow format!"
+			log ERROR "Unknown format!"
 			;;
 	esac
 }
@@ -102,12 +108,24 @@ function installpkg_func() {
 function installpkg() { default; }
 
 
+function run_failed() {
+	local res="$?"
+	set +e
+	echo
+	log ERROR "$part failed for $name with error code $res, exiting"
+	exit 1
+}
+
 function run_part() {
+	set -e
+	trap run_failed EXIT
 	local part="$1"
 	set_default "${part}_func" 
 	breaker
 	log INFO "Running $part"
-	log_cmd INFO failexit $part
+	print_result log_cmd INFO $part
+	trap exit EXIT
+	set +e
 }
 
 function create_pkginstall() {
