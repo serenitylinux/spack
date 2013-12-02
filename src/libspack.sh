@@ -24,7 +24,7 @@ function color() {
 		GREEN|green)
 			r_color="0;32";;
 		BROWN|brown)
-			r_color="1;33";;
+			r_color="0;33";;
 		BLUE|blue)
 			r_color="0;34";;
 		PURPLE|purple)
@@ -59,4 +59,10 @@ function log() {
 		ERROR)
 			$log_error && color RED "error: " && echo $@ ;;
 	esac
+}
+
+function breaker() {
+	if $log_info; then
+		color BROWN $(printf %$(tput cols)s | tr " " "=")
+	fi
 }

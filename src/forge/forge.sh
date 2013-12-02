@@ -29,7 +29,7 @@ function unpack() {
 	local cmd="log ERROR Unable to extract $archive; exit 1;"
 	case $archive in
 		*.tar*)
-			log INFO "Extracting $archive using tar"
+			log DEBUG "Extracting $archive using tar"
 			if $log_debug; then
 				cmd="tar -xvf"
 			else
@@ -96,7 +96,8 @@ function installpkg() { default; }
 function run_part() {
 	local part="$1"
 	set_default "${part}_func" 
-	log DEBUG "Run Part $part"
+	breaker
+	log INFO "Running $part"
 	failexit $part
 }
 
@@ -109,6 +110,7 @@ EOT
 }
 
 function create_package() {
+	breaker
 	local fs_rel="fs.tar"
 	local fs="$tmp_dir/$fs_rel"
 	
