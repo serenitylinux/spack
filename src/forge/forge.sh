@@ -107,7 +107,7 @@ function run_part() {
 	set_default "${part}_func" 
 	breaker
 	log INFO "Running $part"
-	failexit $part
+	log_cmd INFO failexit $part
 }
 
 function create_pkginstall() {
@@ -168,7 +168,7 @@ EOT
 function forge() {
 	local package=$1
 	
-	log INFO "Forging package $package in the heart of a star."
+	echo $(color GREEN "Forging package $package in the heart of a star.")
 	log WARN "This can be a dangerous operation, please read the instruction manual to prevent a black hole."
 	$pretend && log INFO "(but not really, since pretend is set)"
 	
@@ -197,6 +197,9 @@ function forge() {
 	create_package
 	
 	cleanup
+	
+	breaker
+	echo $(color GREEN "$name forged successfully")
 }
 
 

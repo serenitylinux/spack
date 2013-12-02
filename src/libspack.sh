@@ -61,6 +61,28 @@ function log() {
 	esac
 }
 
+function log_cmd() {
+	local printme
+	local level="$1"
+	shift
+	case $level in
+		INFO)
+			printme=$log_info;;
+		DEBUG)
+			printme=$log_debug;;
+		WARN)
+			printme=$log_warn;;
+		ERROR)
+			printme=$log_error;;
+	esac
+	
+	if $printme; then
+		$@
+	else
+		$@ > /dev/null
+	fi
+}
+
 function breaker() {
 	if $log_info; then
 		color BROWN $(printf %$(tput cols)s | tr " " "=")
