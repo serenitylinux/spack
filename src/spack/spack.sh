@@ -73,7 +73,14 @@ function main() {
 	local package=""
 	local file=""
 	local option="$1"
+
+	if [ -z "$@" ]; then
+		usage
+		exit 0
+	fi
+
 	shift
+
 	spack_options $@
 	case $option in
 		refresh)
