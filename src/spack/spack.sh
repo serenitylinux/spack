@@ -56,6 +56,7 @@ EOT
 }
 
 function spack_options() {
+	local option
 	for option in $@; do
 		case $option in
 			-v|--verbose)
@@ -69,18 +70,18 @@ function spack_options() {
 }
 
 function main() {
-	local package
-	local file
+	local package=""
+	local file=""
 	local option="$1"
 	shift
+	spack_options $@
+	echo $option
 	case $option in
 		refresh)
-			spack_options $@
 			refresh_repos
 			exit -1
 			;;
 		upgrade)
-			spack_options $@
 			log ERROR "upgrade option not implemented"
 			exit -1
 			;;
@@ -92,17 +93,20 @@ function main() {
 			case $1 in
 				-f|--file)
 					file="$2"
+					shift 2
 				;;
 				*.pie)
 					file="$1"
+					shift
 				;;
 				*)
 					package="$1"
+					shift
 					file=$(get_pie $package)
 				;;
 			esac
 			
-			forge $file
+			forge $file $@
 
 			exit 0
 			;;
@@ -110,17 +114,21 @@ function main() {
 			case $1 in
 				-f|--file)
 					file="$2"
+					shift 2
 				;;
 				*.spakg)
 					file="$1"
+					shift
 				;;
 				*)
 					#search repo and get package[s]
 					#file=$(get_spakg $1)
+					#shift 
 					log ERROR "installation from repo not supported"
 					exit 1
 				;;
 			esac
+			wield -f $file $@
 			exit 0
 			;;
 		search)
