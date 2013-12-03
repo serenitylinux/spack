@@ -73,10 +73,9 @@ function main() {
 	local package=""
 	local file=""
 	local option="$1"
-
-	if [ -z "$@" ]; then
+	if [ -z "$option" ]; then
 		usage
-		exit 0
+		exit 1
 	fi
 
 	shift
