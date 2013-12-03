@@ -75,7 +75,6 @@ function main() {
 	local option="$1"
 	shift
 	spack_options $@
-	echo $option
 	case $option in
 		refresh)
 			refresh_repos
