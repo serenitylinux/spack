@@ -43,8 +43,7 @@ function extract() {
 	fi
 	
 	
-	local pkginfo="$tmp_dir/$(ls *.pkginfo)"
-	echo $pkginfo
+	local pkginfo="$(ls $tmp_dir/*.pkginfo)"
 	if [ -f $pkginfo ]; then
 		source $pkginfo
 	else
@@ -107,16 +106,20 @@ function wield_pkg() {
 	run_step check
 	
 	if ! $pretend; then
-		run_step pre_install
+		if func_exists pre_install; then
+			run_step pre_install
+		fi
 
 		run_step install_files
 
-		run_step post_install
+		if func_exists post_install; then
+			run_step post_install
+		fi
 	fi
 	
 	run_step cleanup
 	
-	color GREEN "Your heart is pure and accepts the gift of $name"; echo
+	color GREEN "Your heart is pure and accepts the gift of $name."; echo
 }
 
 function usage() {

@@ -142,3 +142,7 @@ function require_root() {
 		exit -1
 	fi
 }
+
+function func_exists() {
+	declare -f $1 > /dev/null
+}
