@@ -143,16 +143,10 @@ function main() {
 			-p|--pretend)
 				pretend=true;;
 			-q|--quiet)
-				log_warn=false
-				log_error=true
-				log_debug=false
-				log_info=false
+				set_log_level ERROR
 				;;
 			-v|--verbose)
-				log_warn=true
-				log_error=true
-				log_debug=true
-				log_info=true
+				set_log_level DEBUG
 				;;
 			-h|--help)
 				usage;;
