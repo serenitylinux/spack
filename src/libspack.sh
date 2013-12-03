@@ -32,11 +32,58 @@ function color() {
 	echo -en "\e[${r_color}m${text}\e[0m"
 }
 
-log_info=true
-log_debug=false
-log_warn=true
-log_error=true
-# TODO move to lib
+function set_log_level() {
+	local level="$1"
+	local value="$2"
+	case $level in
+		DEBUG|debug)
+			log_debug=$value
+			;;
+		INFO|info)
+			log_info=$value
+			;;
+		WARN|warn)
+			log_=$value
+			;;
+		ERROR|error)
+			log_error=$value
+			;;
+		*)
+			color RED "Invalid Log Level: $level"; echo
+			exit -1
+			;;
+	esac
+}
+
+function set_log_levels() {
+	local level="$1"
+	set_log_level DEBUG false
+	set_log_level INFO false
+	set_log_level WARN false
+	set_log_level ERROR false
+
+	case $level in
+		DEBUG|debug)
+			set_log_level DEBUG true
+			;&
+		INFO|info)
+			set_log_level INFO true
+			;&
+		WARN|warn)
+			set_log_level WARN true
+			;&
+		ERROR|error)
+			set_log_level ERROR true
+			;;
+		*)
+			color RED "Invalid Log Level: $level"; echo
+			exit -1
+			;;
+	esac
+}
+
+set_log_levels INFO
+
 # Usage: log $level $string
 function log() {
 	local level="$1"
