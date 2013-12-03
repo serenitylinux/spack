@@ -8,5 +8,5 @@ install:
 	install -c src/wield/wield.sh $(DESTDIR)/usr/bin/wield
 	install -c src/spack/spack.sh $(DESTDIR)/usr/bin/spack
 	install -c src/libspack.sh    $(DESTDIR)/usr/lib/spack/libspack
-	install -c conf/spack.conf     $(DESTDIR)/etc/spack/spack.conf
-	install -c conf/core.repo     $(DESTDIR)/etc/spack/core.repo
+	install -c conf/spack.conf    $(DESTDIR)/etc/spack/spack.conf
+	install -c conf/core.repo     $(DESTDIR)/etc/spack/repos/core.repo

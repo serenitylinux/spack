@@ -1,10 +1,40 @@
 #!/bin/bash
 
 source /usr/lib/spack/libspack
+set -e
 
 function refresh_repos() {
+	require_root
 	for i in /etc/spack/repos/*; do
-		ls $i
+		local name desc remote version
+		source $i
+
+		log INFO "Refreshing repository $name $version"
+		log DEBUG "$desc"
+		mkdir -p $repos_dir/$name
+		cd $repos_dir/$name
+		case $remote in 
+			*.git)
+				log DEBUG "Cloning $remote using git"
+				if [ -d .git ]; then
+					log_cmd INFO git pull
+				else
+					log_cmd INFO git clone $remote .
+				fi
+			;;
+			http://|https://|ftp://)
+				log DEBUG "Cloning $remote using wget"
+				log_cmd INFO wget -r --no-parent $remote
+			;;
+			rsync://*)
+				log DEBUG "Cloning $remote using rsync"
+				log_cmd INFO rsync -av $remote .
+			;;
+			*)
+				log ERROR "Invalid repository: $remote"
+			;;
+		esac
+		cd - >/dev/null
 	done
 }
 
@@ -36,6 +66,7 @@ function main() {
 		upgrade)
 			log ERROR "upgrade option not implemented"
 			exit -1
+			;;
 		-h|--help)
 			usage
 			exit 0
