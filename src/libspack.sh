@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source /etc/spack/spack.conf
+
 #Usage: color COLOR text
 function color() {
 	local color=$1

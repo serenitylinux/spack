@@ -1,0 +1,4 @@
+name="Core"
+desc="Core Serenity Repository"
+remote="http://gitlab.cslabs.clarkson.edu/serenity/core.git"
+version="master"
