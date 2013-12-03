@@ -133,7 +133,7 @@ function main() {
 					exit 1
 				;;
 			esac
-			wield -f $file $@
+			wield $file $@
 			exit 0
 			;;
 		search)
