@@ -239,7 +239,7 @@ function main() {
 			-q|--quiet)
 				set_log_levels ERROR
 				;;
-			v|--verbose)
+			-v|--verbose)
 				set_log_levels DEBUG
 				;;
 			-h|--help)
