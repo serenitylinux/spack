@@ -258,21 +258,22 @@ function main() {
 			log INFO $pkg_deps
 
 			for dep in $pkg_deps; do
-				if [ -z "$dfile"] || [ ! -f $dfile ]; then
+				dfile=$(get_spakg $dep)
+				if [ -z "$dfile" ] || [ ! -f $dfile ]; then
 					spack forge $dep
 				fi
 			done
 
 			for dep in $pkg_deps; do
 				dfile=$(get_spakg $dep)
-				if [ ! -z "$dfile"] && [ -f $dfile ]; then
+				if [ ! -z "$dfile" ] && [ -f $dfile ]; then
 					echo wield $dfile $@
 				else
 					log ERROR "dep $dep not built"
 					exit 1
 				fi
 			done
-			echo wield $file $@
+			wield $file $@
 			exit 0
 			;;
 		search)
