@@ -3,6 +3,114 @@
 source /usr/lib/spack/libspack
 set -e
 
+function indirect() {
+	local foo
+	local arg="$1"
+	eval foo="\$${arg}"
+	echo $foo
+}
+
+function set_ind() {
+	local var="$1"
+	shift
+	local stuff="$@"
+	eval $var="\"$stuff\""
+}
+
+function package_exists() {
+	[ ! -z "$(ismarked_pkg $1)" ]
+}
+
+gp_list=""
+function load_package_deps() {
+	local pkg="$1"
+	local name deps bdeps
+	source $1
+	log DEBUG "Loading package $name"
+	set_ind ${name}_deps "$deps"
+	unmark_pkg $name
+	gp_list="$gp_list $name"
+}
+
+function get_package_deps() {
+	local pkg="$1"
+	indirect ${pkg}_deps
+}
+
+function mark_pkg() {
+	set_ind ${1}_set true
+}
+function unmark_pkg() {
+	log DEBUG "unmarking pkg $1"
+	set_ind ${1}_set false
+}
+function ismarked_pkg() {
+	indirect ${1}_set
+}
+
+dep_tabs=4
+function dep_tab() {
+	for i in $(eval echo {0..$dep_tabs}); do
+		echo -n '-'
+	done
+}
+function dep() {
+	local pkg="$1"
+	local marked=$(ismarked_pkg $pkg)
+	local foo=$(package_exists $pkg)
+	
+	if ! package_exists $pkg; then
+		log ERROR "$pkg not found $marked"
+		exit -1
+	fi
+
+	log DEBUG $(dep_tab) "$pkg set=$marked"
+	if ! $marked; then
+		mark_pkg $pkg
+		log DEBUG $(dep_tab) "mark $pkg"
+		local deps=$(indirect ${pkg}_deps)
+		log DEBUG $(dep_tab) "Resolving deps for $pkg: $deps"
+		dep_tabs=$(($dep_tabs + 4))
+		for dep in $deps; do
+			echo -n "$(dep $dep)"
+		done
+		dep_tabs=$(($dep_tabs - 4))
+		echo "$pkg "
+	fi
+}
+
+function deps() {
+	local pkg="$1"
+	for info in $repos_dir/Core/*.pie; do
+		load_package_deps $info
+	done
+
+	local to_install=$(dep $pkg);
+	echo "$to_install"
+}
+
+function get_pie() {
+	local pkg="$1"
+	for repo in $(ls $repos_dir); do
+		local file="$repo/$pkg.pie"
+		if [ -f $file ]; then
+			return $file
+		fi
+	done
+	log ERROR "Unable to find a pie file for $pkg"
+}
+
+function get_spakg() {
+	local pkg="$1"
+	for repo in $(ls $spakg_cache_dir); do
+		local file="$repo/$pkg.spakg"
+		if [ -f $file ]; then
+			return $file
+		fi
+	done
+	log ERROR "Unable to find a spakg for $pkg"
+}
+
 function refresh_repos() {
 	require_root
 	for i in /etc/spack/repos/*; do
@@ -126,13 +234,16 @@ function main() {
 					shift
 				;;
 				*)
-					#search repo and get package[s]
-					#file=$(get_spakg $1)
-					#shift 
-					log ERROR "installation from repo not supported"
-					exit 1
+					file=$(get_spakg $1)
+					shift 
 				;;
 			esac
+			
+			local dep dfile
+			for dep in $(deps $file); do
+				dfile=$(get_spakg $dep)
+				wield $dfile $@
+			done
 			wield $file $@
 			exit 0
 			;;

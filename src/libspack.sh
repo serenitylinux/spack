@@ -92,28 +92,28 @@ function log() {
 	case $level in
 		INFO)
 			if $log_info; then
-				color WHITE $@
-				echo
+				color WHITE $@ >&2
+				echo >&2
 			fi;;
 		DEBUG)
 			if $log_debug; then
-				color BLUE $@
-				echo
+				color BLUE $@ >&2
+				echo >&2
 			fi;;
 		WARN)
 			if $log_warn; then
-				color YELLOW "Warning: "
-				echo $@
+				color YELLOW "Warning: " >&2
+				echo $@ >&2
 			fi;;
 		ERROR)
 			if $log_error; then
 				if is_integer $1; then
-					color RED "ERROR $1: "
+					color RED "ERROR $1: " >&2
 					shift
 				else
-					color RED "ERROR: "
+					color RED "ERROR: " >&2
 				fi
-				echo $@ 
+				echo $@ >&2
 			fi;;
 	esac
 }
