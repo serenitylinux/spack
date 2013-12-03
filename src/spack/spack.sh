@@ -57,11 +57,10 @@ function dep_tab() {
 function dep() {
 	local pkg="$1"
 	local marked=$(ismarked_pkg $pkg)
-	local foo=$(package_exists $pkg)
 	
 	if ! package_exists $pkg; then
 		log ERROR "$pkg not found $marked"
-		exit -1
+		exit 1
 	fi
 
 	log DEBUG $(dep_tab) "$pkg set=$marked"
@@ -80,35 +79,45 @@ function dep() {
 }
 
 function deps() {
-	local pkg="$1"
-	for info in $repos_dir/Core/*.pie; do
+	local file="$1"
+	for info in $repos_dir/Core/*.pie; do #Pie or Pkginfo?
 		load_package_deps $info
 	done
 
-	local to_install=$(dep $pkg);
+	local name deps bdeps
+	#TODO HACK
+	cd /tmp
+	tar --wildcards -xvf  $file *.pkginfo >&2
+	cd - > /dev/null
+	source $(ls /tmp/*.pkginfo)
+	log DEBUG "Starting with $name"
+	local to_install=$(dep $name);
 	echo "$to_install"
 }
 
 function get_pie() {
 	local pkg="$1"
-	for repo in $(ls $repos_dir); do
+	for repo in $repos_dir/*; do
 		local file="$repo/$pkg.pie"
 		if [ -f $file ]; then
-			return $file
+			echo $file
+			return
 		fi
 	done
 	log ERROR "Unable to find a pie file for $pkg"
+	exit 1
 }
 
 function get_spakg() {
 	local pkg="$1"
-	for repo in $(ls $spakg_cache_dir); do
-		local file="$repo/$pkg.spakg"
+	for repo in $spakg_cache_dir/*; do
+		local file="$repo/$pkg-*.spakg"
+		log DEBUG $file
 		if [ -f $file ]; then
-			return $file
+			echo $file
+			return
 		fi
 	done
-	log ERROR "Unable to find a spakg for $pkg"
 }
 
 function refresh_repos() {
@@ -218,9 +227,11 @@ function main() {
 					file=$(get_pie $package)
 				;;
 			esac
-			
+			#hack repo for now
+			mkdir -p $spakg_cache_dir/Core
+			cd $spakg_cache_dir/Core
 			forge $file $@
-
+			cd - > /dev/null
 			exit 0
 			;;
 		wield|install)
@@ -238,13 +249,30 @@ function main() {
 					shift 
 				;;
 			esac
-			
+			if ! [ -f "$file" ]; then
+				log ERROR "$package has not been built"
+				exit 1
+			fi
 			local dep dfile
-			for dep in $(deps $file); do
-				dfile=$(get_spakg $dep)
-				wield $dfile $@
+			local pkg_deps=$(deps $file)
+			log INFO $pkg_deps
+
+			for dep in $pkg_deps; do
+				if [ -z "$dfile"] || [ ! -f $dfile ]; then
+					spack forge $dep
+				fi
 			done
-			wield $file $@
+
+			for dep in $pkg_deps; do
+				dfile=$(get_spakg $dep)
+				if [ ! -z "$dfile"] && [ -f $dfile ]; then
+					echo wield $dfile $@
+				else
+					log ERROR "dep $dep not built"
+					exit 1
+				fi
+			done
+			echo wield $file $@
 			exit 0
 			;;
 		search)
