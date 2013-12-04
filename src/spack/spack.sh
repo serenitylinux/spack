@@ -85,6 +85,63 @@ function deps() {
 	dep $name
 }
 
+function mark_bin() {
+	set_ind ${1}_bin $2
+}
+function bin_marked() {
+	! str_empty $(indirect ${1}_bin)
+}
+function mark_src() {
+	set_ind ${1}_src $2
+}
+function src_marked() {
+	! str_empty $(indirect ${1}_bin) && $(indirect ${1}_bin)
+}
+
+function bdeps() {
+	local name="$1"
+	local base="$2"
+	local pie="$(get_pie $name)"
+	local bdeps=$(pie_info $pie bdeps)
+	
+	#If we have already been marked as bin, we are done here
+	if bin_marked $name; then
+		log DEBUG "Exists bin $name"
+		echo -n "$name-bin "
+		return
+	fi
+	
+	#If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
+	#We are in our own bdeb tree, should only happen for $base if we are having a good day
+	if src_marked $name; then
+		log DEBUG "Exists src $name, to bin"
+		if file_exists $(get_spakg $name); then
+			mark_bin $name
+			echo -n "$name-bin "
+		else
+			log ERROR "Must have a binary version of $name to build this package"
+		fi
+		return
+	fi
+	
+	# We are a package that has a binary version
+	if file_exists $(get_spakg $name) && [ $name != $base ]; then
+		log DEBUG "Binary $name"
+		mark_bin $name true
+	#We are a package that only available via src
+	else
+		#there is only a src version of us available
+		mark_src $name true
+		log DEBUG "Source $name"
+		for dep in $bdeps; do
+			bdeps $dep $base
+		done
+		mark_src $name false
+		#After this part of the tree we will have a bin version
+		mark_src $name true
+	fi
+}
+
 function get_pie() {
 	local pkg="$1"
 	for repo in $repos_dir/*; do
@@ -254,6 +311,8 @@ function main() {
 					shift
 					file=$(get_pie $package)
 					#hack repo for now
+					#TODO: figure out what repo we are grabbing the package from
+					#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
 					output="$spakg_cache_dir/Core/$(pie_info $file name)-$(pie_info $file version).spakg"
 					if ! file_exists $file; then
 						log ERROR "Unable to find $package in a repository."
