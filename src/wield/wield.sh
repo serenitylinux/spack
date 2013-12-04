@@ -83,7 +83,7 @@ function install_files() {
 				log_cmd DEBUG rm -v $file
 			fi
 			mkdir -p $(dirname $file)/
-			log_cmd DEBUG install -cvD $fs_dir/$file $(dirname $file)/
+			log_cmd DEBUG cp -v $fs_dir/$file $(dirname $file)/
 		fi
 	done
 	cd - > /dev/null
