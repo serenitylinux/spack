@@ -79,7 +79,7 @@ function install_files() {
 		if file_exists $fs_dir/$file; then
 			log INFO "Installing file: $file"
 			if file_exists $file; then
-				log INFO "Replacing $file"
+				log WARN "Replacing $file"
 				log_cmd DEBUG rm -v $file
 			fi
 			mkdir -p $(dirname $file)/
