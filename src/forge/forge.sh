@@ -176,7 +176,6 @@ function create_package() {
 }
 
 function setup() {
-	echo "HERE"
 	mkdir -p $src_dir
 	mkdir -p $dest_dir
 }

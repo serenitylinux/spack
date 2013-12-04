@@ -323,6 +323,7 @@ function main() {
 					shift
 				;;
 				*)
+					require_root
 					package="$1"
 					shift
 					file=$(get_pie $package)
@@ -330,6 +331,7 @@ function main() {
 					#hack repo for now
 					#TODO: figure out what repo we are grabbing the package from
 					#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
+					mkdir -p $spakg_cache_dir/Core/
 					output="$spakg_cache_dir/Core/$name-$(pie_info $file version).spakg"
 					if ! file_exists $file; then
 						log ERROR "Unable to find $package in a repository."
@@ -342,6 +344,7 @@ function main() {
 			exit 0
 			;;
 		wield|install)
+			require_root
 			case $1 in
 				-f|--file)
 					file="$2"
