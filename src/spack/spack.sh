@@ -285,17 +285,18 @@ function main() {
 						log ERROR "Unable to find $package in a repository."
 						exit 1
 					fi
-					local bdeps=$(check_deps $name $name)
-					if str_empty $bdeps; then
-						for dep in $(pie_info $file bdeps); do
-							spack wield $dep $@
-						done
-					else
-						log ERROR "Unresolved Dependencies!"
-						exit 1
-					fi
 				;;
 			esac
+			local name=$(pie_info $file name)
+			local bdeps=$(check_deps $name $name)
+			if str_empty $bdeps; then
+				for dep in $(pie_info $file bdeps); do
+					spack wield $dep $@
+				done
+			else
+				log ERROR "Unresolved Dependencies!"
+				exit 1
+			fi
 			forge $file $@ $output
 			exit 0
 			;;
