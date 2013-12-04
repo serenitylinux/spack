@@ -197,3 +197,54 @@ function require_root() {
 function func_exists() {
 	declare -f $1 > /dev/null
 }
+
+function file_exists() {
+	local file=$1
+	[ ! -z "$file" ] && [ -f "$file" ]
+}
+
+function ask_yesno() {
+	local default="$1"
+	shift
+	local question="$@"
+	
+	local yn
+	if $default; then
+		yn="(Yes,no):"
+	else
+		yn="(yes,No):"
+	fi
+	
+	local answer
+	echo -n $question >&2
+	echo -n " $yn " >&2
+	read answer
+	case $answer in
+		YES|Yes|Y|yes|y)
+			true
+		;;
+		NO|No|N|no|n)
+			false
+		;;
+		*)
+			$default
+		;;
+	esac
+}
+
+function spakg_part() {
+	local file="$1"
+	local part="$2"
+	
+	tar --wildcards -xOf $file $part
+}
+
+function spakg_info() {
+	local file="$1"
+	local var="$2"
+	local dir="/tmp/$$/pkgtmp/"
+	mkdir -p $dir
+	spakg_part $file *.pkginfo > $dir/pkginfo
+	eval "source $dir/pkginfo; echo \$$var"
+	rm -rf /tmp/$$/pkgtmp/
+}

@@ -4,10 +4,7 @@ source /usr/lib/spack/libspack
 set -e
 
 function indirect() {
-	local foo
-	local arg="$1"
-	eval foo="\$${arg}"
-	echo $foo
+	eval echo "\$${1}"
 }
 
 function set_ind() {
@@ -59,16 +56,16 @@ function dep() {
 	local marked=$(ismarked_pkg $pkg)
 	
 	if ! package_exists $pkg; then
-		log ERROR "$pkg not found $marked"
+		log ERROR "$pkg not found"
 		exit 1
 	fi
 
 	log DEBUG $(dep_tab) "$pkg set=$marked"
 	if ! $marked; then
-		mark_pkg $pkg
-		log DEBUG $(dep_tab) "mark $pkg"
 		local deps=$(indirect ${pkg}_deps)
+		mark_pkg $pkg
 		log DEBUG $(dep_tab) "Resolving deps for $pkg: $deps"
+		
 		dep_tabs=$(($dep_tabs + 4))
 		for dep in $deps; do
 			echo -n "$(dep $dep)"
@@ -79,27 +76,20 @@ function dep() {
 }
 
 function deps() {
-	local file="$1"
+	local name="$1"
 	for info in $repos_dir/Core/*.pie; do #Pie or Pkginfo?
 		load_package_deps $info
 	done
-
-	local name deps bdeps
-	#TODO HACK
-	cd /tmp
-	tar --wildcards -xvf  $file *.pkginfo >&2
-	cd - > /dev/null
-	source $(ls /tmp/*.pkginfo)
+	
 	log DEBUG "Starting with $name"
-	local to_install=$(dep $name);
-	echo "$to_install"
+	dep $name
 }
 
 function get_pie() {
 	local pkg="$1"
 	for repo in $repos_dir/*; do
 		local file="$repo/$pkg.pie"
-		if [ -f $file ]; then
+		if file_exists $file; then
 			echo $file
 			return
 		fi
@@ -113,11 +103,47 @@ function get_spakg() {
 	for repo in $spakg_cache_dir/*; do
 		local file="$repo/$pkg-*.spakg"
 		log DEBUG $file
-		if [ -f $file ]; then
+		if file_exists $file; then
 			echo $file
 			return
 		fi
 	done
+}
+
+function spack_wield() {
+	require_root
+	
+	local file="$1"
+	shift
+	
+	if ! file_exists "$file"; then
+		log ERROR "$file has not been forged"
+		exit 1
+	fi
+	
+	local pkg_name=$(spakg_info $file name)
+	
+	local pkg_deps=$(deps $pkg_name)
+	log INFO "Dependencies for $pkg_name: $pkg_deps"
+	
+	local dep
+	for dep in $pkg_deps; do
+		local dfile=$(get_spakg $dep)
+		if ! file_exists $dfile; then
+			spack forge $dep
+		fi
+	done
+	
+	for dep in $pkg_deps; do
+		dfile=$(get_spakg $dep)
+		if file_exists $dfile; then
+			wield $dfile $@
+		else
+			log ERROR "dep $dep not built"
+			exit 1
+		fi
+	done
+	wield $file $@
 }
 
 function refresh_repos() {
@@ -245,35 +271,23 @@ function main() {
 					shift
 				;;
 				*)
-					file=$(get_spakg $1)
-					shift 
+					package="$1"
+					shift
+					file=$(get_spakg $package)
+					if [ -z "$file" ]; then
+						echo "$package is not available in binary form."
+						if $(ask_yesno true "Do you wish to forge the package?"); then
+							echo "OK, building package"
+							spack forge $package
+							file=$(get_spakg $package)
+						else
+							log ERROR "Unable to continue, exiting."
+							exit 1
+						fi
+					fi
 				;;
 			esac
-			if ! [ -f "$file" ]; then
-				log ERROR "$package has not been built"
-				exit 1
-			fi
-			local dep dfile
-			local pkg_deps=$(deps $file)
-			log INFO $pkg_deps
-
-			for dep in $pkg_deps; do
-				dfile=$(get_spakg $dep)
-				if [ -z "$dfile" ] || [ ! -f $dfile ]; then
-					spack forge $dep
-				fi
-			done
-
-			for dep in $pkg_deps; do
-				dfile=$(get_spakg $dep)
-				if [ ! -z "$dfile" ] && [ -f $dfile ]; then
-					echo wield $dfile $@
-				else
-					log ERROR "dep $dep not built"
-					exit 1
-				fi
-			done
-			wield $file $@
+			spack_wield $file $@
 			exit 0
 			;;
 		search)
