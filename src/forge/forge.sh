@@ -149,15 +149,15 @@ function create_package() {
 	
 	local pkg_install_rel="pkginstall.sh"
 	
-	local pkg_info_rel="$name.pkginfo"
-	local pkg_info="$tmp_dir/$pkg_info_rel"
-	cp $pkg_info_rel $pkg_info
+	local pkg_info_rel="pkginfo"
+	local pkg_info="$tmp_dir/pkginfo"
+	cp $name.pkginfo $pkg_info
 
 	local result
 	if str_empty $outfile; then
 		result="$PWD/$name-$version.spakg"
 	else
-		result="$outfile"
+		result="$outfile"	
 	fi
 	
 	cd $dest_dir

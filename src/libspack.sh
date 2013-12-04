@@ -240,7 +240,7 @@ function spakg_part() {
 	local file="$1"
 	local part="$2"
 	
-	tar --wildcards -xOf $file $part
+	tar -xOf $file $part
 }
 
 function spakg_info() {
@@ -248,7 +248,7 @@ function spakg_info() {
 	local var="$2"
 	local dir="/tmp/$$/pkgtmp/"
 	mkdir -p $dir
-	spakg_part $file *.pkginfo > $dir/pkginfo
+	spakg_part $file pkginfo > $dir/pkginfo
 	eval "source $dir/pkginfo; echo \$$var"
 	rm -rf /tmp/$$/pkgtmp/
 }

@@ -43,7 +43,7 @@ function extract() {
 	fi
 	
 	
-	local pkginfo="$(ls $tmp_dir/*.pkginfo)"
+	local pkginfo="$(ls $tmp_dir/pkginfo)"
 	if [ -f $pkginfo ]; then
 		source $pkginfo
 	else
