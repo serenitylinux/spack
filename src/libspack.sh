@@ -200,7 +200,11 @@ function func_exists() {
 
 function file_exists() {
 	local file=$1
-	[ ! -z "$file" ] && [ -f "$file" ]
+	! str_empty "$file" && [ -f "$file" ]
+}
+
+function str_empty() {
+	[ -z "$1" ]
 }
 
 function ask_yesno() {
@@ -247,4 +251,10 @@ function spakg_info() {
 	spakg_part $file *.pkginfo > $dir/pkginfo
 	eval "source $dir/pkginfo; echo \$$var"
 	rm -rf /tmp/$$/pkgtmp/
+}
+
+function pie_info() {
+	local file="$1"
+	local var="$2"
+	eval "source $file; echo \$$var"
 }

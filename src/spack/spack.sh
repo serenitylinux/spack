@@ -237,6 +237,7 @@ function main() {
 			exit 0
 			;;
 		forge|build)
+			local output=""
 			case $1 in
 				-f|--file)
 					file="$2"
@@ -250,13 +251,15 @@ function main() {
 					package="$1"
 					shift
 					file=$(get_pie $package)
+					#hack repo for now
+					output="$spakg_cache_dir/Core/$(pie_info $file name)-$(pie_info $file version).spakg"
+					if ! file_exists $file; then
+						log ERROR "Unable to find $package in a repository."
+						exit 1
+					fi
 				;;
 			esac
-			#hack repo for now
-			mkdir -p $spakg_cache_dir/Core
-			cd $spakg_cache_dir/Core
-			forge $file $@
-			cd - > /dev/null
+			forge $file $@ $output
 			exit 0
 			;;
 		wield|install)

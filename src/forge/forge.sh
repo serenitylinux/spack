@@ -100,7 +100,7 @@ function installpkg_func() {
 function installpkg() { default; }
 
 function run_part() {
-	local part="$1"
+	local part="$@"
 	
 	log INFO
 	log INFO "Running $part"
@@ -133,6 +133,7 @@ EOT
 }
 
 function create_package() {
+	local outfile=$1
 	log INFO
 	log INFO "Creating Package"
 	breaker
@@ -152,13 +153,19 @@ function create_package() {
 	local pkg_info="$tmp_dir/$pkg_info_rel"
 	cp $pkg_info_rel $pkg_info
 
-	local result="$PWD/$name-$version.spakg"
+	local result
+	if str_empty $outfile; then
+		result="$PWD/$name-$version.spakg"
+	else
+		result="$outfile"
+	fi
 	
 	cd $dest_dir
 		tar -cf $fs *
 		find . -type f | xargs md5sum > "${manifest}"
 	cd - > /dev/null
 	
+	log DEBUG "Creating $result from $tmp_dir"
 	cd $tmp_dir
 		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel $pkg_info_rel
 	cd - > /dev/null
@@ -181,6 +188,7 @@ function cleanup() {
 # Usage: forge file.pie
 function forge() {
 	local package=$1
+	local outfile=$2
 	
 	echo $(color GREEN "Forging package $package in the heart of a star.")
 	log WARN "This can be a dangerous operation, please read the instruction manual to prevent a black hole."
@@ -206,7 +214,7 @@ function forge() {
 	run_part installpkg
 	cd $wd
 	
-	failexit "Could not create $1 package" create_package
+	failexit "Could not create $1 package" create_package $outfile
 	
 	cleanup
 	
@@ -217,7 +225,7 @@ function forge() {
 function usage() {
 	cat <<EOT
 
-Usage: $0 [OPTIONS] package.pie
+Usage: $0 [OPTIONS] package.pie [package.spakg]
 	-p, --pretend
 	-v, --verbose
 	-q, --quiet
@@ -231,11 +239,13 @@ exit 0
 function main() {
 	local option
 	local package
+	local outfile
 	
 	for option in $@; do
 		case $option in
 			-p|--pretend)
-				pretend=true;;
+				pretend=true
+				;;
 			-q|--quiet)
 				set_log_levels ERROR
 				;;
@@ -253,6 +263,9 @@ function main() {
 					log ERROR "Unknown package file: $option"
 					exit 1
 				fi;;
+			*.spakg)
+				outfile="$option"
+				;;
 			*)
 				log ERROR "Unrecognized option: $option"
 				usage;;
@@ -263,7 +276,7 @@ function main() {
 		log ERROR "You must specify a package!"
 		usage
 	else
-		forge $package
+		forge $package $outfile
 	fi
 }
 
