@@ -38,8 +38,14 @@ function dep_check() {
 	local name="$1"
 	local base="$2"
 	local pie="$(get_pie $name)"
+	
+	if str_empty $pie; then
+		echo -n "$name "
+		return
+	fi
+	
 	local forge_deps="$(pie_info $pie bdeps)"
-	local wield_deps"$(pie_info $pie deps)"
+	local wield_deps="$(pie_info $pie deps)"
 	local alldeps="$forge_deps $wield_deps"
 	local dep
 	
@@ -71,7 +77,7 @@ function dep_check() {
 	fi
 	
 	# We are a package that has a binary version
-	if file_exists $(get_spakg $name) && [ $name != $base ]; then
+	if file_exists $(get_spakg $name) && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
 		for dep in $forge_deps; do
@@ -106,11 +112,11 @@ function get_pie() {
 		local file="$repo/$pkg.pie"
 		if file_exists $file; then
 			echo $file
-			return
+			return 0
 		fi
 	done
 	log ERROR "Unable to find a pie file for $pkg"
-	exit 1
+	return 1
 }
 
 function get_spakg() {
@@ -130,7 +136,7 @@ function spack_wield() {
 	local file="$1"
 	shift
 	local skip_deps="";
-	if [ "$1" -eq "--no-check" ]; then
+	if [ "$1" == "--no-check" ]; then
 		skip_deps="$1"
 		shift
 	fi
@@ -141,9 +147,8 @@ function spack_wield() {
 		exit 1
 	fi
 	
-	local pkg_name=$(spakg_info $file name)
+	local name=$(spakg_info $file name)
 	local deps_checked=""
-	local wield_deps=$(spakg_info $file deps)
 	
 	if str_empty $skip_deps; then
 		deps_checked=$(dep_check $name)
@@ -151,13 +156,14 @@ function spack_wield() {
 	
 	if str_empty $deps_checked; then
 		local dep
-		for dep in $deps; do
+		for dep in $(spakg_info $file deps); do
 			spack wield $skip_deps $name $@
 		done
 	else
 		log ERROR "Unresolved Dependencies: $deps_checked!"
 		exit 1
 	fi
+	wield $file $@
 }
 
 function refresh_repos() {
