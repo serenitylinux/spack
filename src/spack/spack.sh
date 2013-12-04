@@ -89,13 +89,20 @@ function mark_bin() {
 	set_ind ${1}_bin $2
 }
 function bin_marked() {
-	! str_empty $(indirect ${1}_bin)
+	! str_empty $(indirect ${1}_bin) && $(indirect ${1}_bin)
 }
 function mark_src() {
 	set_ind ${1}_src $2
 }
 function src_marked() {
-	! str_empty $(indirect ${1}_bin) && $(indirect ${1}_bin)
+	! str_empty $(indirect ${1}_src) && $(indirect ${1}_src)
+}
+
+bdep_sp=4
+function bdep_s() {
+	for i in $(eval echo {0..$bdep_sp}); do
+		echo -n '-'
+	done
 }
 
 function bdeps() {
@@ -103,10 +110,14 @@ function bdeps() {
 	local base="$2"
 	local pie="$(get_pie $name)"
 	local bdeps=$(pie_info $pie bdeps)
+	log DEBUG $(bdep_s) "TRY $name"
+	
+	bdep_sp=$(($bdep_sp + 4))
+	trap "bdep_sp=$(($bdep_sp - 4)); log DEBUG $(bdep_s) END $name" RETURN
 	
 	#If we have already been marked as bin, we are done here
 	if bin_marked $name; then
-		log DEBUG "Exists bin $name"
+		log DEBUG $(bdep_s) "Exists bin $name"
 		echo -n "$name-bin "
 		return
 	fi
@@ -114,11 +125,11 @@ function bdeps() {
 	#If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
 	#We are in our own bdeb tree, should only happen for $base if we are having a good day
 	if src_marked $name; then
-		log DEBUG "Exists src $name, to bin"
-		if file_exists $(get_spakg $name); then
-			mark_bin $name
-			echo -n "$name-bin "
-		else
+		log DEBUG $(bdep_s) "Exists src $name"
+		log DEBUG $(bdep_s) "Mark bin $name"
+		mark_bin $name true
+		echo -n "$name-bin "
+		if ! file_exists $(get_spakg $name); then
 			log ERROR "Must have a binary version of $name to build this package"
 		fi
 		return
@@ -126,19 +137,25 @@ function bdeps() {
 	
 	# We are a package that has a binary version
 	if file_exists $(get_spakg $name) && [ $name != $base ]; then
-		log DEBUG "Binary $name"
+		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
+		echo -n "$name-bin "
+		return
 	#We are a package that only available via src
 	else
+		log DEBUG $(bdep_s) "Source $name"
+		log DEBUG $(bdep_s) "$name has $bdeps"
 		#there is only a src version of us available
 		mark_src $name true
-		log DEBUG "Source $name"
 		for dep in $bdeps; do
 			bdeps $dep $base
 		done
 		mark_src $name false
+		log DEBUG $(bdep_s) "UNSource $name"
 		#After this part of the tree we will have a bin version
-		mark_src $name true
+		mark_bin $name true
+		echo -n "$name-src "
+		return
 	fi
 }
 
@@ -159,7 +176,6 @@ function get_spakg() {
 	local pkg="$1"
 	for repo in $spakg_cache_dir/*; do
 		local file="$repo/$pkg-*.spakg"
-		log DEBUG $file
 		if file_exists $file; then
 			echo $file
 			return
@@ -310,14 +326,16 @@ function main() {
 					package="$1"
 					shift
 					file=$(get_pie $package)
+					local name=$(pie_info $file name)
 					#hack repo for now
 					#TODO: figure out what repo we are grabbing the package from
 					#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
-					output="$spakg_cache_dir/Core/$(pie_info $file name)-$(pie_info $file version).spakg"
+					output="$spakg_cache_dir/Core/$name-$(pie_info $file version).spakg"
 					if ! file_exists $file; then
 						log ERROR "Unable to find $package in a repository."
 						exit 1
 					fi
+					log WARN $(bdeps $name $name)
 				;;
 			esac
 			forge $file $@ $output
