@@ -157,7 +157,8 @@ function spack_wield() {
 	if str_empty $deps_checked; then
 		local dep
 		for dep in $(spakg_info $file deps); do
-			spack wield $skip_deps $name $@
+			log DEBUG $name installing $dep
+			spack wield $skip_deps $dep $@
 		done
 	else
 		log ERROR "Unresolved Dependencies: $deps_checked!"
@@ -288,7 +289,7 @@ function main() {
 				;;
 			esac
 			local name=$(pie_info $file name)
-			local bdeps=$(check_deps $name $name)
+			local bdeps=$(dep_check $name $name)
 			if str_empty $bdeps; then
 				for dep in $(pie_info $file bdeps); do
 					spack wield $dep $@
