@@ -188,6 +188,8 @@ Usage: $0
 	upgrade
 	forge, build      [-f,--file]
 	wield, install    [-f,--file]
+	purge, remove
+	clear
 	search
 	info
 	packages
@@ -291,6 +293,16 @@ function main() {
 			esac
 			spack_wield $file $@
 			exit 0
+			;;
+		purge|remove)
+			
+			;;
+		clean)
+			require_root
+			package=$1
+			file="$(ls $spakg_cache_dir/*/$package*.spakg)"
+			log DEBUG "Purging $file"
+			rm $file
 			;;
 		search)
 			log ERROR "Not Implemented"
