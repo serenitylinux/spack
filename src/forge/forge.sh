@@ -6,8 +6,6 @@ source /usr/lib/spack/libspack
 pretend=false
 run_test=false
 
-MAKEFLAGS="-j4"
-
 tmp_dir="/tmp/$$/forge"
 src_dir="$tmp_dir/src"
 dest_dir="$tmp_dir/fs"
@@ -95,7 +93,7 @@ function testpkg() { default; }
 
 
 function installpkg_func() {
-	make DESTDIR=$dest_dir install
+	make $MAKEFLAGS DESTDIR=$dest_dir install
 }
 function installpkg() { default; }
 
