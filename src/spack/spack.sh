@@ -143,7 +143,6 @@ function spack_wield() {
 			exit 1
 		fi
 	done
-	wield $file $@
 }
 
 function refresh_repos() {
