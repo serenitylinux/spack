@@ -14,77 +14,6 @@ function set_ind() {
 	eval $var="\"$stuff\""
 }
 
-function package_exists() {
-	! str_empty "$(ismarked_pkg $1)"
-}
-
-gp_list=""
-function load_package_deps() {
-	local pkg="$1"
-	local name deps bdeps
-	source $1
-	log DEBUG "Loading package $name"
-	set_ind ${name}_deps "$deps"
-	unmark_pkg $name
-	gp_list="$gp_list $name"
-}
-
-function get_package_deps() {
-	local pkg="$1"
-	indirect ${pkg}_deps
-}
-
-function mark_pkg() {
-	set_ind ${1}_set true
-}
-function unmark_pkg() {
-	log DEBUG "unmarking pkg $1"
-	set_ind ${1}_set false
-}
-function ismarked_pkg() {
-	indirect ${1}_set
-}
-
-dep_tabs=4
-function dep_tab() {
-	for i in $(eval echo {0..$dep_tabs}); do
-		echo -n '-'
-	done
-}
-function dep() {
-	local pkg="$1"
-	local marked=$(ismarked_pkg $pkg)
-	
-	if ! package_exists $pkg; then
-		log ERROR "$pkg not found"
-		exit 1
-	fi
-
-	log DEBUG $(dep_tab) "$pkg set=$marked"
-	if ! $marked; then
-		local deps=$(indirect ${pkg}_deps)
-		mark_pkg $pkg
-		log DEBUG $(dep_tab) "Resolving deps for $pkg: $deps"
-		
-		dep_tabs=$(($dep_tabs + 4))
-		for dep in $deps; do
-			echo -n "$(dep $dep)"
-		done
-		dep_tabs=$(($dep_tabs - 4))
-		echo "$pkg "
-	fi
-}
-
-function deps() {
-	local name="$1"
-	for info in $repos_dir/Core/*.pie; do #Pie or Pkginfo?
-		load_package_deps $info
-	done
-	
-	log DEBUG "Starting with $name"
-	dep $name
-}
-
 function mark_bin() {
 	set_ind ${1}_bin $2
 }
@@ -105,11 +34,15 @@ function bdep_s() {
 	done
 }
 
-function bdeps() {
+function dep_check() {
 	local name="$1"
 	local base="$2"
 	local pie="$(get_pie $name)"
-	local bdeps=$(pie_info $pie bdeps)
+	local forge_deps="$(pie_info $pie bdeps)"
+	local wield_deps"$(pie_info $pie deps)"
+	local alldeps="$forge_deps $wield_deps"
+	local dep
+	
 	log DEBUG $(bdep_s) "TRY $name"
 	
 	bdep_sp=$(($bdep_sp + 4))
@@ -118,7 +51,6 @@ function bdeps() {
 	#If we have already been marked as bin, we are done here
 	if bin_marked $name; then
 		log DEBUG $(bdep_s) "Exists bin $name"
-		echo -n "$name-bin "
 		return
 	fi
 	
@@ -128,9 +60,12 @@ function bdeps() {
 		log DEBUG $(bdep_s) "Exists src $name"
 		log DEBUG $(bdep_s) "Mark bin $name"
 		mark_bin $name true
-		echo -n "$name-bin "
+		for dep in $wield_deps; do
+			dep_check $dep $base
+		done
 		if ! file_exists $(get_spakg $name); then
 			log ERROR "Must have a binary version of $name to build this package"
+			echo -n "$name "
 		fi
 		return
 	fi
@@ -139,7 +74,9 @@ function bdeps() {
 	if file_exists $(get_spakg $name) && [ $name != $base ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
-		echo -n "$name-bin "
+		for dep in $forge_deps; do
+			dep_check $dep $base
+		done
 		return
 	#We are a package that only available via src
 	else
@@ -147,14 +84,18 @@ function bdeps() {
 		log DEBUG $(bdep_s) "$name has $bdeps"
 		#there is only a src version of us available
 		mark_src $name true
-		for dep in $bdeps; do
-			bdeps $dep $base
+		for dep in $forge_deps; do
+			dep_check $dep $base
 		done
+		if [ $name != $base ]; then
+			for dep in $wield_deps; do
+				dep_check $dep $base
+			done
+		fi
 		mark_src $name false
 		log DEBUG $(bdep_s) "UNSource $name"
 		#After this part of the tree we will have a bin version
 		mark_bin $name true
-		echo -n "$name-src "
 		return
 	fi
 }
@@ -188,6 +129,12 @@ function spack_wield() {
 	
 	local file="$1"
 	shift
+	local skip_deps="";
+	if [ "$1" -eq "--no-check" ]; then
+		skip_deps="$1"
+		shift
+	fi
+	
 	
 	if ! file_exists "$file"; then
 		log ERROR "$file has not been forged"
@@ -195,27 +142,22 @@ function spack_wield() {
 	fi
 	
 	local pkg_name=$(spakg_info $file name)
+	local deps_checked=""
+	local wield_deps=$(spakg_info $file deps)
 	
-	local pkg_deps=$(deps $pkg_name)
-	log INFO "Dependencies for $pkg_name: $pkg_deps"
+	if str_empty $skip_deps; then
+		deps_checked=$(dep_check $name)
+	fi
 	
-	local dep
-	for dep in $pkg_deps; do
-		local dfile=$(get_spakg $dep)
-		if ! file_exists $dfile; then
-			spack forge $dep $@
-		fi
-	done
-	
-	for dep in $pkg_deps; do
-		dfile=$(get_spakg $dep)
-		if file_exists $dfile; then
-			wield $dfile $@
-		else
-			log ERROR "dep $dep not built"
-			exit 1
-		fi
-	done
+	if str_empty $deps_checked; then
+		local dep
+		for dep in $deps; do
+			spack wield $skip_deps $name $@
+		done
+	else
+		log ERROR "Unresolved Dependencies: $deps_checked!"
+		exit 1
+	fi
 }
 
 function refresh_repos() {
@@ -260,7 +202,7 @@ Usage: $0
 	refresh
 	upgrade
 	forge, build      [-f,--file]
-	wield, install    [-f,--file]
+	wield, install    [-f,--file] [--no-check]
 	purge, remove
 	clear
 	search
@@ -337,7 +279,15 @@ function main() {
 						log ERROR "Unable to find $package in a repository."
 						exit 1
 					fi
-					log WARN $(bdeps $name $name)
+					local bdeps=$(check_deps $name $name)
+					if str_empty $bdeps; then
+						for dep in $(pie_info $file bdeps); do
+							spack wield $dep $@
+						done
+					else
+						log ERROR "Unresolved Dependencies!"
+						exit 1
+					fi
 				;;
 			esac
 			forge $file $@ $output
