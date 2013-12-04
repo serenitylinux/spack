@@ -278,7 +278,7 @@ function main() {
 					package="$1"
 					shift
 					file=$(get_spakg $package)
-					if file_exists "$file"; then
+					if ! file_exists "$file"; then
 						echo "$package is not available in binary form."
 						if $(ask_yesno true "Do you wish to forge the package?"); then
 							echo "OK, building package"
@@ -295,6 +295,16 @@ function main() {
 			exit 0
 			;;
 		purge|remove)
+			require_root
+			#TODO check if package is actually installed :(
+			
+			package=$(get_spakg $1)
+			log WARN "Purging $1"
+			
+			for i in $(spakg_part $package manifest.txt | awk '{ print $2 }'); do
+				log_cmd DEBUG rm /$i -rvf
+				log INFO "Removing $i"
+			done
 			
 			;;
 		clean)

@@ -8,7 +8,7 @@ run_test=false
 
 MAKEFLAGS="-j4"
 
-tmp_dir="/tmp/forge/$$"
+tmp_dir="/tmp/$$/forge"
 src_dir="$tmp_dir/src"
 dest_dir="$tmp_dir/fs"
 
@@ -176,6 +176,7 @@ function create_package() {
 }
 
 function setup() {
+	echo "HERE"
 	mkdir -p $src_dir
 	mkdir -p $dest_dir
 }
