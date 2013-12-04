@@ -130,7 +130,7 @@ function spack_wield() {
 	for dep in $pkg_deps; do
 		local dfile=$(get_spakg $dep)
 		if ! file_exists $dfile; then
-			spack forge $dep
+			spack forge $dep $@
 		fi
 	done
 	
@@ -277,7 +277,7 @@ function main() {
 						echo "$package is not available in binary form."
 						if $(ask_yesno true "Do you wish to forge the package?"); then
 							echo "OK, building package"
-							spack forge $package
+							spack forge $package $@
 							file=$(get_spakg $package)
 						else
 							log ERROR "Unable to continue, exiting."

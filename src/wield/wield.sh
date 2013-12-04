@@ -143,10 +143,10 @@ function main() {
 			-p|--pretend)
 				pretend=true;;
 			-q|--quiet)
-				set_log_level ERROR
+				set_log_levels ERROR
 				;;
 			-v|--verbose)
-				set_log_level DEBUG
+				set_log_levels DEBUG
 				;;
 			-h|--help)
 				usage;;
