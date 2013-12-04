@@ -67,7 +67,7 @@ function check() {
 }
 
 function install_files() {
-	if $pretend; then
+    if $pretend; then
 		return 0
 	fi
 	
@@ -75,10 +75,15 @@ function install_files() {
 
 	cd $fs_dir
 	for file in $(cd $fs_dir && find .); do
-		log INFO "Installing file: $file"
-		
-		if file_exists $file; then
-			install -c $file /
+		file=${file#"."}
+		if file_exists $fs_dir/$file; then
+			log INFO "Installing file: $file"
+			if file_exists $file; then
+				log INFO "Replacing $file"
+				log_cmd DEBUG rm -v $file
+			fi
+			mkdir -p $(dirname $file)/
+			log_cmd DEBUG install -cvD $fs_dir/$file $(dirname $file)/
 		fi
 	done
 	cd - > /dev/null
