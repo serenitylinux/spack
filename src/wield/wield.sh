@@ -28,12 +28,12 @@ function extract() {
 	log INFO "Extracting Package:"
 	log_cmd DEBUG tar -xvf $package -C $tmp_dir
 	
-	if [ ! -f $manifest ]; then
+	if ! file_exists $manifest; then
 		log ERROR "Invalid package, missing manifest!"
 		exit 1;
 	fi
 	
-	if [ -f $tmp_dir/fs.tar ]; then
+	if file_exists $tmp_dir/fs.tar; then
 		log INFO
 		log INFO "Extracting FS:"
 		log_cmd DEBUG tar -xvf $tmp_dir/fs.tar -C $fs_dir
@@ -44,7 +44,7 @@ function extract() {
 	
 	
 	local pkginfo="$(ls $tmp_dir/pkginfo)"
-	if [ -f $pkginfo ]; then
+	if file_exists $pkginfo; then
 		source $pkginfo
 	else
 		log ERROR "Invalid package, could not find pkginfo!"
@@ -77,7 +77,7 @@ function install_files() {
 	for file in $(cd $fs_dir && find .); do
 		log INFO "Installing file: $file"
 		
-		if [ -f $file ]; then
+		if file_exists $file; then
 			install -c $file /
 		fi
 	done
@@ -151,7 +151,7 @@ function main() {
 			-h|--help)
 				usage;;
 			*.spakg)
-				if [ -f $option ]; then
+				if file_exists $option; then
 					package=$option
 				else
 					log ERROR "Unknown package: $option"
@@ -167,7 +167,7 @@ function main() {
 		require_root
 	fi
 	
-	if [ -z "$package" ]; then
+	if str_empty "$package"; then
 		log ERROR "You must specify a package!"
 		usage
 	fi

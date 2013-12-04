@@ -15,7 +15,7 @@ function set_ind() {
 }
 
 function package_exists() {
-	[ ! -z "$(ismarked_pkg $1)" ]
+	! str_empty "$(ismarked_pkg $1)"
 }
 
 gp_list=""
@@ -215,7 +215,7 @@ function main() {
 	local package=""
 	local file=""
 	local option="$1"
-	if [ -z "$option" ]; then
+	if str_empty "$option"; then
 		usage
 		exit 1
 	fi
@@ -276,7 +276,7 @@ function main() {
 					package="$1"
 					shift
 					file=$(get_spakg $package)
-					if [ -z "$file" ]; then
+					if file_exists "$file"; then
 						echo "$package is not available in binary form."
 						if $(ask_yesno true "Do you wish to forge the package?"); then
 							echo "OK, building package"

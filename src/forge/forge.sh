@@ -257,7 +257,7 @@ function main() {
 			-t|--test)
 				run_test=true;;
 			*.pie)
-				if [ -f $option ]; then
+				if file_exists $option; then
 					package=$option
 				else
 					log ERROR "Unknown package file: $option"
@@ -272,7 +272,7 @@ function main() {
 		esac
 	done
 	
-	if [ -z "$package" ]; then
+	if str_empty "$package"; then
 		log ERROR "You must specify a package!"
 		usage
 	else
