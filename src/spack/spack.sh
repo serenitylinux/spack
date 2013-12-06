@@ -95,7 +95,7 @@ function dep_check() {
 				dep_check $dep $base
 			done
 		fi
-		if [ $name != $base ]; then
+		if [ "$name" != "$base" ]; then
 			for dep in $wield_deps; do
 				dep_check $dep $base
 			done
@@ -216,6 +216,7 @@ function spack_wield() {
 
 function spack_forge() {
 	local output=""
+	
 	case $1 in
 		-f|--file)
 			file="$2"
@@ -243,6 +244,25 @@ function spack_forge() {
 	esac
 	
 
+	#copy pasta!
+	local newopts=""
+	local option next
+	while option="$1"; next="$2"; shift; ! str_empty $option; do
+		case $option in
+			-d|--basedir)
+				wield_basedir="$next"
+				shift
+			;;
+			--nobdeps)
+				wield_no_bdeps=true
+			;;
+			*)
+				newopts="$newopts $option"
+			;;
+		esac
+	done
+	set -- $newopts
+	
 	if ! $wield_no_bdeps; then
 		local name=$(pie_info $file name)
 		local unresolved=""
