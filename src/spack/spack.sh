@@ -270,9 +270,12 @@ function spack_forge() {
 			unresolved=$(dep_check $name $name)
 		fi
 		if str_empty $unresolved; then
+			local old_wield_basedir="$wield_basedir"
+			wield_basedir="/" #Install bdeps in the host system
 			for dep in $(pie_info $file bdeps); do
 				spack_wield $dep $@
 			done
+			wield_basedir="$wield_basedir"
 		else
 			log ERROR "Unresolved Dependencies!"
 			exit 1
