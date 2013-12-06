@@ -130,17 +130,58 @@ function get_spakg() {
 	done
 }
 
+wield_no_check_deps=false
+wield_basedir="/"
 function spack_wield() {
 	require_root
+	local skip_deps=false
+	local package
+	local file
 	
-	local file="$1"
-	shift
-	local skip_deps="";
-	if [ "$1" == "--no-check" ]; then
-		skip_deps="$1"
-		shift
+	case $1 in
+		-f|--file)
+			file="$2"
+			shift 2
+		;;
+		*.spakg)
+			file="$1"
+			shift
+		;;
+		*)
+			package="$1"
+			shift
+		;;
+	esac
+	
+	local newopts=""
+	local option next
+	while option="$1"; next="$2"; shift; ! str_empty $option; do
+		case $option in
+			-d|--basedir)
+				wield_basedir="$next"
+				shift
+			;;
+			*)
+				newopts="$newopts $option"
+			;;
+		esac
+	done
+	set -- $newopts
+	
+	if str_empty $file; then
+	file=$(get_spakg $package)
+		if ! file_exists "$file"; then
+			echo "$package is not available in binary form."
+			if $(ask_yesno true "Do you wish to forge the package?"); then
+				echo "OK, building package"
+				spack_forge $package $@
+				file=$(get_spakg $package)
+			else
+				log ERROR "Unable to continue, exiting."
+				exit 1
+			fi
+		fi
 	fi
-	
 	
 	if ! file_exists "$file"; then
 		log ERROR "$file has not been forged"
@@ -150,7 +191,7 @@ function spack_wield() {
 	local name=$(spakg_info $file name)
 	local deps_checked=""
 	
-	if str_empty $skip_deps; then
+	if ! $wield_no_check_deps; then
 		deps_checked=$(dep_check $name)
 	fi
 	
@@ -158,13 +199,57 @@ function spack_wield() {
 		local dep
 		for dep in $(spakg_info $file deps); do
 			log DEBUG $name installing $dep
-			spack wield $skip_deps $dep $@
+			spack_wield $dep $@
 		done
 	else
 		log ERROR "Unresolved Dependencies: $deps_checked!"
 		exit 1
 	fi
-	wield $file $@
+	wield $file $@ --basedir $basedir
+}
+
+function spack_forge() {
+	local output=""
+	case $1 in
+		-f|--file)
+			file="$2"
+			shift 2
+		;;
+		*.pie)
+			file="$1"
+			shift
+		;;
+		*)
+			require_root
+			package="$1"
+			shift
+			file=$(get_pie $package)
+			#hack repo for now
+			#TODO: figure out what repo we are grabbing the package from
+			#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
+			mkdir -p $spakg_cache_dir/Core/
+			output="$spakg_cache_dir/Core/$package-$(pie_info $file version).spakg"
+			if ! file_exists $file; then
+				log ERROR "Unable to find $package in a repository."
+				exit 1
+			fi
+		;;
+	esac
+	
+	local name=$(pie_info $file name)
+	local unresolved=""
+	if ! $wield_no_check_deps; then
+		unresolved=$(dep_check $name $name)
+	fi
+	if str_empty $unresolved; then
+		for dep in $(pie_info $file bdeps); do
+			spack_wield $dep $@
+		done
+	else
+		log ERROR "Unresolved Dependencies!"
+		exit 1
+	fi
+	forge $file $@ $output
 }
 
 function refresh_repos() {
@@ -261,75 +346,12 @@ function main() {
 			exit 0
 			;;
 		forge|build)
-			local output=""
-			case $1 in
-				-f|--file)
-					file="$2"
-					shift 2
-				;;
-				*.pie)
-					file="$1"
-					shift
-				;;
-				*)
-					require_root
-					package="$1"
-					shift
-					file=$(get_pie $package)
-					local name=$(pie_info $file name)
-					#hack repo for now
-					#TODO: figure out what repo we are grabbing the package from
-					#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
-					mkdir -p $spakg_cache_dir/Core/
-					output="$spakg_cache_dir/Core/$name-$(pie_info $file version).spakg"
-					if ! file_exists $file; then
-						log ERROR "Unable to find $package in a repository."
-						exit 1
-					fi
-				;;
-			esac
-			local name=$(pie_info $file name)
-			local bdeps=$(dep_check $name $name)
-			if str_empty $bdeps; then
-				for dep in $(pie_info $file bdeps); do
-					spack wield $dep $@
-				done
-			else
-				log ERROR "Unresolved Dependencies!"
-				exit 1
-			fi
-			forge $file $@ $output
+			spack_forge $@
 			exit 0
 			;;
 		wield|install)
 			require_root
-			case $1 in
-				-f|--file)
-					file="$2"
-					shift 2
-				;;
-				*.spakg)
-					file="$1"
-					shift
-				;;
-				*)
-					package="$1"
-					shift
-					file=$(get_spakg $package)
-					if ! file_exists "$file"; then
-						echo "$package is not available in binary form."
-						if $(ask_yesno true "Do you wish to forge the package?"); then
-							echo "OK, building package"
-							spack forge $package $@
-							file=$(get_spakg $package)
-						else
-							log ERROR "Unable to continue, exiting."
-							exit 1
-						fi
-					fi
-				;;
-			esac
-			spack_wield $file $@
+			spack_wield $@
 			exit 0
 			;;
 		purge|remove)
