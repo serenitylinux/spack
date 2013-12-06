@@ -2,6 +2,7 @@
 
 source /usr/lib/spack/libspack
 set -e
+basedir="/"
 
 function indirect() {
 	eval echo "\$${1}"
@@ -79,9 +80,11 @@ function dep_check() {
 	if file_exists $(get_spakg $name) && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
-		for dep in $forge_deps; do
-			dep_check $dep $base
-		done
+		if ! $wield_no_bdeps; then
+			for dep in $wield_deps; do
+				dep_check $dep $base
+			done
+		fi
 		return
 	#We are a package that only available via src
 	else
@@ -132,9 +135,35 @@ function get_spakg() {
 	done
 }
 
+#Usage: is_package_installed package_name
+function is_package_installed() {
+	[ -d $basedir/$spakg_installed_dir/$1/) ]
+}
+
+#Usage: set_package_installed spakg
+function set_package_installed() {
+	local spakg="$1"
+	local name=$(spakg_info $spakg name)
+	
+	mkdir -p $basedir/$spakg_installed_dir/$name
+	spakg_part $spakg manifest.txt > $basedir/$spakg_installed_dir/$name/manifest.txt
+	spakg_part $spakg pkginfo > $basedir/$spakg_installed_dir/$name/pkginfo
+}
+
+#Usage: package_file name file
+function package_file() {
+	local name="$1"
+	local file="$2"
+	return $basedir/$spakg_installed_dir/$name/$file
+}
+
+#Usage: set_package_removed package_name
+function set_package_removed() {
+	rm -rf $basedir/$spakg_installed_dir/$1/
+}
+
 wield_no_check_deps=false
 wield_no_bdeps=false
-wield_basedir="/"
 function spack_wield() {
 	require_root
 	local skip_deps=false
@@ -161,7 +190,7 @@ function spack_wield() {
 	while option="$1"; next="$2"; shift; ! str_empty $option; do
 		case $option in
 			-d|--basedir)
-				wield_basedir="$next"
+				basedir="$next"
 				shift
 			;;
 			--nobdeps)
@@ -175,7 +204,10 @@ function spack_wield() {
 	set -- $newopts
 	
 	if str_empty $file; then
-	file=$(get_spakg $package)
+		if is_package_installed $package; then
+			return
+		fi
+		file=$(get_spakg $package)
 		if ! file_exists "$file"; then
 			echo "$package is not available in binary form."
 			if $(ask_yesno true "Do you wish to forge the package?"); then
@@ -197,6 +229,10 @@ function spack_wield() {
 	local name=$(spakg_info $file name)
 	local deps_checked=""
 	
+	if is_package_installed $package; then
+		return
+	fi
+	
 	if ! $wield_no_check_deps; then
 		deps_checked=$(dep_check $name)
 	fi
@@ -211,7 +247,8 @@ function spack_wield() {
 		log ERROR "Unresolved Dependencies: $deps_checked!"
 		exit 1
 	fi
-	wield $file $@ --basedir $wield_basedir
+	wield $file $@ --basedir $basedir
+	set_package_installed $file
 }
 
 function spack_forge() {
@@ -250,7 +287,7 @@ function spack_forge() {
 	while option="$1"; next="$2"; shift; ! str_empty $option; do
 		case $option in
 			-d|--basedir)
-				wield_basedir="$next"
+				basedir="$next"
 				shift
 			;;
 			--nobdeps)
@@ -270,12 +307,12 @@ function spack_forge() {
 			unresolved=$(dep_check $name $name)
 		fi
 		if str_empty $unresolved; then
-			local old_wield_basedir="$wield_basedir"
-			wield_basedir="/" #Install bdeps in the host system
+			local old_basedir="$basedir"
+			basedir="/" #Install bdeps in the host system
 			for dep in $(pie_info $file bdeps); do
 				spack_wield $dep $@
 			done
-			wield_basedir="$wield_basedir"
+			basedir="$basedir"
 		else
 			log ERROR "Unresolved Dependencies!"
 			exit 1
@@ -388,16 +425,18 @@ function main() {
 			;;
 		purge|remove)
 			require_root
-			#TODO check if package is actually installed :(
-			
-			package=$(get_spakg $1)
-			log WARN "Purging $1"
-			
-			for i in $(spakg_part $package manifest.txt | awk '{ print $2 }'); do
-				log_cmd DEBUG rm /$i -rvf
-				log INFO "Removing $i"
-			done
-			
+			local name="$1"
+			if is_package_installed $name; then
+				log WARN "Purging $name"
+				
+				for i in $(cat $(package_file $name manifest.txt) | awk '{ print $2 }'); do
+					log_cmd DEBUG rm /$i -rvf
+					log INFO "Removing $i"
+				done
+				set_package_removed $name
+			else
+				log ERROR "$name is not installed"
+			fi
 			;;
 		clean)
 			require_root
