@@ -46,7 +46,6 @@ function dep_check() {
 	
 	local forge_deps="$(pie_info $pie bdeps)"
 	local wield_deps="$(pie_info $pie deps)"
-	local alldeps="$forge_deps $wield_deps"
 	local dep
 	
 	log DEBUG $(bdep_s) "TRY $name"
@@ -90,9 +89,12 @@ function dep_check() {
 		log DEBUG $(bdep_s) "$name has $bdeps"
 		#there is only a src version of us available
 		mark_src $name true
-		for dep in $forge_deps; do
-			dep_check $dep $base
-		done
+
+		if ! $wield_no_bdeps; then
+			for dep in $forge_deps; do
+				dep_check $dep $base
+			done
+		fi
 		if [ $name != $base ]; then
 			for dep in $wield_deps; do
 				dep_check $dep $base
@@ -131,6 +133,7 @@ function get_spakg() {
 }
 
 wield_no_check_deps=false
+wield_no_bdeps=false
 wield_basedir="/"
 function spack_wield() {
 	require_root
@@ -160,6 +163,9 @@ function spack_wield() {
 			-d|--basedir)
 				wield_basedir="$next"
 				shift
+			;;
+			--nobdeps)
+				wield_no_bdeps=true
 			;;
 			*)
 				newopts="$newopts $option"
@@ -236,18 +242,21 @@ function spack_forge() {
 		;;
 	esac
 	
-	local name=$(pie_info $file name)
-	local unresolved=""
-	if ! $wield_no_check_deps; then
-		unresolved=$(dep_check $name $name)
-	fi
-	if str_empty $unresolved; then
-		for dep in $(pie_info $file bdeps); do
-			spack_wield $dep $@
-		done
-	else
-		log ERROR "Unresolved Dependencies!"
-		exit 1
+
+	if ! $wield_no_bdeps; then
+		local name=$(pie_info $file name)
+		local unresolved=""
+		if ! $wield_no_check_deps; then
+			unresolved=$(dep_check $name $name)
+		fi
+		if str_empty $unresolved; then
+			for dep in $(pie_info $file bdeps); do
+				spack_wield $dep $@
+			done
+		else
+			log ERROR "Unresolved Dependencies!"
+			exit 1
+		fi
 	fi
 	forge $file $@ $output
 }
