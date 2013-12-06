@@ -205,7 +205,7 @@ function spack_wield() {
 		log ERROR "Unresolved Dependencies: $deps_checked!"
 		exit 1
 	fi
-	wield $file $@ --basedir $basedir
+	wield $file $@ --basedir $wield_basedir
 }
 
 function spack_forge() {

@@ -158,6 +158,7 @@ function main() {
 				;;
 			-d|--basedir)
 				basedir="$next"
+				log DEBUG "Installing to $basedir"
 				shift
 				;;
 			-h|--help)
