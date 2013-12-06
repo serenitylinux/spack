@@ -154,7 +154,7 @@ function set_package_installed() {
 function package_file() {
 	local name="$1"
 	local file="$2"
-	return $basedir/$spakg_installed_dir/$name/$file
+	echo $basedir/$spakg_installed_dir/$name/$file
 }
 
 #Usage: set_package_removed package_name
@@ -426,12 +426,22 @@ function main() {
 		purge|remove)
 			require_root
 			local name="$1"
+			#copy pasta!
+			local option next
+			while option="$1"; next="$2"; shift; ! str_empty $option; do
+				case $option in
+					-d|--basedir)
+						basedir="$next"
+						shift
+					;;
+				esac
+			done
 			if is_package_installed $name; then
 				log WARN "Purging $name"
 				
 				for i in $(cat $(package_file $name manifest.txt) | awk '{ print $2 }'); do
-					log_cmd DEBUG rm /$i -rvf
-					log INFO "Removing $i"
+					log_cmd DEBUG rm $basedir/$i -rvf
+					log INFO "Removing $basedir/$i"
 				done
 				set_package_removed $name
 			else
