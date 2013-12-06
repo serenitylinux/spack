@@ -137,7 +137,7 @@ function get_spakg() {
 
 #Usage: is_package_installed package_name
 function is_package_installed() {
-	[ -d $basedir/$spakg_installed_dir/$1/) ]
+	[ -d $basedir/$spakg_installed_dir/$1/ ]
 }
 
 #Usage: set_package_installed spakg
