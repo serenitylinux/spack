@@ -8,6 +8,8 @@ tmp_dir="/tmp/$$"
 manifest="$tmp_dir/manifest.txt"
 fs_dir="$tmp_dir/fs"
 
+basedir="/"
+
 
 function setup() {
 	log DEBUG "Working directory: $tmp_dir"
@@ -67,23 +69,24 @@ function check() {
 }
 
 function install_files() {
-    if $pretend; then
+	if $pretend; then
 		return 0
 	fi
 	
 	log INFO "Installing package"
 
 	cd $fs_dir
+	local file file_dir
 	for file in $(cd $fs_dir && find .); do
-		file=${file#"."}
+		file=${file#"."} #Remove leading .
 		if file_exists $fs_dir/$file; then
 			log INFO "Installing file: $file"
-			if file_exists $file; then
+			if file_exists $basedir/$file; then
 				log WARN "Replacing $file"
-				log_cmd DEBUG rm -v $file
 			fi
-			mkdir -p $(dirname $file)/
-			log_cmd DEBUG cp -v $fs_dir/$file $(dirname $file)/
+			file_dir="$basedir/$(dirname $file)/"
+			mkdir -p $file_dir
+			log_cmd DEBUG cp -vap $fs_dir/$file $file_dir
 		fi
 	done
 	cd - > /dev/null
@@ -131,6 +134,7 @@ function usage() {
 	cat <<EOT
 
 Usage: $0 [OPTIONS] package.spakg
+	-d, --destdir
 	-p, --pretend
 	-v, --verbose
 	-q, --quiet
@@ -141,9 +145,8 @@ exit 0
 }
 
 function main() {
-	local option
-	local package
-	for option in $@; do
+	local option next package
+	while option="$1"; next="$2"; shift; ! str_empty $option; do
 		case $option in
 			-p|--pretend)
 				pretend=true;;
@@ -152,6 +155,10 @@ function main() {
 				;;
 			-v|--verbose)
 				set_log_levels DEBUG
+				;;
+			-d|--basedir)
+				basedir="$next"
+				shift
 				;;
 			-h|--help)
 				usage;;
@@ -171,7 +178,6 @@ function main() {
 	if ! $pretend; then
 		require_root
 	fi
-	
 	if str_empty "$package"; then
 		log ERROR "You must specify a package!"
 		usage
