@@ -187,7 +187,7 @@ function cleanup() {
 function forge() {
 	local package=$1
 	local outfile=$2
-	
+	export FORCE_UNSAFE_CONFIGURE=1
 	echo $(color GREEN "Forging package $package in the heart of a star.")
 	log WARN "This can be a dangerous operation, please read the instruction manual to prevent a black hole."
 	$pretend && log INFO "(but not really, since pretend is set)"
