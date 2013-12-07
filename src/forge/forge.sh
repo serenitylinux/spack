@@ -159,13 +159,13 @@ function create_package() {
 	fi
 	
 	cd $dest_dir
-		tar -cf $fs *
+		log_cmd INFO tar -cvf $fs *
 		find . -type f | xargs md5sum > "${manifest}"
 	cd - > /dev/null
 	
 	log DEBUG "Creating $result from $tmp_dir"
 	cd $tmp_dir
-		tar -cf $result $fs_rel $manifest_rel $pkg_install_rel $pkg_info_rel
+		log_cmd INFO tar -cvf $result $fs_rel $manifest_rel $pkg_install_rel $pkg_info_rel
 	cd - > /dev/null
 	
 	log INFO
