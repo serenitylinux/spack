@@ -115,13 +115,17 @@ function wield_pkg() {
 	
 	if ! $pretend; then
 		if func_exists pre_install; then
+			cd $basedir
 			run_step pre_install
+			cd --
 		fi
 
 		run_step install_files
 
 		if func_exists post_install; then
+			cd $basedir
 			run_step post_install
+			cd --
 		fi
 	fi
 	
