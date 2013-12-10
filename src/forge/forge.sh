@@ -58,13 +58,14 @@ function fetch_func() {
 			cd $srcdir
 			;;
 		http://*|ftp://*)
-			log DEBUG "Downloading $src with wget"
+			log DEBUG "Downloading $src with curl"
 			local flags=""
 			if ! $log_info; then
 				flags="-q"
 			fi
-			wget $src $flags
-			unpack $(ls)
+			local dlname=$(basename $src)
+			curl -k $src $flags $dlname
+			unpack $dlname
 			cd $srcdir
 			;;
 		*)
