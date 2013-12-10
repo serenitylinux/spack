@@ -64,7 +64,7 @@ function fetch_func() {
 				flags="-q"
 			fi
 			local dlname=$(basename $src)
-			curl -k $src $flags $dlname
+			curl -k "$src" $flags -o $dlname
 			unpack $dlname
 			cd $srcdir
 			;;
