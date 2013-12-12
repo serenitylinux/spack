@@ -164,6 +164,7 @@ function set_package_removed() {
 
 wield_no_check_deps=false
 wield_no_bdeps=false
+wield_reinstall=false
 function spack_wield() {
 	require_root
 	local skip_deps=false
@@ -193,6 +194,9 @@ function spack_wield() {
 				basedir="$next"
 				shift
 			;;
+			-r|--reinstall)
+				wield_reinstall=true
+			;;
 			--nobdeps)
 				wield_no_bdeps=true
 			;;
@@ -204,7 +208,7 @@ function spack_wield() {
 	set -- $newopts
 	
 	if str_empty $file; then
-		if is_package_installed $package; then
+		if is_package_installed $package  && ! $wield_reinstall; then
 			return
 		fi
 		file=$(get_spakg $package)
