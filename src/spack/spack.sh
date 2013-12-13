@@ -209,6 +209,7 @@ function spack_wield() {
 	
 	if str_empty $file; then
 		if is_package_installed $package  && ! $wield_reinstall; then
+			log INFO "$package already installed, skipping"
 			return
 		fi
 		file=$(get_spakg $package)
@@ -233,7 +234,8 @@ function spack_wield() {
 	local name=$(spakg_info $file name)
 	local deps_checked=""
 	
-	if is_package_installed $package; then
+	if is_package_installed $package  && ! $wield_reinstall; then
+		log INFO "$package already installed, skipping"
 		return
 	fi
 	
@@ -242,11 +244,15 @@ function spack_wield() {
 	fi
 	
 	if str_empty $deps_checked; then
-		local dep
-		for dep in $(spakg_info $file deps); do
-			log DEBUG $name installing $dep
-			spack_wield $dep $@
-		done
+		if ! $wield_reinstall; then
+			local dep
+			for dep in $(spakg_info $file deps); do
+				log DEBUG $name installing $dep
+				spack_wield $dep $@
+			done
+		else
+			log INFO "Skipping installing deps for $package"
+		fi
 	else
 		log ERROR "Unresolved Dependencies: $deps_checked!"
 		exit 1
