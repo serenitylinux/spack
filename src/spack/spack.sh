@@ -4,6 +4,10 @@ source /usr/lib/spack/libspack
 set -e
 basedir="/"
 defaults=false
+no_bdeps=false
+
+wield_no_check_deps=false
+wield_reinstall=false
 
 function indirect() {
 	eval echo "\$${1}"
@@ -167,13 +171,15 @@ function set_package_removed() {
 	rm -rf $basedir/$spakg_installed_dir/$1/
 }
 
+#Usage: spack_wield_forge_options outval args
 function spack_wield_forge_options() {
-	local newopts=""
-	local option next
-	while option="$1"; next="$2"; shift; ! str_empty $option; do
-		case $option in
+	local swfo_outval="$1"
+	shift
+	local swfo_newopts swfo_option swfo_next
+	while swfo_option="$1"; swfo_next="$2"; shift; ! str_empty $swfo_option; do
+		case $swfo_option in
 			-d|--basedir)
-				basedir="$next"
+				basedir="$swfo_next"
 				shift
 			;;
 			-r|--reinstall)
@@ -186,16 +192,13 @@ function spack_wield_forge_options() {
 				defaults=true
 			;;
 			*)
-				newopts="$newopts $option"
+				swfo_newopts="$swfo_newopts $swfo_option"
 			;;
 		esac
 	done
-	echo $newopts
+	set_ind $swfo_outval $swfo_newopts
 }
 
-wield_no_check_deps=false
-no_bdeps=false
-wield_reinstall=false
 function spack_wield() {
 	require_root
 	local skip_deps=false
@@ -216,8 +219,9 @@ function spack_wield() {
 			shift
 		;;
 	esac
-	
-	set -- $(spack_wield_forge_options $@)
+	local new_options
+	spack_wield_forge_options new_options $@
+	set -- $new_options
 	
 	if str_empty $file; then
 		if is_package_installed $package  && ! $wield_reinstall; then
@@ -303,8 +307,9 @@ function spack_forge() {
 		;;
 	esac
 	
-
-	set -- $(spack_wield_forge_options $@)
+	local new_options
+	spack_wield_forge_options new_options $@
+	set -- $new_options
 	
 	if ! $no_bdeps; then
 		local name=$(pie_info $file name)
