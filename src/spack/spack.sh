@@ -75,7 +75,8 @@ function dep_check() {
 		for dep in $wield_deps; do
 			dep_check $dep $base
 		done
-		if ! file_exists $(get_spakg $name); then
+		local spakg_file spakg_repo
+		if ! get_spakg $package spakg_file spakg_repo; then
 			log ERROR "Must have a binary version of $name to build this package"
 			echo -n "$name "
 		fi
@@ -83,7 +84,7 @@ function dep_check() {
 	fi
 	
 	# We are a package that has a binary version
-	if file_exists $(get_spakg $name) && [ "$name" != "$base" ]; then
+	if get_spakg $package spakg_file spakg_repo && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
 		if ! $no_bdeps; then
@@ -135,28 +136,41 @@ function get_pie() {
 
 function get_spakg() {
 	local pkg="$1"
-	for repo in $spakg_cache_dir/*; do
-		local file="$repo/$pkg-*.spakg"
-		if file_exists $file; then
-			echo $file
-			return
+	local res_out_file="$2"
+	local res_out_repo="$3"
+	for get_spakg_repo in $spakg_cache_dir/*; do
+		local get_spakg_file="$get_spakg_repo/$pkg-*.spakg"
+		if file_exists $get_spakg_file; then
+			set_int $res_out_file $get_spakg_file
+			set_int $res_out_repo $get_spakg_repo
+			return 0
 		fi
 	done
+	return 1
 }
+
 
 #Usage: is_package_installed package_name
 function is_package_installed() {
-	[ -d $basedir/$spakg_installed_dir/$1/ ]
+	local repo
+	for repo in $basedir/$spakg_installed_dir; do
+		if [ -d $basedir/$spakg_installed_dir/$repo/$1/ ]; then
+			return 0
+		fi
+	done
+	return 1
 }
 
-#Usage: set_package_installed spakg
+#Usage: set_package_installed spakg repo
 function set_package_installed() {
 	local spakg="$1"
+	local repo="$2"
 	local name=$(spakg_info $spakg name)
 	
-	mkdir -p $basedir/$spakg_installed_dir/$name
-	spakg_part $spakg manifest.txt > $basedir/$spakg_installed_dir/$name/manifest.txt
-	spakg_part $spakg pkginfo > $basedir/$spakg_installed_dir/$name/pkginfo
+	local dir="$basedir/$spakg_installed_dir/$repo/$name"
+	mkdir -p $dir
+	spakg_part $spakg manifest.txt > $dir/manifest.txt
+	spakg_part $spakg pkginfo > $dir/pkginfo
 }
 
 #Usage: package_file name file
@@ -204,6 +218,7 @@ function spack_wield() {
 	local skip_deps=false
 	local package
 	local file
+	local repo="Custom" #overwritten by get_spakg below
 	
 	case $1 in
 		-f|--file)
@@ -228,13 +243,13 @@ function spack_wield() {
 			log INFO "$package already installed, skipping"
 			return
 		fi
-		file=$(get_spakg $package)
-		if ! file_exists "$file"; then
+		
+		if ! get_spakg $package file repo; then
 			echo "$package is not available in binary form."
 			if $defaults || $(ask_yesno true "Do you wish to forge the package?"); then
 				echo "OK, building package"
 				spack_forge $package $@
-				file=$(get_spakg $package)
+				get_spakg $package file repo
 			else
 				log ERROR "Unable to continue, exiting."
 				exit 1
@@ -274,7 +289,7 @@ function spack_wield() {
 		exit 1
 	fi
 	wield $file $@ --basedir $basedir
-	set_package_installed $file
+	set_package_installed $file $repo
 }
 
 function spack_forge() {
@@ -466,6 +481,14 @@ function main() {
 			log DEBUG "Purging $file"
 			rm $file
 			;;
+		info)
+			local name="$1"
+			local out_file out_repo
+			if get_pie $1 out_file out_repo; then
+			
+			else
+			
+			fi
 		search)
 			log ERROR "Not Implemented"
 			exit -1
