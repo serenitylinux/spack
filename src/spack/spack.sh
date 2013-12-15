@@ -39,7 +39,8 @@ function bdep_s() {
 function dep_check() {
 	local name="$1"
 	local base="$2"
-	local pie="$(get_pie $name)"
+	local pie repo
+	get_pie $name pie repo
 	
 	if str_empty $pie; then
 		echo -n "$name "
@@ -114,10 +115,13 @@ function dep_check() {
 
 function get_pie() {
 	local pkg="$1"
-	for repo in $repos_dir/*; do
-		local file="$repo/$pkg.pie"
-		if file_exists $file; then
-			echo $file
+	local res_file="$2"
+	local res_repo="$3"
+	for get_pie_repo in $(ls $repos_dir); do
+		local get_pie_file="$repos_dir/$get_pie_repo/$pkg.pie"
+		if file_exists $get_pie_file; then
+			set_ind $res_file $get_pie_file
+			set_ind $res_repo $get_pie_repo
 			return 0
 		fi
 	done
@@ -271,6 +275,7 @@ function spack_wield() {
 
 function spack_forge() {
 	local output=""
+	local file
 	
 	case $1 in
 		-f|--file)
@@ -283,15 +288,15 @@ function spack_forge() {
 		;;
 		*)
 			require_root
-			package="$1"
+			local package="$1"
+			local repo
 			shift
-			file=$(get_pie $package)
-			#hack repo for now
-			#TODO: figure out what repo we are grabbing the package from
-			#	maybe like 2 funcs, get_pkg_repo $pkg && get_pkg $pkg $repo
-			mkdir -p $spakg_cache_dir/Core/
-			output="$spakg_cache_dir/Core/$package-$(pie_info $file version).spakg"
-			if ! file_exists $file; then
+			
+			if get_pie $package file repo; then
+			
+				mkdir -p $spakg_cache_dir/$repo
+				output="$spakg_cache_dir/$repo/$package-$(pie_info $file version).spakg"
+			else
 				log ERROR "Unable to find $package in a repository."
 				exit 1
 			fi
