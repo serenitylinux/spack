@@ -3,6 +3,7 @@
 source /usr/lib/spack/libspack
 set -e
 basedir="/"
+defaults=false
 
 function indirect() {
 	eval echo "\$${1}"
@@ -200,6 +201,9 @@ function spack_wield() {
 			--nobdeps)
 				wield_no_bdeps=true
 			;;
+			--defaults|-y)
+				defaults=true
+			;;
 			*)
 				newopts="$newopts $option"
 			;;
@@ -215,7 +219,7 @@ function spack_wield() {
 		file=$(get_spakg $package)
 		if ! file_exists "$file"; then
 			echo "$package is not available in binary form."
-			if $(ask_yesno true "Do you wish to forge the package?"); then
+			if $defaults || $(ask_yesno true "Do you wish to forge the package?"); then
 				echo "OK, building package"
 				spack_forge $package $@
 				file=$(get_spakg $package)
