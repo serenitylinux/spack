@@ -81,7 +81,7 @@ function dep_check() {
 	if file_exists $(get_spakg $name) && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		mark_bin $name true
-		if ! $wield_no_bdeps; then
+		if ! $no_bdeps; then
 			for dep in $wield_deps; do
 				dep_check $dep $base
 			done
@@ -94,7 +94,7 @@ function dep_check() {
 		#there is only a src version of us available
 		mark_src $name true
 
-		if ! $wield_no_bdeps; then
+		if ! $no_bdeps; then
 			for dep in $forge_deps; do
 				dep_check $dep $base
 			done
@@ -176,7 +176,7 @@ function spack_wield_forge_options() {
 				wield_reinstall=true
 			;;
 			--nobdeps)
-				wield_no_bdeps=true
+				no_bdeps=true
 			;;
 			--defaults|-y)
 				defaults=true
@@ -190,7 +190,7 @@ function spack_wield_forge_options() {
 }
 
 wield_no_check_deps=false
-wield_no_bdeps=false
+no_bdeps=false
 wield_reinstall=false
 function spack_wield() {
 	require_root
@@ -301,7 +301,7 @@ function spack_forge() {
 
 	set -- $(spack_wield_forge_options $@)
 	
-	if ! $wield_no_bdeps; then
+	if ! $no_bdeps; then
 		local name=$(pie_info $file name)
 		local unresolved=""
 		if ! $wield_no_check_deps; then
