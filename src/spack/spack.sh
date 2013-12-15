@@ -163,6 +163,32 @@ function set_package_removed() {
 	rm -rf $basedir/$spakg_installed_dir/$1/
 }
 
+function spack_wield_forge_options() {
+	local newopts=""
+	local option next
+	while option="$1"; next="$2"; shift; ! str_empty $option; do
+		case $option in
+			-d|--basedir)
+				basedir="$next"
+				shift
+			;;
+			-r|--reinstall)
+				wield_reinstall=true
+			;;
+			--nobdeps)
+				wield_no_bdeps=true
+			;;
+			--defaults|-y)
+				defaults=true
+			;;
+			*)
+				newopts="$newopts $option"
+			;;
+		esac
+	done
+	echo $newopts
+}
+
 wield_no_check_deps=false
 wield_no_bdeps=false
 wield_reinstall=false
@@ -187,29 +213,7 @@ function spack_wield() {
 		;;
 	esac
 	
-	local newopts=""
-	local option next
-	while option="$1"; next="$2"; shift; ! str_empty $option; do
-		case $option in
-			-d|--basedir)
-				basedir="$next"
-				shift
-			;;
-			-r|--reinstall)
-				wield_reinstall=true
-			;;
-			--nobdeps)
-				wield_no_bdeps=true
-			;;
-			--defaults|-y)
-				defaults=true
-			;;
-			*)
-				newopts="$newopts $option"
-			;;
-		esac
-	done
-	set -- $newopts
+	set -- $(spack_wield_forge_options $@)
 	
 	if str_empty $file; then
 		if is_package_installed $package  && ! $wield_reinstall; then
@@ -295,24 +299,7 @@ function spack_forge() {
 	esac
 	
 
-	#copy pasta!
-	local newopts=""
-	local option next
-	while option="$1"; next="$2"; shift; ! str_empty $option; do
-		case $option in
-			-d|--basedir)
-				basedir="$next"
-				shift
-			;;
-			--nobdeps)
-				wield_no_bdeps=true
-			;;
-			*)
-				newopts="$newopts $option"
-			;;
-		esac
-	done
-	set -- $newopts
+	set -- $(spack_wield_forge_options $@)
 	
 	if ! $wield_no_bdeps; then
 		local name=$(pie_info $file name)
