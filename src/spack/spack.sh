@@ -514,18 +514,21 @@ function main() {
 			if get_installed_package $name pkginfo_dir pkginfo_repo; then
 				package_found=true
 				log INFO "$name found as $pkginfo_dir in $pkginfo_repo"
+				cat $pkginfo_dir/pkginfo
+			else
+				local spakg_file spackg_repo
+				if get_spakg $name spakg_file spakg_repo; then
+					package_found=true
+					log INFO "$name foud as $spakg_file in $spakg_repo"
+					spakg_part $spakg_file pkginfo
+				fi
 			fi
 			
 			local pie_file pie_repo
 			if get_pie $name pie_file pie_repo; then
 				package_found=true
 				log INFO "$name found as $pie_file in $pie_repo"
-			fi
-			
-			local spakg_file spackg_repo
-			if get_spakg $name spakg_file spakg_repo; then
-				package_found=true
-				log INFO "$name foud as $spakg_file in $spakg_repo"
+				cat $pie_file
 			fi
 			
 			if ! $package_found; then
