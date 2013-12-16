@@ -80,9 +80,9 @@ function install_files() {
 	for file in $(cd $fs_dir && find .); do
 		file=${file#"."} #Remove leading .
 		if file_exists $fs_dir/$file; then
-			log INFO "Installing file: $file"
+			log INFO "Installing file: $basedir/$file"
 			if file_exists $basedir/$file; then
-				log WARN "Replacing $file"
+				log WARN "Replacing $basedir/$file"
 			fi
 			file_dir="$basedir/$(dirname $file)/"
 			mkdir -p $file_dir

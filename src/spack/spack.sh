@@ -5,19 +5,28 @@ set -e
 basedir="/"
 defaults=false
 no_bdeps=false
+accepted_packages_to_install=false
 
 wield_no_check_deps=false
 wield_reinstall=false
 
+#Usage: indirect var_name
 function indirect() {
-	eval echo "\$${1}"
+	eval echo "\$$(echo $1 | tr -d '-')"
 }
 
+#Usage; set_ind var_name value
 function set_ind() {
-	local var="$1"
+	local var="$(echo $1 | tr -d '-')"
 	shift
 	local stuff="$@"
 	eval $var="\"$stuff\""
+}
+
+#Usage: append_ind var_name app_value
+function append_ind() {
+	local app_ind_var=$(echo $1 | tr -d '-')
+	set_ind $app_ind_var "$(indirect $app_ind_var) $2"
 }
 
 function mark_bin() {
@@ -43,12 +52,19 @@ function bdep_s() {
 function dep_check() {
 	local name="$1"
 	local base="$2"
+	local dc_out_src_deps="$3"
+	local dc_out_bin_deps="$4"
+	local dc_out_missing="$5"
+	shift
+	
 	local pie repo
 	get_pie $name pie repo
 	
+	#TODO support pkginfo and spakg
 	if str_empty $pie; then
-		echo -n "$name "
-		return
+		log ERROR "Missing $name"
+		append_ind $dc_out_missing" $name"
+		return 1
 	fi
 	
 	local forge_deps="$(pie_info $pie bdeps)"
@@ -63,7 +79,7 @@ function dep_check() {
 	#If we have already been marked as bin, we are done here
 	if bin_marked $name; then
 		log DEBUG $(bdep_s) "Exists bin $name"
-		return
+		return 0
 	fi
 	
 	#If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
@@ -72,49 +88,65 @@ function dep_check() {
 		log DEBUG $(bdep_s) "Exists src $name"
 		log DEBUG $(bdep_s) "Mark bin $name"
 		mark_bin $name true
+		append_ind $dc_out_bin_deps "$name "
+		
+		local retval=0
 		for dep in $wield_deps; do
-			dep_check $dep $base
+			if ! dep_check $dep $@; then
+				retval=1
+			fi
 		done
 		local spakg_file spakg_repo
 		if ! get_spakg $package spakg_file spakg_repo; then
 			log ERROR "Must have a binary version of $name to build this package"
-			echo -n "$name "
+			append_ind $dc_out_missing " $name"
+			retval=1
 		fi
-		return
+		return $retval
 	fi
 	
 	# We are a package that has a binary version
 	if get_spakg $package spakg_file spakg_repo && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
+		
+		local retval=0
 		mark_bin $name true
-		if ! $no_bdeps; then
-			for dep in $wield_deps; do
-				dep_check $dep $base
-			done
-		fi
-		return
-	#We are a package that only available via src
+		append_ind $dc_out_bin_deps "$name "
+		
+		for dep in $wield_deps; do
+			if ! dep_check $dep $@; then
+				retval=1
+			fi
+		done
+		return $retval
+	#We are a package that only available via src or are the base package to forge
 	else
 		log DEBUG $(bdep_s) "Source $name"
 		log DEBUG $(bdep_s) "$name has $bdeps"
 		#there is only a src version of us available
 		mark_src $name true
-
+		append_ind $dc_out_src_deps "$name "
+		local retval=0
 		if ! $no_bdeps; then
 			for dep in $forge_deps; do
-				dep_check $dep $base
+				if ! dep_check $dep $@; then
+					retval=1
+				fi
 			done
 		fi
 		if [ "$name" != "$base" ]; then
 			for dep in $wield_deps; do
-				dep_check $dep $base
+				if dep_check $dep $@; then
+					retval=1
+				fi
 			done
 		fi
 		mark_src $name false
 		log DEBUG $(bdep_s) "UNSource $name"
 		#After this part of the tree we will have a bin version
 		mark_bin $name true
-		return
+		append_ind $dc_out_bin_deps "$name "
+		return $retval
 	fi
 }
 
@@ -138,8 +170,8 @@ function get_spakg() {
 	local pkg="$1"
 	local res_out_file="$2"
 	local res_out_repo="$3"
-	for get_spakg_repo in $spakg_cache_dir/*; do
-		local get_spakg_file="$get_spakg_repo/$pkg-*.spakg"
+	for get_spakg_repo in $(ls $spakg_cache_dir); do
+		local get_spakg_file="$spakg_cache_dir/$get_spakg_repo/$pkg-*.spakg"
 		if file_exists $get_spakg_file; then
 			set_ind $res_out_file $get_spakg_file
 			set_ind	 $res_out_repo $get_spakg_repo
@@ -155,7 +187,6 @@ function get_installed_package() {
 	local gip_name=$1
 	local out_gip_dir=$2
 	local out_gip_repo=$3
-	
 	if ! str_empty $gip_name && ! str_empty $out_gip_dir && ! str_empty $out_gip_repo; then
 		local gip_repo
 		for gip_repo in $(ls $basedir/$spakg_installed_dir); do
@@ -237,7 +268,8 @@ function spack_wield() {
 	set -- $new_options
 	
 	if str_empty $file; then
-		if is_package_installed $package  && ! $wield_reinstall; then
+		local out_dir out_repo
+		if get_installed_package $package out_dir out_repo && ! $wield_reinstall; then
 			log INFO "$package already installed, skipping"
 			return
 		fi
@@ -261,33 +293,43 @@ function spack_wield() {
 	fi
 	
 	local name=$(spakg_info $file name)
-	local deps_checked=""
+	local deps_checked=true
 	
-	if is_package_installed $package  && ! $wield_reinstall; then
+	local out_dir out_repo
+	if get_installed_package $package out_dir out_repo && ! $wield_reinstall; then
 		log INFO "$package already installed, skipping"
 		return
 	fi
 	
-	if ! $wield_no_check_deps; then
-		deps_checked=$(dep_check $name)
-	fi
-	
-	if str_empty $deps_checked; then
+	local out_src out_bin out_missing
+	if $wield_no_check_deps || dep_check $name non-existant-base out_src out_bin out_missing; then
 		if ! $wield_reinstall; then
-			local dep
-			for dep in $(spakg_info $file deps); do
-				log DEBUG $name installing $dep
-				spack_wield $dep $@
-			done
+			if ! $accepted_packages_to_install; then
+				log INFO "The following packages will be built:     $out_src"
+				log INFO "The following packages will be installed: $out_bin"
+			fi
+			if $defaults || $accepted_packages_to_install || ask_yesno true "Do you wish too continue?"; then
+				accepted_packages_to_install=true
+				
+				set_package_installed $file $repo
+				
+				local dep
+				for dep in $(spakg_info $file deps); do
+					log DEBUG $name installing $dep
+					spack_wield $dep $@
+				done
+				
+				wield $file $@ --basedir $basedir
+			fi
 		else
-			log INFO "Skipping installing deps for $package"
+			log INFO "Skipping installing deps for $package (reinstall)"
+			wield $file $@ --basedir $basedir
+			set_package_installed $file $repo
 		fi
 	else
-		log ERROR "Unresolved Dependencies: $deps_checked!"
+		log ERROR "Unresolved Dependencies: $out_missing!"
 		exit 1
 	fi
-	wield $file $@ --basedir $basedir
-	set_package_installed $file $repo
 }
 
 function spack_forge() {
@@ -326,19 +368,25 @@ function spack_forge() {
 	
 	if ! $no_bdeps; then
 		local name=$(pie_info $file name)
-		local unresolved=""
-		if ! $wield_no_check_deps; then
-			unresolved=$(dep_check $name $name)
-		fi
-		if str_empty $unresolved; then
-			local old_basedir="$basedir"
-			basedir="/" #Install bdeps in the host system
-			for dep in $(pie_info $file bdeps); do
-				spack_wield $dep $@
-			done
-			basedir="$basedir"
+		local resolved=true
+		
+		local out_src out_bin out_missing
+		if $wield_no_check_deps || dep_check $name $name out_src out_bin out_missing; then
+			if ! $accepted_packages_to_install; then
+				log INFO "The following packages will be built:     $out_src"
+				log INFO "The following packages will be installed: $out_bin"
+			fi
+			if $defaults || $accepted_packages_to_install || ask_yesno true "Do you wish too continue?"; then
+				accepted_packages_to_install=true
+				local old_basedir="$basedir"
+				basedir="/" #Install bdeps in the host system
+				for dep in $(pie_info $file bdeps); do
+					spack_wield $dep $@
+				done
+				basedir="$basedir"
+			fi
 		else
-			log ERROR "Unresolved Dependencies!"
+			log ERROR "Unresolved Dependencies: $out_missing!"
 			exit 1
 		fi
 	fi
@@ -408,12 +456,17 @@ function spack_options() {
 		case $so_option in
 			-v|--verbose)
 				set_log_levels DEBUG
+				so_newopts="$so_newopts $so_option"
 				;;
 			-q|--quiet)
 				set_log_levels WARN
+				so_newopts="$so_newopts $so_option"
 				;;
 			-d|--basedir)
 				basedir="$so_next"
+				mkdir -p $basedir/$repos_dir
+				mkdir -p $basedir/$spakg_cache_dir
+				mkdir -p $basedir/$spakg_installed_dir
 				shift
 			;;
 			*)
