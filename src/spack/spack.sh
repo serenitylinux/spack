@@ -131,7 +131,6 @@ function get_pie() {
 			return 0
 		fi
 	done
-	log ERROR "Unable to find a pie file for $pkg"
 	return 1
 }
 
