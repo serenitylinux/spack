@@ -150,11 +150,12 @@ function get_spakg() {
 }
 
 
-#Usage: is_package_installed package_name
+#Usage: is_package_installed package_name out_repo
 function is_package_installed() {
-	local repo
-	for repo in $basedir/$spakg_installed_dir; do
-		if [ -d $basedir/$spakg_installed_dir/$repo/$1/ ]; then
+	local ipi_repo
+	for ipi_repo in $(ls $basedir/$spakg_installed_dir); do
+		if [ -d $basedir/$spakg_installed_dir/$ipi_repo/$1/ ]; then
+			set_ind $2 $ipi_repo
 			return 0
 		fi
 	done
@@ -173,16 +174,22 @@ function set_package_installed() {
 	spakg_part $spakg pkginfo > $dir/pkginfo
 }
 
-#Usage: package_file name file
-function package_file() {
-	local name="$1"
-	local file="$2"
-	echo $basedir/$spakg_installed_dir/$name/$file
+#Usage: get_installed_package pkg_name
+function get_installed_package() {
+	local name=$1
+	local repo
+	for repo in $(ls $basedir/$spakg_installed_dir); do
+		if [ -d $basedir/$spakg_installed_dir/$repo/$name/ ]; then
+			echo $basedir/$spakg_installed_dir/$repo/$name/
+			return 0
+		fi
+	done
+	return 1
 }
 
-#Usage: set_package_removed package_name
+#Usage: set_package_removed package name repo
 function set_package_removed() {
-	rm -rf $basedir/$spakg_installed_dir/$1/
+	rm -rf $basedir/$spakg_installed_dir/$2/$1/
 }
 
 #Usage: spack_wield_forge_options outval args
@@ -462,14 +469,18 @@ function main() {
 					;;
 				esac
 			done
-			if is_package_installed $name; then
-				log WARN "Purging $name"
+			
+			local repo
+			if is_package_installed $name repo; then
+				log WARN "Purging $name from $repo"
 				
-				for i in $(cat $(package_file $name manifest.txt) | awk '{ print $2 }'); do
+				local manifest="$(get_installed_package $name)/manifest.txt"
+				local files_to_remove=$(cat $manifest | awk '{ print $2 }')
+				for i in $files_to_remove; do
 					log_cmd DEBUG rm $basedir/$i -rvf
 					log INFO "Removing $basedir/$i"
 				done
-				set_package_removed $name
+				set_package_removed $name $repo
 			else
 				log ERROR "$name is not installed"
 			fi
@@ -481,14 +492,14 @@ function main() {
 			log DEBUG "Purging $file"
 			rm $file
 			;;
-		info)
-			local name="$1"
-			local out_file out_repo
-			if get_pie $1 out_file out_repo; then
-			
-			else
-			
-			fi
+#		info)
+#			local name="$1"
+#			local out_file out_repo
+#			if get_pie $1 out_file out_repo; then
+#			
+#			else
+#			
+#			fi
 		search)
 			log ERROR "Not Implemented"
 			exit -1
