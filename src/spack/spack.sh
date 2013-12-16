@@ -106,7 +106,7 @@ function dep_check() {
 	fi
 	
 	# We are a package that has a binary version
-	if get_spakg $package spakg_file spakg_repo && [ "$name" != "$base" ]; then
+	if get_spakg $name spakg_file spakg_repo && [ "$name" != "$base" ]; then
 		log DEBUG $(bdep_s) "Binary $name"
 		
 		local retval=0
@@ -136,7 +136,7 @@ function dep_check() {
 		fi
 		if [ "$name" != "$base" ]; then
 			for dep in $wield_deps; do
-				if dep_check $dep $@; then
+				if ! dep_check $dep $@; then
 					retval=1
 				fi
 			done
