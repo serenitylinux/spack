@@ -3,6 +3,7 @@
 source /etc/spack/spack.conf
 mkdir -p $repos_dir
 mkdir -p $spakg_cache_dir
+mkdir -p $spakg_installed_dir
 
 #Usage: color COLOR text
 function color() {

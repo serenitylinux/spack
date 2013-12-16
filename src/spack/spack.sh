@@ -118,6 +118,7 @@ function dep_check() {
 	fi
 }
 
+#Usage: get_pie pkg out_file out_repo
 function get_pie() {
 	local pkg="$1"
 	local res_file="$2"
@@ -141,8 +142,8 @@ function get_spakg() {
 	for get_spakg_repo in $spakg_cache_dir/*; do
 		local get_spakg_file="$get_spakg_repo/$pkg-*.spakg"
 		if file_exists $get_spakg_file; then
-			set_int $res_out_file $get_spakg_file
-			set_int $res_out_repo $get_spakg_repo
+			set_ind $res_out_file $get_spakg_file
+			set_ind	 $res_out_repo $get_spakg_repo
 			return 0
 		fi
 	done
@@ -150,15 +151,23 @@ function get_spakg() {
 }
 
 
-#Usage: is_package_installed package_name out_repo
-function is_package_installed() {
-	local ipi_repo
-	for ipi_repo in $(ls $basedir/$spakg_installed_dir); do
-		if [ -d $basedir/$spakg_installed_dir/$ipi_repo/$1/ ]; then
-			set_ind $2 $ipi_repo
-			return 0
-		fi
-	done
+#Usage: get_installed_package pkg_name out_dir out_repo
+function get_installed_package() {
+	local gip_name=$1
+	local out_gip_dir=$2
+	local out_gip_repo=$3
+	
+	if ! str_empty $gip_name && ! str_empty $out_gip_dir && ! str_empty $out_gip_repo; then
+		local gip_repo
+		for gip_repo in $(ls $basedir/$spakg_installed_dir); do
+			local gip_dir="$basedir/$spakg_installed_dir/$gip_repo/$gip_name/"
+			if [ -d $gip_dir ]; then
+				set_ind $out_gip_dir $gip_dir
+				set_ind $out_gip_repo $gip_repo
+				return 0
+			fi
+		done
+	fi
 	return 1
 }
 
@@ -174,19 +183,6 @@ function set_package_installed() {
 	spakg_part $spakg pkginfo > $dir/pkginfo
 }
 
-#Usage: get_installed_package pkg_name
-function get_installed_package() {
-	local name=$1
-	local repo
-	for repo in $(ls $basedir/$spakg_installed_dir); do
-		if [ -d $basedir/$spakg_installed_dir/$repo/$name/ ]; then
-			echo $basedir/$spakg_installed_dir/$repo/$name/
-			return 0
-		fi
-	done
-	return 1
-}
-
 #Usage: set_package_removed package name repo
 function set_package_removed() {
 	rm -rf $basedir/$spakg_installed_dir/$2/$1/
@@ -199,10 +195,6 @@ function spack_wield_forge_options() {
 	local swfo_newopts swfo_option swfo_next
 	while swfo_option="$1"; swfo_next="$2"; shift; ! str_empty $swfo_option; do
 		case $swfo_option in
-			-d|--basedir)
-				basedir="$swfo_next"
-				shift
-			;;
 			-r|--reinstall)
 				wield_reinstall=true
 			;;
@@ -408,32 +400,47 @@ Usage: $0
 EOT
 }
 
+#Usage: spack_options out_newopts $@
 function spack_options() {
-	local option
-	for option in $@; do
-		case $option in
+	local so_outval="$1"
+	shift
+	local so_newopts so_option so_next
+	while so_option="$1"; so_next="$2"; shift; ! str_empty $so_option; do
+		case $so_option in
 			-v|--verbose)
 				set_log_levels DEBUG
 				;;
 			-q|--quiet)
 				set_log_levels WARN
 				;;
+			-d|--basedir)
+				basedir="$so_next"
+				shift
+			;;
+			*)
+				so_newopts="$so_newopts $so_option"
+			;;
 		esac
 	done
+	set_ind $so_outval $so_newopts
 }
 
 function main() {
 	local package=""
 	local file=""
+	
+	
+	local newopts
+	spack_options newopts $@
+	set -- $newopts
+	
 	local option="$1"
 	if str_empty "$option"; then
 		usage
 		exit 1
 	fi
-
 	shift
-
-	spack_options $@
+	
 	case $option in
 		refresh)
 			refresh_repos
@@ -470,11 +477,11 @@ function main() {
 				esac
 			done
 			
-			local repo
-			if is_package_installed $name repo; then
+			local pkg_dir repo
+			if get_installed_package $name pkg_dir repo; then
 				log WARN "Purging $name from $repo"
 				
-				local manifest="$(get_installed_package $name)/manifest.txt"
+				local manifest="$pkg_dir/$name/manifest.txt"
 				local files_to_remove=$(cat $manifest | awk '{ print $2 }')
 				for i in $files_to_remove; do
 					log_cmd DEBUG rm $basedir/$i -rvf
@@ -492,14 +499,41 @@ function main() {
 			log DEBUG "Purging $file"
 			rm $file
 			;;
-#		info)
-#			local name="$1"
-#			local out_file out_repo
-#			if get_pie $1 out_file out_repo; then
-#			
-#			else
-#			
-#			fi
+		info)
+			local name="$1"
+			shift
+			
+			if str_empty $name; then
+				log ERROR "Must specify a package name"
+				usage
+				exit -1
+			fi
+			
+			local package_found=false
+			
+			local pkginfo_dir pkginfo_repo
+			if get_installed_package $name pkginfo_dir pkginfo_repo; then
+				package_found=true
+				log INFO "$name found as $pkginfo_dir in $pkginfo_repo"
+			fi
+			
+			local pie_file pie_repo
+			if get_pie $name pie_file pie_repo; then
+				package_found=true
+				log INFO "$name found as $pie_file in $pie_repo"
+			fi
+			
+			local spakg_file spackg_repo
+			if get_spakg $name spakg_file spakg_repo; then
+				package_found=true
+				log INFO "$name foud as $spakg_file in $spakg_repo"
+			fi
+			
+			if ! $package_found; then
+				log ERROR "$name not found!"
+			fi
+			
+			;;
 		search)
 			log ERROR "Not Implemented"
 			exit -1
