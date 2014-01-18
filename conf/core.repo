@@ -1,4 +1,6 @@
-name="Core"
-desc="Core Serenity Repository"
-remote="http://gitlab.cslabs.clarkson.edu/serenity/core.git"
-version="master"
+{
+	"Name": "Core",
+	"Description": "Core Serenity Repository",
+	"RemoteTemplates": "http://gitlab.cslabs.clarkson.edu/serenity/core.git",
+	"Version": "master"
+}

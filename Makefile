@@ -1,12 +1,26 @@
-all:
+DEPS := $(shell find src/libspack/ -type f )
+
+$(shell export GOPATH="$GOPATH:$PWD")
+
+all: forge wield spack
+
+forge: forge.go ${DEPS}
+	go build forge.go
+spack: spack.go ${DEPS}
+	go build spack.go
+wield: wield.go ${DEPS}
+	go build wield.go
 
 install:
-	mkdir -p $(DESTDIR)/usr/lib/spack
-	mkdir -p $(DESTDIR)/usr/bin
-	mkdir -p $(DESTDIR)/etc/spack/repos/
-	install -c src/forge/forge.sh $(DESTDIR)/usr/bin/forge
-	install -c src/wield/wield.sh $(DESTDIR)/usr/bin/wield
-	install -c src/spack/spack.sh $(DESTDIR)/usr/bin/spack
-	install -c src/libspack.sh    $(DESTDIR)/usr/lib/spack/libspack
-	install -c conf/spack.conf    $(DESTDIR)/etc/spack/spack.conf
-	install -c conf/core.repo     $(DESTDIR)/etc/spack/repos/core.repo
+	mkdir -p $(DESTDIR)/var/lib/spack
+	mkdir -p $(DESTDIR)/var/cache/spack
+	mkdir -p $(DESTDIR)/etc/spack/repos
+
+	install -c forge $(DESTDIR)/usr/bin/forge
+	install -c wield $(DESTDIR)/usr/bin/wield
+	install -c spack $(DESTDIR)/usr/bin/spack
+
+	install -c conf/core.repo $(DESTDIR)/etc/spack/repos/core.repo
+
+clean:
+	rm forge spack wield
