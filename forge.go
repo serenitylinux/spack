@@ -126,6 +126,10 @@ func fetchPkgSrc(urls []string) {
 
 func runPart(part, fileName, inner string) {
 	forge_helper := `
+		function none {
+			return 0
+		}
+		
 		function default {
 			%[3]s
 		}
