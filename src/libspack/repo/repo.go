@@ -148,9 +148,10 @@ func (repo *Repo) installedPkgsDir() string {
 func cloneRepo(remote string, dir string, name string) {
 	switch {
 		case GitRegex.MatchString(remote):
+			os.Mkdir(dir, 755)
 			err := gitrepo.CloneOrUpdate(remote, dir)
 			if err != nil {
-				log.WarnFormat("Update repository %s failed: %s", name, remote)
+				log.WarnFormat("Update repository %s %s failed: %s", name, remote, err)
 			}
 		case RsyncRegex.MatchString(remote):
 			log.Warn("TODO rsync repo")
