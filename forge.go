@@ -279,6 +279,7 @@ func main() {
 		
 		os.Setenv("MAKEFLAGS", "-j6")
 		os.Setenv("dest_dir", destDir)
+		os.Setenv("FORCE_UNSAFE_CONFIGURE", "1") //TODO probably shouldn't do this
 		
 		runPart("configure", template, `./configure --prefix=/usr/`)
 		runPart("build", template, `make`)
