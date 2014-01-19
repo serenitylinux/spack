@@ -83,10 +83,10 @@ func HttpFetchFileProgress(url string, outFile string, stdout bool) (err error) 
 		return
 	}
 	response, err := http.Get(url)
-	defer response.Body.Close()
 	if err != nil {
 		return
 	}
+	defer response.Body.Close()
 	
 	if response.StatusCode != 200 {
 		err = errors.New("Server responded: " + response.Status)
