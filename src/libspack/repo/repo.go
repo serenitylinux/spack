@@ -148,7 +148,7 @@ func (repo *Repo) installedPkgsDir() string {
 func cloneRepo(remote string, dir string, name string) {
 	switch {
 		case GitRegex.MatchString(remote):
-			os.Mkdir(dir, 755)
+			os.MkdirAll(dir, 755)
 			err := gitrepo.CloneOrUpdate(remote, dir)
 			if err != nil {
 				log.WarnFormat("Update repository %s %s failed: %s", name, remote, err)
@@ -350,7 +350,7 @@ func (repo *Repo) loadInstalledPackagesList() {
 	dir := repo.installedPkgsDir()
 	
 	if !PathExists(dir) {
-		os.Mkdir(dir, 755)
+		os.MkdirAll(dir, 755)
 	}
 	
 	filelist, err := ioutil.ReadDir(dir)
@@ -412,7 +412,7 @@ func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
 
 func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 	if !PathExists(SpakgDir + repo.Name) {
-		os.Mkdir(SpakgDir + repo.Name, 755)
+		os.MkdirAll(SpakgDir + repo.Name, 755)
 	}
 	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
 }
