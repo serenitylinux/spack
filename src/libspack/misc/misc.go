@@ -73,6 +73,6 @@ func RunCommand(cmd *exec.Cmd, stdout io.Writer, stderr io.Writer) error {
 }
 
 
-var GitRegex = regexp.MustCompile(".*.git")
+var GitRegex = regexp.MustCompile(".*\\.git")
 var RsyncRegex = regexp.MustCompile("rsync://.*")
 var HttpRegex = regexp.MustCompile("(http|https|ftp)://.*")
