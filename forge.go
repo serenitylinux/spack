@@ -139,7 +139,7 @@ func runPart(part, fileName, inner string) {
 		
 		source %[2]s
 		
-		cd $srcdir
+		cd $PWD/$srcdir
 		
 		set +e 
 		declare -f %[1]s > /dev/null
