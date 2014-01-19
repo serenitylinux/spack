@@ -368,7 +368,7 @@ func forge(c *control.Control, repo *repo.Repo) error {
 	spakgFile := repo.GetSpakgOutput(c)
 	err := RunCommandToStdOutErr(
 		exec.Command(
-			"./forge",
+			"forge",
 			"--output="+spakgFile,
 			"--quiet="+quietArg.String(),
 			"--verbose="+verboseArg.String(),
@@ -405,7 +405,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	
 	err = RunCommandToStdOutErr(
 		exec.Command(
-			"./wield",
+			"wield",
 			"--quiet="+quietArg.String(),
 			"--verbose="+verboseArg.String(),
 			"--destdir="+destdirArg.String(),
