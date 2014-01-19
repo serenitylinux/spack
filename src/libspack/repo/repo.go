@@ -133,12 +133,15 @@ func (repo *Repo) packagesDir() string {
 	return PackagesDir + repo.Name + "/"
 }
 func (repo *Repo) controlCacheFile() string {
+	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-Controls.json"
 }
 func (repo *Repo) pkgInfoCacheFile() string {
+	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-PkgInfo.json"
 }
 func (repo *Repo) templateListCacheFile() string {
+	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-Templates.json"
 }
 func (repo *Repo) installedPkgsDir() string {
@@ -220,8 +223,8 @@ func (repo *Repo) updateControlsFromTemplates() {
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
-	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
-	json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
+	err := json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
+	err := json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
 }
 func (repo *Repo) updateControlsFromRemote() {
 	// finds all files in remote dir and writes to cache
