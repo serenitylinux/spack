@@ -1,6 +1,6 @@
 DEPS := $(shell find src/libspack/ -type f )
 
-$(shell export GOPATH="$GOPATH:$PWD")
+export GOPATH="$GOPATH:$(shell pwd)"
 
 all: forge wield spack
 
