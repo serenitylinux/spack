@@ -98,8 +98,11 @@ const (
 type Repo struct {
 	Name string
 	Description string
+	//Buildable
 	RemoteTemplates string	//Templates
+	//Installable
 	RemotePackages string	//Control + PkgInfo
+	//Installable spakges (corresponds to RemotePackages)
 	RemoteSpakgs string		//Pre build spakgs (name-version:hash.spakg)
 	Version string
 	
