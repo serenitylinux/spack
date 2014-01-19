@@ -15,6 +15,7 @@ install:
 	mkdir -p $(DESTDIR)/var/lib/spack
 	mkdir -p $(DESTDIR)/var/cache/spack
 	mkdir -p $(DESTDIR)/etc/spack/repos
+	mkdir -p $(DESTDIR)/usr/bin/
 
 	install -c forge $(DESTDIR)/usr/bin/forge
 	install -c wield $(DESTDIR)/usr/bin/wield

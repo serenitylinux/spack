@@ -138,10 +138,16 @@ func runPart(part, fileName, inner string) {
 		
 		cd $srcdir
 		
+		set +e 
 		declare -f %[1]s > /dev/null
-		if [ $? -ne 0 ]; then
+		exists=$?
+		set -e
+		
+		if [ $exists -ne 0 ]; then
+			echo "running default"
 			default
 		else
+			echo "running custom"
 			%[1]s
 		fi`
 	
