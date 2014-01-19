@@ -223,8 +223,8 @@ func (repo *Repo) updateControlsFromTemplates() {
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
-	err := json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
-	err := json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
+	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
+	json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
 }
 func (repo *Repo) updateControlsFromRemote() {
 	// finds all files in remote dir and writes to cache
