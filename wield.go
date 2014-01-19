@@ -146,7 +146,7 @@ func main() {
 			PrintSuccess()
 			
 			log.Info("Updating Library Cache")
-			err = RunCommand(exec.Command("ldconfig", destdir), log.DebugWriter(), os.Stderr)
+			err = RunCommand(exec.Command("ldconfig", "-r", destdir), log.DebugWriter(), os.Stderr)
 			if err != nil {
 				log.Warn(err)
 			}
