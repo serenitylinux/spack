@@ -160,6 +160,21 @@ func runPart(part, fileName, inner string) {
 	PrintSuccessOrFail(err)
 }
 
+func stripPackage() {
+	log.Info("Strip package")
+
+	str:= fmt.Sprintf("find %s | grep /bin/ | xargs strip -s ", destDir)
+	RunCommand(exec.Command(str), log.DebugWriter(), log.DebugWriter())
+	str = fmt.Sprintf("find %s | grep /sbin/ | xargs strip -s", destDir)
+	RunCommand(exec.Command(str), log.DebugWriter(), log.DebugWriter())
+	str = fmt.Sprintf("find %s | grep '\\.so' | xargs strip -s", destDir)
+	RunCommand(exec.Command(str), log.DebugWriter(), log.DebugWriter())
+	str = fmt.Sprintf("find %s | grep '\\.a' | xargs strip --strip-debug", destDir)
+	RunCommand(exec.Command(str), log.DebugWriter(), log.DebugWriter())
+	
+	PrintSuccess()
+}
+
 func buildPackage(template string, c *control.Control) {
 	log.Info("Building package")
 	log.InfoBarColor(log.Brown)
@@ -287,6 +302,8 @@ func main() {
 			runPart("test", template, `make test`)
 		}
 		runPart("installpkg", template, `make DESTDIR=${dest_dir} install`)
+		
+		stripPackage()
 		
 		buildPackage(template, c)
 	})
