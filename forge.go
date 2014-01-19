@@ -147,10 +147,8 @@ func runPart(part, fileName, inner string) {
 		set -e
 		
 		if [ $exists -ne 0 ]; then
-			echo "running default"
 			default
 		else
-			echo "running custom"
 			%[1]s
 		fi`
 	
