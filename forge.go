@@ -76,8 +76,8 @@ func arguments() string {
 }
 
 func extractPkgSrc(srcPath string) error {
-	tarRegex := regexp.MustCompile(".*.tar.*")
-	zipRegex := regexp.MustCompile(".*.zip")
+	tarRegex := regexp.MustCompile(".*\\.tar.*")
+	zipRegex := regexp.MustCompile(".*\\.zip")
 	var cmd *exec.Cmd
 	switch {
 		case tarRegex.MatchString(srcPath):
