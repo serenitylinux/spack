@@ -144,6 +144,12 @@ func main() {
 			ExitOnError(err)
 			
 			PrintSuccess()
+			
+			log.Info("Updating Library Cache")
+			err = RunCommand(exec.Command("ldconfig", destdir), log.DebugWriter(), os.Stderr)
+			if err != nil {
+				log.Warn(err)
+			}
 		})
 		
 		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
