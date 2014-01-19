@@ -194,7 +194,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		
 		//We don't have bin
 		if !c.repo.HasSpakg(c.control) {
-			log.Error(c.Name, "Must have a binary version (from cirular dependency)")
+			log.Error(c.Name(), "Must have a binary version (from cirular dependency)")
 			return false
 		}
 		
