@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"path"
 	"path/filepath"
 	"io/ioutil"
@@ -96,12 +97,13 @@ func fetchPkgSrc(urls []string) {
 	log.InfoBarColor(log.Brown)
 	
 	for _, url := range urls {
-		gitRegex := regexp.MustCompile(".*.git")
+//		gitRegex := regexp.MustCompile(".*.git")
 		httpRegex := regexp.MustCompile("(http|https|ftp)://.*")
 		
 		base := path.Base(url)
 		switch {
-			case gitRegex.MatchString(url):
+			//case gitRegex.MatchString(url):
+			case strings.HasSuffix(url, ".git"):
 				log.DebugFormat("Fetching '%s' with git", url)
 				
 				err := CloneGitRepo(url)
