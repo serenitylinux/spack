@@ -15,7 +15,7 @@ Install no build := spakgs in cache
 
 Src + Bin
 	provides Templates
-	provides Pkginfos
+	provides PkgSet
 	generated Controls from templates
 	
 	SEPARATE 
@@ -26,18 +26,17 @@ Src + Bin
 	
 Avail for build := Controls
 Avail for install := Controls
-Install no build := spakgs in cache and Pkginfos
+Install no build := spakgs in cache and PkgSets
 
 Bin
-	provides Pkginfos
-	provides Controls
+	provides PkgSet
 	
 	SEPARATE
 	provides spakgs
 	
 Avail for build := none
 Avail for install := Controls
-Install no build := Pkginfos
+Install no build := PkgSets
 
 */
 
