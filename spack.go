@@ -149,7 +149,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 			ctrl, r := libspack.GetPackageLatest(dep)
 			
 			if ctrl == nil {
-				log.Error(c.Name, "Unable to find package")
+				log.Error(c.Name(), "Unable to find package", dep)
 				return false
 			}
 			
