@@ -135,15 +135,15 @@ func (repo *Repo) packagesDir() string {
 	return PackagesDir + repo.Name + "/"
 }
 func (repo *Repo) controlCacheFile() string {
-	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
+	os.MkdirAll(ReposCacheDir + repo.Name, 0755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-Controls.json"
 }
 func (repo *Repo) pkgInfoCacheFile() string {
-	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
+	os.MkdirAll(ReposCacheDir + repo.Name, 0755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-PkgInfo.json"
 }
 func (repo *Repo) templateListCacheFile() string {
-	os.MkdirAll(ReposCacheDir + repo.Name, 755) //I am tired and this should work for now
+	os.MkdirAll(ReposCacheDir + repo.Name, 0755) //I am tired and this should work for now
 	return ReposCacheDir + repo.Name + "-Templates.json"
 }
 func (repo *Repo) installedPkgsDir() string {
@@ -153,7 +153,7 @@ func (repo *Repo) installedPkgsDir() string {
 func cloneRepo(remote string, dir string, name string) {
 	switch {
 		case GitRegex.MatchString(remote):
-			os.MkdirAll(dir, 755)
+			os.MkdirAll(dir, 0755)
 			err := gitrepo.CloneOrUpdate(remote, dir)
 			if err != nil {
 				log.WarnFormat("Update repository %s %s failed: %s", name, remote, err)
@@ -355,7 +355,7 @@ func (repo *Repo) loadInstalledPackagesList() {
 	dir := repo.installedPkgsDir()
 	
 	if !PathExists(dir) {
-		os.MkdirAll(dir, 755)
+		os.MkdirAll(dir, 0755)
 	}
 	
 	filelist, err := ioutil.ReadDir(dir)
@@ -417,7 +417,7 @@ func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
 
 func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 	if !PathExists(SpakgDir + repo.Name) {
-		os.MkdirAll(SpakgDir + repo.Name, 755)
+		os.MkdirAll(SpakgDir + repo.Name, 0755)
 	}
 	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
 }
@@ -433,7 +433,7 @@ func (repo *Repo) HasTemplate(c *control.Control) bool {
 
 func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, basedir string) error {
 	ps := PkgSet { c, p }
-	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 755)
+	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
 	if err != nil {
 		return err
 	}
