@@ -457,8 +457,8 @@ func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
 	return PathExists(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
 }
 
-func (repo *Repo) RDeps(c *control.Control) []PkgSet {
-	pkgs := make([]PkgSet,0)
+func (repo *Repo) RDeps(c *control.Control) []PkgInstallSet {
+	pkgs := make([]PkgInstallSet,0)
 	
 	var inner func (*control.Control)
 	
