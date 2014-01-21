@@ -51,6 +51,7 @@ import (
 	"io/ioutil"
 	"libspack/pkginfo"
 	"libspack/control"
+	"libspack/hash"
 	"libspack/log"
 	"libspack/gitrepo"
 )
@@ -73,18 +74,32 @@ func PkgSetFromFile(filename string) (*PkgSet, error) {
 	return &i, err
 }
 
+type PkgInstallSet struct {
+	Control control.Control
+	PkgInfo pkginfo.PkgInfo
+	Hashes  hash.HashList
+}
+func (p *PkgInstallSet) ToFile(filename string) error {
+	return json.EncodeFile(filename, true, p)
+}
+func PkgInstallSetFromFile(filename string) (*PkgInstallSet, error) {
+	var i PkgInstallSet
+	err := json.DecodeFile(filename, &i)
+	return &i, err
+}
+
 
 //Sorted by pkgversion
 type ControlMap map[string] control.ControlList
 
-//Sorted by pkgversion
-type PkgInfoMap map[string] pkginfo.PkgInfoList
-
 // Map<name, map<version>>
 type TemplateFileMap map[string] map[string] string
 
-// Map<name-version, Tuple<control,pkginfo>>
-type PkgSetMap map[string]PkgSet
+// Map<name-version, List<PkgInfo>>
+type PkgInfoMap map[string][]pkginfo.PkgInfo
+
+// Map<name-version, Tuple<control,pkginfo,hashlist>>
+type PkgInstallSetMap map[string]PkgInstallSet
 
 const (
 	TemplatesDir  = "/var/lib/spack/templates/"	//Downloaded templates
@@ -108,8 +123,8 @@ type Repo struct {
 	//Private NOT SERIALIZED
 	controls      ControlMap
 	templateFiles TemplateFileMap
-	pkgInfos      PkgInfoMap
-	installed     PkgSetMap
+	fetchable     PkgInfoMap
+	installed     PkgInstallSetMap
 }
 
 func (repo *Repo) ToFile(filename string) error {
@@ -228,6 +243,7 @@ func (repo *Repo) updateControlsFromTemplates() {
 	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
 	json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
 }
+
 func (repo *Repo) updateControlsFromRemote() {
 	// finds all files in remote dir and writes to cache
 	repo.controls = make(ControlMap)
@@ -247,28 +263,25 @@ func (repo *Repo) updateControlsFromRemote() {
 			continue
 		}
 		
-//		var c control.Control
-		
-//		err := json.DecodeFile(dir + cFile.Name(), &c)
-		
 		c, err := control.FromFile(dir + cFile.Name())
 		
 		if err != nil {
 			log.WarnFormat("Invalid control %s in repo %s", cFile.Name(), repo.Name)
 			continue
 		}
-		
 		if _, exists := repo.controls[c.Name]; !exists {
 			repo.controls[c.Name] = make(control.ControlList, 0)
 		}
-		
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
+	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
+	json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
 }
+
 func (repo *Repo) updatePkgInfosFromRemote() {
 	//Generates new list and writes to cache
-	repo.pkgInfos = make(PkgInfoMap)
+	repo.fetchable = make(PkgInfoMap)
 	
 	dir := repo.packagesDir()
 	
@@ -284,10 +297,6 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 		if !pkginfoRegex.MatchString(pkiFile.Name()) {
 			continue
 		}
-		
-//		var pki pkginfo.PkgInfo
-		
-//		err := json.DecodeFile(dir + pkiFile.Name(), &pki)
 		pki, err := pkginfo.FromFile(dir + pkiFile.Name())
 		
 		if err != nil {
@@ -295,12 +304,14 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 			continue
 		}
 		
-		if _, exists := repo.pkgInfos[pki.Name]; !exists {
-			repo.pkgInfos[pki.Name] = make(pkginfo.PkgInfoList, 0)
+		key := pki.Name + "-" + pki.Version
+		if _, exists := repo.fetchable[key]; !exists {
+			repo.fetchable[pki.Name] = make([]pkginfo.PkgInfo, 0)
 		}
-		
-		repo.pkgInfos[pki.Name] = append(repo.pkgInfos[pki.Name], *pki)
+		repo.fetchable[key] = append(repo.fetchable[key], *pki)
 	}
+	
+	json.EncodeFile(repo.pkgInfoCacheFile(), true, repo.controls)
 }
 
 
@@ -325,10 +336,10 @@ func (repo *Repo) loadControlCache() {
 
 func (repo *Repo) loadPkgInfoCache() {
 	log.DebugFormat("Loading pkginfos for %s", repo.Name)
-	repo.pkgInfos = make(PkgInfoMap)
+	repo.fetchable = make(PkgInfoMap)
 	pif := repo.pkgInfoCacheFile()
 	if PathExists(pif) {
-		err := json.DecodeFile(pif, &repo.pkgInfos)
+		err := json.DecodeFile(pif, &repo.fetchable)
 		if err != nil {
 			log.WarnFormat("Could not load pkginfo cache for repo %s: %s", repo.Name, err)
 		}
@@ -350,7 +361,7 @@ func (repo *Repo) loadTemplateListCache() {
 func (repo *Repo) loadInstalledPackagesList() {
 	log.DebugFormat("Loading installed packages for %s", repo.Name)
 	
-	repo.installed = make(PkgSetMap)
+	repo.installed = make(PkgInstallSetMap)
 	
 	dir := repo.installedPkgsDir()
 	
@@ -372,7 +383,7 @@ func (repo *Repo) loadInstalledPackagesList() {
 			continue
 		}
 		
-		ps, err := PkgSetFromFile(dir + file.Name())
+		ps, err := PkgInstallSetFromFile(dir + file.Name())
 		
 		if err != nil {
 			log.ErrorFormat("Invalid pkgset %s in repo %s", file.Name(), repo.Name)
@@ -431,8 +442,8 @@ func (repo *Repo) HasTemplate(c *control.Control) bool {
 	return exists
 }
 
-func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, basedir string) error {
-	ps := PkgSet { c, p }
+func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
+	ps := PkgInstallSet { c, p, hl }
 	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
 	if err != nil {
 		return err

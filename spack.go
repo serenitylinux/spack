@@ -414,7 +414,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		return err
 	}
 	
-	return repo.Install(spakg.Control, spakg.Pkginfo, destdirArg.Value)
+	return repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
 }
 
 func list() {
