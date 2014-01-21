@@ -458,6 +458,21 @@ func info(pkgs []string) {
 	}
 }
 
+func remove(pkgs []string){
+	for _, pkg := range pkgs {
+		c, repo := libspack.GetPackageLatest(pkg)
+		if (c == nil) {
+			fmt.Println("Unable to find package:" + pkg)
+			continue
+		}
+		err := repo.Uninstall(c)
+		if err != nil {
+			log.Error(err)
+			os.Exit(1)
+		}
+	}
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		Usage(0)
@@ -475,6 +490,13 @@ func main() {
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			wieldPackages(ForgeWieldArgs())
+		case "purge":
+			if len(os.Args) > 1 {
+				remove(os.Args[1:])
+			} else {
+				log.Error("Must specify package(s) for information")
+				Usage(2)
+			}
 		case "refresh":
 			libspack.RefreshRepos()
 		case "packages":

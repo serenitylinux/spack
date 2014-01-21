@@ -445,3 +445,45 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, basedir string) 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
 	return PathExists(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
 }
+
+func (repo *Repo) RDeps(c *control.Control) []PkgSet {
+	pkgs := make([]PkgSet,0)
+	
+	var inner func (*control.Control)
+	
+	inner = func (cur *control.Control) {
+		fmt.Println(cur)
+		for _, pkg := range pkgs {
+			if pkg.Control.Name == cur.Name {
+				return
+			}
+		}
+		
+		for _, set := range repo.installed {
+			for _, dep := range set.Control.Deps {
+				if dep == cur.Name {
+					pkgs = append(pkgs, set)
+					inner(&set.Control)
+				}
+			}
+		}
+	}
+	
+	inner(c)
+	
+	return pkgs
+}
+
+func (repo *Repo) Uninstall(c *control.Control) error{
+	list := repo.RDeps(c)
+	
+	if len(list) == 0 {
+		fmt.Println("No deps")
+		return nil
+	}
+	
+	for _, set := range list {
+		fmt.Println("Remove: ", set.Control.Name)
+	}
+	return nil
+}
