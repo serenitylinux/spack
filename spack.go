@@ -454,27 +454,33 @@ func wield(c *control.Control, repo *repo.Repo) error {
 }
 
 func list() {
+	installed := false
+	installedArg := argparse.RegisterBool("installed", installed, "Show only packages that are installed")
+	repos_list := argparse.EvalDefaultArgs()
+	installed = installedArg.Get()
+	
 	repos := libspack.GetAllRepos()
 	
 	printRepo := func (repoName string) {
 		fmt.Println("Packages in", repoName)
 		repo := repos[repoName]
 		list := repo.GetAllControls()
-		for name, pkglist := range list {
-			fmt.Println("Package: " + name)
+		for _, pkglist := range list {
 			for _, pkg := range pkglist {
-				fmt.Println(pkg.Name, pkg.Version)
+				if (!installed || repo.IsInstalled(&pkg, "/")) {
+					fmt.Println(pkg.Name, pkg.Version)
+				}
 			}
 		}
 	}
 	
-	if len(os.Args) == 2 {
-		repo := os.Args[1]
-		
-		if _, exists := repos[repo]; exists {
-			printRepo(repo)
-		} else {
-			fmt.Println("Invalid repo: ", repo)
+	if len(repos_list) > 0 {
+		for _, repo := range repos_list {
+			if _, exists := repos[repo]; exists {
+				printRepo(repo)
+			} else {
+				fmt.Println("Invalid repo: ", repo)
+			}
 		}
 	} else {
 		for repo, _ := range repos {
