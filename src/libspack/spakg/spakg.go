@@ -108,6 +108,10 @@ func FromFile(filename string, tarname *string) (s *Spakg, err error) {
 	ioerr := misc.WithFileReader(filename, readerFunc)
 	if ioerr != nil { return nil, ioerr }
 	
+	if err != nil {
+		err = errors.New(filename + fmt.Sprintf(" %s", err))
+	}
+	
 	return
 }
 
