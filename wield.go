@@ -140,7 +140,8 @@ func main() {
 			
 			log.Info("Installing files:")
 			log.InfoBarColor(log.Brown)
-			err = RunCommand(exec.Command("cp", "-vfap", fsDir + "/.", destdir), log.DebugWriter(), os.Stderr)
+			
+			err = RunCommand(exec.Command("cp", "-vfa", fsDir + "/.", destdir), log.DebugWriter(), os.Stderr)
 			ExitOnError(err)
 			
 			PrintSuccess()

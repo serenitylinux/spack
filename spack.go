@@ -65,6 +65,10 @@ var verboseArg *argparse.BoolValue = nil
 func registerVerbose() {
 	verboseArg = argparse.RegisterBool("verbose", false, "LOUD NOISES!!!")
 }
+var reinstallArg *argparse.BoolValue = nil
+func registerReinstallArg() {
+	reinstallArg = argparse.RegisterBool("reinstall", false, "OVERWRITE ALL THE THINGS!")
+}
 
 func ForgeWieldArgs() []string {
 	registerBaseDir()
@@ -377,29 +381,33 @@ func forge(c *control.Control, repo *repo.Repo) error {
 }
 
 func wield(c *control.Control, repo *repo.Repo) error {
-	if repo.IsInstalled(c, destdirArg.Value) {
+	if repo.IsInstalled(c, destdirArg.Value) && !reinstallArg.Get() {
 		return nil
 	}
 	
 	spakgFile := repo.GetSpakgOutput(c)
 	
 	if !PathExists(spakgFile) {
+		prev := reinstallArg.Value
+		reinstallArg.Value = false
 		err := forge(c,repo)
 		if err != nil {
 			return err
 		}
+		reinstallArg.Value = prev
 	}
 	
 	spakg, err := spakg.FromFile(spakgFile, nil)
 	if err != nil {
 		return err
 	}
-	
-	for _, dep := range c.Deps {
-		dc,dr := libspack.GetPackageLatest(dep)
-		err := wield(dc, dr)
-		if err != nil {
-			return err
+	if !reinstallArg.Value {
+		for _, dep := range c.Deps {
+			dc,dr := libspack.GetPackageLatest(dep)
+			err := wield(dc, dr)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	
@@ -489,6 +497,7 @@ func main() {
 			forgePackages(ForgeWieldArgs())
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
+			registerReinstallArg()
 			wieldPackages(ForgeWieldArgs())
 		case "purge":
 			if len(os.Args) > 1 {
