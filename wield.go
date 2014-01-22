@@ -111,7 +111,7 @@ func main() {
 			log.InfoBarColor(log.Brown)
 			
 			walk := func (path string, f os.FileInfo, err error) (erri error) {
-				if !f.IsDir() && f.Mode() == os.ModeSymlink {
+				if !f.IsDir() && f.Mode() != os.ModeSymlink {
 					origSum, exists := spkg.Md5sums[path]
 					if ! exists {
 						ExitOnError(errors.New(fmt.Sprintf("Sum for %s does not exist", path)))
@@ -141,8 +141,30 @@ func main() {
 			log.Info("Installing files:")
 			log.InfoBarColor(log.Brown)
 			
-			err = RunCommand(exec.Command("cp", "-vfa", fsDir + "/.", destdir), log.DebugWriter(), os.Stderr)
-			ExitOnError(err)
+			copyWalk := func (path string, f os.FileInfo, err error) (erri error) {
+				if f.IsDir() {
+					if !PathExists(path) {
+						e := os.Mkdir(destdir + path, f.Mode())
+						if e != nil {
+							log.Warn(e)
+						}
+					}
+				} else {
+					e := os.Remove(destdir + path)
+					if e != nil {
+						log.Warn(e)
+					}
+					e = os.Rename(path, destdir + path)
+					if e != nil {
+						log.Warn(e)
+					}
+				}
+				return nil
+			}
+			
+			InDir(fsDir, func() {
+				err = filepath.Walk(".", copyWalk);
+			})
 			
 			PrintSuccess()
 			
