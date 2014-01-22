@@ -381,20 +381,28 @@ func forge(c *control.Control, repo *repo.Repo) error {
 }
 
 func wield(c *control.Control, repo *repo.Repo) error {
-	if repo.IsInstalled(c, destdirArg.Value) && !reinstallArg.Get() {
+	isReinstall := reinstallArg != nil && reinstallArg.Get()
+	if repo.IsInstalled(c, destdirArg.Value) && !isReinstall {
 		return nil
 	}
 	
 	spakgFile := repo.GetSpakgOutput(c)
 	
 	if !PathExists(spakgFile) {
-		prev := reinstallArg.Value
-		reinstallArg.Value = false
+		var prev bool
+		if reinstallArg != nil {
+			prev = reinstallArg.Value
+			reinstallArg.Value = false
+		}
+		
 		err := forge(c,repo)
 		if err != nil {
 			return err
 		}
-		reinstallArg.Value = prev
+		
+		if reinstallArg != nil {
+			reinstallArg.Value = prev
+		}
 	}
 	
 	spakg, err := spakg.FromFile(spakgFile, nil)
