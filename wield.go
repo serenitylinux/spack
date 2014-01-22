@@ -45,6 +45,8 @@ func args() []string {
 	destdir, err = filepath.Abs(destArg.Get())
 	ExitOnError(err)
 	
+	destdir += "/"
+	
 	if verbose {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -149,6 +151,18 @@ func main() {
 							log.Warn(e)
 						}
 					}
+				} else if f.Mode() != os.ModeSymlink {
+					if PathExists(destdir + path) {
+						e := os.Remove(destdir + path)
+						if e != nil {
+							log.Warn(e)
+						}
+					}
+					
+					e := os.Symlink("/" + path, destdir + path)
+					if e != nil {
+						log.Warn(e)
+					}
 				} else {
 					if PathExists(destdir + path) {
 						e := os.Remove(destdir + path)
@@ -156,7 +170,7 @@ func main() {
 							log.Warn(e)
 						}
 					}
-					e := os.Rename(path, destdir + path)
+					e := os.Rename(fsDir + "/" +path, destdir + path)
 					if e != nil {
 						log.Warn(e)
 					}
