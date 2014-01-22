@@ -309,6 +309,10 @@ func main() {
 		buildPackage(template, c)
 	})
 	
+	if ! clean {
+		RemoveTmpDir()
+	}
+	
 	log.ColorAll(log.Green, c.Name, " forged successfully")
 	fmt.Println()
 }
