@@ -309,7 +309,7 @@ func main() {
 		buildPackage(template, c)
 	})
 	
-	if ! clean {
+	if clean {
 		RemoveTmpDir()
 	}
 	
