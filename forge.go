@@ -13,6 +13,8 @@ import (
 	"errors"
 	"libspack/argparse"
 	"libspack/log"
+	"libspack/gitrepo"
+	"libspack/httphelper"
 	"libspack/pkginfo"
 	"libspack/control"
 	"libspack/spakg"
@@ -107,13 +109,13 @@ func fetchPkgSrc(urls []string) {
 			case gitRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with git", url)
 				
-				err := CloneGitRepo(url)
+				err := gitrepo.Clone(url, ".")
 				ExitOnErrorMessage(err, "cloning repo " + url)
 				
 			case httpRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with http", url)
 				
-				err := HttpFetchFileProgress(url, base, log.CanDebug())
+				err := httphelper.HttpFetchFileProgress(url, base, log.CanDebug())
 				ExitOnErrorMessage(err, "fetching file " + url)
 				
 				err = extractPkgSrc(base)

@@ -49,6 +49,7 @@ import (
 	"regexp"
 	"os"
 	"io/ioutil"
+	"libspack/httphelper"
 	"libspack/pkginfo"
 	"libspack/control"
 	"libspack/hash"
@@ -114,10 +115,8 @@ type Repo struct {
 	Description string
 	//Buildable
 	RemoteTemplates string	//Templates
-	//Installable
+	//Installable (pkgset + spakg)
 	RemotePackages string	//Control + PkgInfo
-	//Installable spakges (corresponds to RemotePackages)
-	RemoteSpakgs string		//Pre build spakgs (name-version:hash.spakg)
 	Version string
 	
 	//Private NOT SERIALIZED
@@ -173,6 +172,29 @@ func cloneRepo(remote string, dir string, name string) {
 			if err != nil {
 				log.WarnFormat("Update repository %s %s failed: %s", name, remote, err)
 			}
+		case HttpRegex.MatchString(remote):
+			os.MkdirAll(dir, 0755)
+			listFile := "packages.list"
+			err := httphelper.HttpFetchFileProgress(remote + listFile, dir + listFile, false)
+			if err != nil {
+				log.Warn(err, remote + listFile)
+				return
+			}
+			
+			list := make([]string, 0)
+			err = json.DecodeFile(dir + listFile, &list)
+			if err != nil {
+				log.Warn(err)
+				return
+			}
+			
+			for _, item := range list {
+				src := remote + "/info/" + item
+				err = httphelper.HttpFetchFileProgress(src, dir + item, false)
+				if err != nil {
+					log.Warn("Unable to fetch %s: %s", err)
+				}
+			}
 		case RsyncRegex.MatchString(remote):
 			log.Warn("TODO rsync repo")
 		default:
@@ -196,7 +218,7 @@ func (repo *Repo) UpdateCaches() {
 	if repo.RemoteTemplates != "" {
 		repo.updateControlsFromTemplates()
 	// else if we just have remote controls and prebuilt packages
-	} else if repo.RemoteSpakgs != "" && repo.RemotePackages != "" {
+	} else if repo.RemotePackages != "" {
 		repo.updateControlsFromRemote()
 	}
 	
@@ -256,27 +278,28 @@ func (repo *Repo) updateControlsFromRemote() {
 		return
 	}
 	
-	controlRegex := regexp.MustCompile(".*.control")
+	controlRegex := regexp.MustCompile(".*.pkgset")
 	
 	for _, cFile := range controls {
 		if !controlRegex.MatchString(cFile.Name()) {
 			continue
 		}
 		
-		c, err := control.FromFile(dir + cFile.Name())
+		ps, err := PkgSetFromFile(dir + cFile.Name())
 		
 		if err != nil {
 			log.WarnFormat("Invalid control %s in repo %s", cFile.Name(), repo.Name)
 			continue
 		}
+		c := ps.Control
+		
 		if _, exists := repo.controls[c.Name]; !exists {
 			repo.controls[c.Name] = make(control.ControlList, 0)
 		}
-		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
+		repo.controls[c.Name] = append(repo.controls[c.Name], c)
 	}
 	
 	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
-	json.EncodeFile(repo.templateListCacheFile(), true, repo.templateFiles)
 }
 
 func (repo *Repo) updatePkgInfosFromRemote() {
@@ -291,27 +314,28 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 		return
 	}
 	
-	pkginfoRegex := regexp.MustCompile(".*.pkginfo")
+	pkginfoRegex := regexp.MustCompile(".*.pkgset")
 	
 	for _, pkiFile := range pkginfos {
 		if !pkginfoRegex.MatchString(pkiFile.Name()) {
 			continue
 		}
-		pki, err := pkginfo.FromFile(dir + pkiFile.Name())
+		ps, err := PkgSetFromFile(dir + pkiFile.Name())
 		
 		if err != nil {
 			log.WarnFormat("Invalid pkginfo %s in repo %s", pkiFile.Name(), repo.Name)
 			continue
 		}
+		pki := ps.PkgInfo
 		
 		key := pki.Name + "-" + pki.Version
 		if _, exists := repo.fetchable[key]; !exists {
-			repo.fetchable[pki.Name] = make([]pkginfo.PkgInfo, 0)
+			repo.fetchable[key] = make([]pkginfo.PkgInfo, 0)
 		}
-		repo.fetchable[key] = append(repo.fetchable[key], *pki)
+		repo.fetchable[key] = append(repo.fetchable[key], pki)
 	}
 	
-	json.EncodeFile(repo.pkgInfoCacheFile(), true, repo.controls)
+	json.EncodeFile(repo.pkgInfoCacheFile(), true, repo.fetchable)
 }
 
 

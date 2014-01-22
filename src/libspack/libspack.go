@@ -1,16 +1,9 @@
 package libspack
 
 import (
-	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
-	"os/exec"
-	"net/http"
-	"errors"
-	"libspack/progress"
+	"io/ioutil"
 	"libspack/log"
-	"libspack/misc"
 	"libspack/repo"
 	"libspack/control"
 )
@@ -75,38 +68,6 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	}
 	return nil, nil
 }
-
-func HttpFetchFileProgress(url string, outFile string, stdout bool) (err error) {
-	out, err := os.Create(outFile)
-	defer out.Close()
-	if err != nil {
-		return
-	}
-	response, err := http.Get(url)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-	
-	if response.StatusCode != 200 {
-		err = errors.New("Server responded: " + response.Status)
-		return
-	}
-	pb := progress.NewProgress(out, response.ContentLength, stdout)
-	
-	io.Copy(pb, response.Body)
-	if stdout {
-		fmt.Println()
-		fmt.Println()
-	}
-	return
-}
-
-func CloneGitRepo(url string) error {
-	cmd := exec.Command("git", "clone", url)
-	return misc.RunCommandToStdOutErr(cmd)
-}
-
 
 func PrintSuccess() {
 	log.InfoColor(log.Green, "Success")

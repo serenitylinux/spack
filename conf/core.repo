@@ -2,5 +2,6 @@
 	"Name": "Core",
 	"Description": "Core Serenity Repository",
 	"RemoteTemplates": "http://gitlab.cslabs.clarkson.edu/serenity/core.git",
+	"RemotePackages": "http://mirror.clarkson.edu/serenity/Core/",
 	"Version": "master"
 }
