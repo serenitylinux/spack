@@ -143,18 +143,20 @@ func main() {
 			
 			copyWalk := func (path string, f os.FileInfo, err error) (erri error) {
 				if f.IsDir() {
-					if !PathExists(path) {
+					if !PathExists(destdir + path) {
 						e := os.Mkdir(destdir + path, f.Mode())
 						if e != nil {
 							log.Warn(e)
 						}
 					}
 				} else {
-					e := os.Remove(destdir + path)
-					if e != nil {
-						log.Warn(e)
+					if PathExists(destdir + path) {
+						e := os.Remove(destdir + path)
+						if e != nil {
+							log.Warn(e)
+						}
 					}
-					e = os.Rename(path, destdir + path)
+					e := os.Rename(path, destdir + path)
 					if e != nil {
 						log.Warn(e)
 					}
