@@ -457,8 +457,18 @@ func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
 }
 
+func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error{
+	out := repo.GetSpakgOutput(c)
+	if !PathExists(out) {
+		src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s-%s.spakg", c.Name, c.Version)
+		return httphelper.HttpFetchFileProgress(src, out, false)
+	}
+	return nil
+}
+
 func (repo *Repo) HasSpakg(c *control.Control) bool {
-	return PathExists(repo.GetSpakgOutput(c))
+	_, exists := repo.fetchable[c.Name + "-" + c.Version]
+	return PathExists(repo.GetSpakgOutput(c)) || exists
 }
 
 func (repo *Repo) HasTemplate(c *control.Control) bool {
