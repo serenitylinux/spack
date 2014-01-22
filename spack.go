@@ -82,6 +82,11 @@ func ForgeWieldArgs() []string {
 		fmt.Println("Must specify package(s)!")
 		argparse.Usage(2)
 	}
+	
+	if verboseArg.Get() {
+		log.SetLevel(log.DebugLevel)
+	}
+	
 	return packages;
 }
 
@@ -181,6 +186,16 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		return true
 	}
 	
+	if !(c.Name() == base.Name()) {
+		for _, repo := range libspack.GetAllRepos() {
+			if repo.IsInstalled(c.control, destdirArg.Value) {
+				log.Debug(c.Name(), "Already Installed" )
+				return true
+			}
+		}
+	}
+	
+	
 	//If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
 	//We are in our own bdeb tree, should only happen for $base if we are having a good day
 	if forge_deps.Contains(c) {
@@ -242,10 +257,13 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 			//We dont need deps
 		
 		if !(isforge && c.Name() == base.Name()) {
+			olddd := destdirArg.Value
+			destdirArg.Value = "/"
 			log.Debug(c.Name(), "Deps ", c.control.Deps)
 			if !checkChildren(c.control.Deps) {
 				happy = false
 			}
+			destdirArg.Value = olddd
 		}
 		
 		log.Debug(c.Name(), "Done")
@@ -264,7 +282,7 @@ func forgePackages(packages []string) {
 	for _, pkg := range packages {
 		c, repo := libspack.GetPackageLatest(pkg)
 		if c == nil {
-			log.Info("Cannot find package " + pkg)
+			log.InfoFormat("Cannot find package %s for %s", pkg, c.Name)
 			os.Exit(1)
 		}
 		
@@ -310,6 +328,10 @@ func wieldPackages(packages []string) {
 		}
 		
 		cr := ControlRepo { c,repo }
+		pkglist.Append(cr)
+	}
+	
+	for _, cr := range pkglist {
 		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, false)
 		log.Debug()
 		
@@ -320,8 +342,6 @@ func wieldPackages(packages []string) {
 			}
 			os.Exit(-1)
 		}
-		pkglist.Append(cr)
-		
 	}
 
 	log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
