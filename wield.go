@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"syscall"
 	"path/filepath"
 	"io/ioutil"
 	"libspack/argparse"
@@ -113,7 +115,7 @@ func main() {
 			log.InfoBarColor(log.Brown)
 			
 			walk := func (path string, f os.FileInfo, err error) (erri error) {
-				if !f.IsDir() && f.Mode() == os.ModeSymlink {
+				if !f.IsDir() && f.Mode()&os.ModeSymlink != 0 {
 					origSum, exists := spkg.Md5sums[path]
 					if ! exists {
 						ExitOnError(errors.New(fmt.Sprintf("Sum for %s does not exist", path)))
@@ -144,14 +146,12 @@ func main() {
 			log.InfoBarColor(log.Brown)
 			
 			copyWalk := func (path string, f os.FileInfo, err error) (erri error) {
-				if f.IsDir() {
-					if !PathExists(destdir + path) {
-						e := os.Mkdir(destdir + path, f.Mode())
-						if e != nil {
-							log.Warn(e)
-						}
+				if f.Mode()&os.ModeSymlink != 0 {
+					target, e := os.Readlink(fsDir + "/"  + path)
+					if e != nil {
+						log.Warn(e)
 					}
-				} else if f.Mode() != os.ModeSymlink {
+					
 					if PathExists(destdir + path) {
 						e := os.Remove(destdir + path)
 						if e != nil {
@@ -159,9 +159,16 @@ func main() {
 						}
 					}
 					
-					e := os.Symlink("/" + path, destdir + path)
+					e = os.Symlink(target , destdir + path)
 					if e != nil {
 						log.Warn(e)
+					}
+				} else if f.IsDir() {
+					if !PathExists(destdir + path) {
+						e := os.Mkdir(destdir + path, f.Mode())
+						if e != nil {
+							log.Warn(e)
+						}
 					}
 				} else {
 					if PathExists(destdir + path) {
@@ -170,11 +177,32 @@ func main() {
 							log.Warn(e)
 						}
 					}
-					e := os.Rename(fsDir + "/" +path, destdir + path)
+					
+					var e error
+					e = WithFileWriter(destdir + path, true, func (writer io.Writer) {
+						e = WithFileReader(fsDir + "/" +path, func (reader io.Reader) {
+							_, e = io.Copy(writer, reader)
+							if e != nil {
+								log.Warn(e)
+							}
+						})
+						if e != nil {
+							log.Warn(e)
+						}
+					})
 					if e != nil {
 						log.Warn(e)
 					}
+					
+					/*e := os.Rename(fsDir + "/" +path, destdir + path)
+					if e != nil {
+						log.Warn(e)
+					}*/
 				}
+				
+				st := f.Sys().(*syscall.Stat_t)
+				os.Lchown(destdir + path, int(st.Uid), int(st.Gid))
+				os.Chmod(destdir + path, f.Mode())
 				return nil
 			}
 			
