@@ -115,7 +115,7 @@ func main() {
 			log.InfoBarColor(log.Brown)
 			
 			walk := func (path string, f os.FileInfo, err error) (erri error) {
-				if !f.IsDir() && f.Mode()&os.ModeSymlink != 0 {
+				if !f.IsDir() && f.Mode()&os.ModeSymlink == 0 {
 					origSum, exists := spkg.Md5sums[path]
 					if ! exists {
 						ExitOnError(errors.New(fmt.Sprintf("Sum for %s does not exist", path)))
