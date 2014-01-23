@@ -283,7 +283,7 @@ func main() {
 	template, err := filepath.Abs(arguments())
 	ExitOnError(err)
 	
-	c, err := control.GenerateControlFromTemplateFile(template)
+	c, err := control.FromTemplateFile(template)
 	if c == nil {
 		log.ErrorFormat("Invalid package %s, %s", template, err)
 		os.Exit(2)

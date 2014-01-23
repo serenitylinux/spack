@@ -47,6 +47,7 @@ package repo
 import (
 	"fmt"
 	"regexp"
+	"errors"
 	"os"
 	"io/ioutil"
 	"libspack/httphelper"
@@ -55,42 +56,12 @@ import (
 	"libspack/hash"
 	"libspack/log"
 	"libspack/gitrepo"
+	"libspack/repo/pkgset"
+	"libspack/repo/pkginstallset"
 )
 
 import . "libspack/misc"
 import json "libspack/jsonhelper"
-
-
-
-type PkgSet struct {
-	Control control.Control
-	PkgInfo pkginfo.PkgInfo
-}
-func (p *PkgSet) ToFile(filename string) error {
-	return json.EncodeFile(filename, true, p)
-}
-func PkgSetFromFile(filename string) (*PkgSet, error) {
-	var i PkgSet
-	err := json.DecodeFile(filename, &i)
-	return &i, err
-}
-
-type PkgInstallSet struct {
-	Control control.Control
-	PkgInfo pkginfo.PkgInfo
-	Hashes  hash.HashList
-}
-func (p *PkgInstallSet) ToFile(filename string) error {
-	return json.EncodeFile(filename, true, p)
-}
-func (p *PkgInstallSet) FromFile(filename string) (err error) {
-	var i PkgInstallSet
-	err = json.DecodeFile(filename, &i)
-	if err != nil {
-		p = &i
-	}
-	return
-}
 
 
 //Sorted by pkgversion
@@ -103,7 +74,7 @@ type TemplateFileMap map[string] map[string] string
 type PkgInfoMap map[string][]pkginfo.PkgInfo
 
 // Map<name-version, Tuple<control,pkginfo,hashlist>>
-type PkgInstallSetMap map[string]PkgInstallSet
+type PkgInstallSetMap map[string]pkginstallset.PkgInstallSet
 
 const (
 	TemplatesDir  = "/var/lib/spack/templates/"	//Downloaded templates
@@ -129,6 +100,9 @@ type Repo struct {
 	installed     PkgInstallSetMap
 }
 
+/*
+Serialization
+*/
 func (repo *Repo) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, repo)
 }
@@ -144,7 +118,9 @@ func FromFile(filename string) (Repo, error) {
 	return repo, err
 }
 
-
+/*
+Package Directories
+*/
 func (repo *Repo) templatesDir() string {
 	return TemplatesDir + repo.Name + "/"
 }
@@ -166,6 +142,128 @@ func (repo *Repo) templateListCacheFile() string {
 func (repo *Repo) installedPkgsDir() string {
 	return InstallDir + repo.Name + "/"
 }
+
+
+func (repo *Repo) GetAllControls() ControlMap {
+	return repo.controls
+}
+
+func (repo *Repo) GetControls(pkgname string) (control.ControlList, bool) {
+	res, e := repo.GetAllControls()[pkgname]
+	return res, e
+}
+
+func (repo *Repo) GetLatestControl(pkgname string) (*control.Control, bool) {
+	c, exists := repo.GetControls(pkgname)
+	var res *control.Control = nil
+	
+	if exists {
+		res = &c[0]
+	}
+	return res, exists
+}
+
+func (repo *Repo) GetAllTemplates() TemplateFileMap {
+	return repo.templateFiles
+}
+
+func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
+	byName, exists := repo.templateFiles[c.Name]
+	if !exists { return "", false }
+	byVersion := byName[c.Version]
+	if !exists { return "", false }
+	return byVersion, true
+}
+
+func (repo *Repo) GetSpakgOutput(c *control.Control) string {
+	if !PathExists(SpakgDir + repo.Name) {
+		os.MkdirAll(SpakgDir + repo.Name, 0755)
+	}
+	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
+}
+
+func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error{
+	out := repo.GetSpakgOutput(c)
+	if !PathExists(out) {
+		src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s-%s.spakg", c.Name, c.Version)
+		return httphelper.HttpFetchFileProgress(src, out, false)
+	}
+	return nil
+}
+
+func (repo *Repo) HasSpakg(c *control.Control) bool {
+	_, exists := repo.fetchable[c.Name + "-" + c.Version]
+	return PathExists(repo.GetSpakgOutput(c)) || exists
+}
+
+func (repo *Repo) HasTemplate(c *control.Control) bool {
+	_, exists := repo.GetTemplateByControl(c)
+	return exists
+}
+
+func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
+	ps := pkginstallset.PkgInstallSet { c, p, hl }
+	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
+	if err != nil {
+		return err
+	}
+	err = ps.ToFile(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
+	repo.loadInstalledPackagesList()
+	return err
+}
+
+func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
+	return PathExists(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
+}
+
+func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
+	pkgs := make([]pkginstallset.PkgInstallSet,0)
+	
+	var inner func (*control.Control)
+	
+	inner = func (cur *control.Control) {
+		fmt.Println(cur)
+		for _, pkg := range pkgs {
+			if pkg.Control.Name == cur.Name {
+				return
+			}
+		}
+		
+		for _, set := range repo.installed {
+			for _, dep := range set.Control.Deps {
+				if dep == cur.Name {
+					pkgs = append(pkgs, set)
+					inner(&set.Control)
+				}
+			}
+		}
+	}
+	
+	inner(c)
+	
+	return pkgs
+}
+
+func (repo *Repo) Uninstall(c *control.Control) error {
+	list := repo.RDeps(c)
+	
+	if len(list) == 0 {
+		fmt.Println("No deps")
+		return nil
+	}
+	
+	for _, set := range list {
+		fmt.Println("Remove: ", set.Control.Name)
+	}
+	return nil
+}
+
+
+
+
+/*
+Repo Dir Management
+*/
 
 func cloneRepo(remote string, dir string, name string) {
 	switch {
@@ -230,6 +328,24 @@ func (repo *Repo) UpdateCaches() {
 	}
 }
 
+func (repo *Repo) readAll(dir string, regex *regexp.Regexp, todo func (file string)) error {
+	if !PathExists(dir) {
+		return errors.New("Unable to access directory")
+	}
+	
+	filelist, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	
+	for _, file := range filelist {
+		if regex.MatchString(dir + file.Name()) {
+			todo(file.Name())
+		}
+	}
+	return nil
+}
+
 //Will also populate template list
 func (repo *Repo) updateControlsFromTemplates() {
 	//Generates new list and writes to cache
@@ -237,24 +353,12 @@ func (repo *Repo) updateControlsFromTemplates() {
 	
 	dir := repo.templatesDir()
 	
-	templates, err := ioutil.ReadDir(dir)
-	if err != nil {
-		log.WarnFormat("Unable to load repo %s's templates: %s", repo.Name, err)
-		return
-	}
-	
-	templateRegex := regexp.MustCompile(".*\\.pie")
-	
-	for _, templateFile := range templates {
-		if !templateRegex.MatchString(templateFile.Name()) {
-			continue
-		}
-		tfAbs := dir + templateFile.Name()
-		c, err := control.GenerateControlFromTemplateFile(tfAbs)
+	readFunc := func (file string) {
+		c, err := control.FromTemplateFile(file)
 		
 		if err != nil {
-			log.WarnFormat("Invalid template in repo %s (%s) : %s", repo.Name, templateFile.Name(), err)
-			continue
+			log.WarnFormat("Invalid template in repo %s (%s) : %s", repo.Name, file, err)
+			return
 		}
 		
 		// Initialize list of controls for current name if nessesary
@@ -266,8 +370,15 @@ func (repo *Repo) updateControlsFromTemplates() {
 			repo.templateFiles[c.Name] = make(map[string]string)
 		}
 		
-		repo.templateFiles[c.Name][c.Version] = tfAbs
+		repo.templateFiles[c.Name][c.Version] = dir + file
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
+	}
+	
+	err := repo.readAll(dir, regexp.MustCompile(".*\\.pie"), readFunc)
+	
+	if err != nil {
+		log.WarnFormat("Unable to load repo %s's templates: %s", repo.Name, err)
+		return
 	}
 	
 	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
@@ -278,33 +389,24 @@ func (repo *Repo) updateControlsFromRemote() {
 	// finds all files in remote dir and writes to cache
 	repo.controls = make(ControlMap)
 	
-	dir := repo.packagesDir()
-	
-	controls, err := ioutil.ReadDir(dir)
-	if err != nil {
-		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
-		return
-	}
-	
-	controlRegex := regexp.MustCompile(".*.pkgset")
-	
-	for _, cFile := range controls {
-		if !controlRegex.MatchString(cFile.Name()) {
-			continue
-		}
-		
-		ps, err := PkgSetFromFile(dir + cFile.Name())
-		
+	readFunc := func (file string) {
+		ps, err := pkgset.FromFile(file)
 		if err != nil {
-			log.WarnFormat("Invalid control %s in repo %s", cFile.Name(), repo.Name)
-			continue
+			log.WarnFormat("Invalid control %s in repo %s", file, repo.Name)
+			return
 		}
 		c := ps.Control
-		
 		if _, exists := repo.controls[c.Name]; !exists {
 			repo.controls[c.Name] = make(control.ControlList, 0)
 		}
 		repo.controls[c.Name] = append(repo.controls[c.Name], c)
+	}
+	
+	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkgset"), readFunc)
+	
+	if err != nil {
+		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
+		return
 	}
 	
 	json.EncodeFile(repo.controlCacheFile(), true, repo.controls)
@@ -314,25 +416,12 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 	//Generates new list and writes to cache
 	repo.fetchable = make(PkgInfoMap)
 	
-	dir := repo.packagesDir()
-	
-	pkginfos, err := ioutil.ReadDir(dir)
-	if err != nil {
-		log.WarnFormat("Unable to load repo %s's pkginfos: %s", repo.Name, err)
-		return
-	}
-	
-	pkginfoRegex := regexp.MustCompile(".*.pkgset")
-	
-	for _, pkiFile := range pkginfos {
-		if !pkginfoRegex.MatchString(pkiFile.Name()) {
-			continue
-		}
-		ps, err := PkgSetFromFile(dir + pkiFile.Name())
+	readFunc := func (file string) {
+		ps, err := pkgset.FromFile(file)
 		
 		if err != nil {
-			log.WarnFormat("Invalid pkginfo %s in repo %s", pkiFile.Name(), repo.Name)
-			continue
+			log.WarnFormat("Invalid pkginfo %s in repo %s", file, repo.Name)
+			return
 		}
 		pki := ps.PkgInfo
 		
@@ -341,6 +430,12 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 			repo.fetchable[key] = make([]pkginfo.PkgInfo, 0)
 		}
 		repo.fetchable[key] = append(repo.fetchable[key], pki)
+	}
+	
+	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkgset"), readFunc)
+	if err != nil {
+		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
+		return
 	}
 	
 	json.EncodeFile(repo.pkgInfoCacheFile(), true, repo.fetchable)
@@ -395,149 +490,29 @@ func (repo *Repo) loadInstalledPackagesList() {
 	
 	repo.installed = make(PkgInstallSetMap)
 	
+	readFunc := func(file string) {
+		ps, err := pkginstallset.FromFile(file)
+		
+		if err != nil {
+			log.ErrorFormat("Invalid pkgset %s in repo %s", file, repo.Name)
+			log.Warn("This is a REALLY bad thing!")
+			return
+		}
+		
+		repo.installed[ps.Control.Name] = *ps
+	}
+	
 	dir := repo.installedPkgsDir()
 	
 	if !PathExists(dir) {
 		os.MkdirAll(dir, 0755)
+		return
 	}
 	
-	filelist, err := ioutil.ReadDir(dir)
+	err := repo.readAll(dir, regexp.MustCompile(".*.pkgset"), readFunc)
 	if err != nil {
 		log.ErrorFormat("Unable to load repo %s's installed packages: %s", repo.Name, err)
 		log.Warn("This is a REALLY bad thing!")
 		return
 	}
-	
-	pkgsetRegex := regexp.MustCompile(".*.pkgset")
-	
-	for _, file := range filelist {
-		if !pkgsetRegex.MatchString(file.Name()) {
-			continue
-		}
-		
-		var ps *PkgInstallSet
-		err := ps.FromFile(dir + file.Name())
-		
-		if err != nil {
-			log.ErrorFormat("Invalid pkgset %s in repo %s", file.Name(), repo.Name)
-			log.Warn("This is a REALLY bad thing!")
-			continue
-		}
-		
-		repo.installed[ps.Control.Name] = *ps
-	}
-}
-
-func (repo *Repo) GetAllControls() ControlMap {
-	return repo.controls
-}
-
-func (repo *Repo) GetControls(pkgname string) (control.ControlList, bool) {
-	res, e := repo.GetAllControls()[pkgname]
-	return res, e
-}
-
-func (repo *Repo) GetLatestControl(pkgname string) (*control.Control, bool) {
-	c, exists := repo.GetControls(pkgname)
-	var res *control.Control = nil
-	
-	if exists {
-		res = &c[0]
-	}
-	return res, exists
-}
-
-func (repo *Repo) GetAllTemplates() TemplateFileMap {
-	return repo.templateFiles
-}
-
-func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
-	byName, exists := repo.templateFiles[c.Name]
-	if !exists { return "", false }
-	byVersion := byName[c.Version]
-	if !exists { return "", false }
-	return byVersion, true
-}
-
-func (repo *Repo) GetSpakgOutput(c *control.Control) string {
-	if !PathExists(SpakgDir + repo.Name) {
-		os.MkdirAll(SpakgDir + repo.Name, 0755)
-	}
-	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
-}
-
-func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error{
-	out := repo.GetSpakgOutput(c)
-	if !PathExists(out) {
-		src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s-%s.spakg", c.Name, c.Version)
-		return httphelper.HttpFetchFileProgress(src, out, false)
-	}
-	return nil
-}
-
-func (repo *Repo) HasSpakg(c *control.Control) bool {
-	_, exists := repo.fetchable[c.Name + "-" + c.Version]
-	return PathExists(repo.GetSpakgOutput(c)) || exists
-}
-
-func (repo *Repo) HasTemplate(c *control.Control) bool {
-	_, exists := repo.GetTemplateByControl(c)
-	return exists
-}
-
-func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
-	ps := PkgInstallSet { c, p, hl }
-	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
-	if err != nil {
-		return err
-	}
-	err = ps.ToFile(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
-	repo.loadInstalledPackagesList()
-	return err
-}
-
-func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	return PathExists(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
-}
-
-func (repo *Repo) RDeps(c *control.Control) []PkgInstallSet {
-	pkgs := make([]PkgInstallSet,0)
-	
-	var inner func (*control.Control)
-	
-	inner = func (cur *control.Control) {
-		fmt.Println(cur)
-		for _, pkg := range pkgs {
-			if pkg.Control.Name == cur.Name {
-				return
-			}
-		}
-		
-		for _, set := range repo.installed {
-			for _, dep := range set.Control.Deps {
-				if dep == cur.Name {
-					pkgs = append(pkgs, set)
-					inner(&set.Control)
-				}
-			}
-		}
-	}
-	
-	inner(c)
-	
-	return pkgs
-}
-
-func (repo *Repo) Uninstall(c *control.Control) error{
-	list := repo.RDeps(c)
-	
-	if len(list) == 0 {
-		fmt.Println("No deps")
-		return nil
-	}
-	
-	for _, set := range list {
-		fmt.Println("Remove: ", set.Control.Name)
-	}
-	return nil
 }

@@ -59,7 +59,7 @@ func FromReader(reader io.Reader) (*Control, error) {
 
 //TODO consolidate into a single function
 
-func GenerateControlFromTemplateString(template string) (*Control, error) {
+func FromTemplateString(template string) (*Control, error) {
 		commands := `
 %s
 
@@ -107,7 +107,7 @@ EOT`
 	return FromReader(bytes.NewReader(buf.Bytes()))
 }
 
-func GenerateControlFromTemplateFile(template string) (*Control, error) {
+func FromTemplateFile(template string) (*Control, error) {
 	var str string
 	err := misc.WithFileReader(template, func (r io.Reader) {
 		str = misc.ReaderToString(r)
@@ -116,5 +116,5 @@ func GenerateControlFromTemplateFile(template string) (*Control, error) {
 		return nil, err
 	}
 	
-	return GenerateControlFromTemplateString(str)
+	return FromTemplateString(str)
 }
