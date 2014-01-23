@@ -13,6 +13,7 @@ import json "libspack/jsonhelper"
 type Control struct {
 	Name string
 	Version string
+	Iteration int
 	Description string
 	Url string
 	Src []string
@@ -66,6 +67,7 @@ cat << EOT
 {
   "Name": "$name",
   "Version": "$version",
+  "Iteration": "$iteration",
   "Description": "$desc",
   "Url": "$url",
   "Src": [ "$src" ],

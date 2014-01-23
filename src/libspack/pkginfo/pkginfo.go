@@ -10,6 +10,7 @@ import json "libspack/jsonhelper"
 type PkgInfo struct {
 	Name string
 	Version string
+	Iteration int
 	BuildDate time.Time
 	Flags []string
 }

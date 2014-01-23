@@ -206,6 +206,7 @@ func buildPackage(template string, c *control.Control) {
 		BuildDate : time.Now(),
 		Name : c.Name,
 		Version : c.Version,
+		Iteration : c.Iteration,
 	}
 	
 	
