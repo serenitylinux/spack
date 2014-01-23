@@ -67,7 +67,7 @@ cat << EOT
 {
   "Name": "$name",
   "Version": "$version",
-  "Iteration": "$iteration",
+  "Iteration": $iteration,
   "Description": "$desc",
   "Url": "$url",
   "Src": [ "$src" ],

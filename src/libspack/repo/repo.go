@@ -83,10 +83,13 @@ type PkgInstallSet struct {
 func (p *PkgInstallSet) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, p)
 }
-func PkgInstallSetFromFile(filename string) (*PkgInstallSet, error) {
+func (p *PkgInstallSet) FromFile(filename string) (err error) {
 	var i PkgInstallSet
-	err := json.DecodeFile(filename, &i)
-	return &i, err
+	err = json.DecodeFile(filename, &i)
+	if err != nil {
+		p = &i
+	}
+	return
 }
 
 
@@ -240,12 +243,17 @@ func (repo *Repo) updateControlsFromTemplates() {
 		return
 	}
 	
+	templateRegex := regexp.MustCompile(".*\\.pie")
+	
 	for _, templateFile := range templates {
+		if !templateRegex.MatchString(templateFile.Name()) {
+			continue
+		}
 		tfAbs := dir + templateFile.Name()
 		c, err := control.GenerateControlFromTemplateFile(tfAbs)
 		
 		if err != nil {
-			log.WarnFormat("Invalid template in repo %s : %s", repo.Name, err)
+			log.WarnFormat("Invalid template in repo %s (%s) : %s", repo.Name, templateFile.Name(), err)
 			continue
 		}
 		
@@ -407,7 +415,8 @@ func (repo *Repo) loadInstalledPackagesList() {
 			continue
 		}
 		
-		ps, err := PkgInstallSetFromFile(dir + file.Name())
+		var ps *PkgInstallSet
+		err := ps.FromFile(dir + file.Name())
 		
 		if err != nil {
 			log.ErrorFormat("Invalid pkgset %s in repo %s", file.Name(), repo.Name)
