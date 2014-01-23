@@ -208,13 +208,13 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 		return err
 	}
 	
-	err = ps.ToFile(basedir + GetSpakgOutput(c))
+	err = ps.ToFile(basedir + repo.GetSpakgOutput(c))
 	repo.loadInstalledPackagesList()
 	return err
 }
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	return PathExists(basedir + GetSpakgOutput(c))
+	return PathExists(basedir + repo.GetSpakgOutput(c))
 }
 
 func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
@@ -266,6 +266,39 @@ func (repo *Repo) Uninstall(c *control.Control) error {
 Repo Dir Management
 */
 
+func (repo *Repo) RefreshRemote() {
+	if repo.RemoteTemplates != "" {
+		cloneRepo(repo.RemoteTemplates, repo.templatesDir(), repo.Name)
+	}
+	if repo.RemotePackages != "" {
+		cloneRepo(repo.RemotePackages, repo.packagesDir(), repo.Name)
+	}
+	
+	repo.UpdateCaches()
+}
+
+func (repo *Repo) UpdateCaches() {
+	//if we have remote templates
+	if repo.RemoteTemplates != "" {
+		repo.updateControlsFromTemplates()
+	// else if we just have remote controls and prebuilt packages
+	} else if repo.RemotePackages != "" {
+		repo.updateControlsFromRemote()
+	}
+	
+	if repo.RemotePackages != "" {
+		repo.updatePkgInfosFromRemote()
+	}
+}
+
+func (repo *Repo) LoadCaches() {
+	repo.loadControlCache()
+	repo.loadPkgInfoCache()
+	repo.loadTemplateListCache()
+	repo.loadInstalledPackagesList()
+}
+
+
 func cloneRepo(remote string, dir string, name string) {
 	switch {
 		case GitRegex.MatchString(remote):
@@ -301,31 +334,6 @@ func cloneRepo(remote string, dir string, name string) {
 			log.Warn("TODO rsync repo")
 		default:
 			log.WarnFormat("Unknown repository format %s: '%s'", name, remote)
-	}
-}
-
-func (repo *Repo) RefreshRemote() {
-	if repo.RemoteTemplates != "" {
-		cloneRepo(repo.RemoteTemplates, repo.templatesDir(), repo.Name)
-	}
-	if repo.RemotePackages != "" {
-		cloneRepo(repo.RemotePackages, repo.packagesDir(), repo.Name)
-	}
-	
-	repo.UpdateCaches()
-}
-
-func (repo *Repo) UpdateCaches() {
-	//if we have remote templates
-	if repo.RemoteTemplates != "" {
-		repo.updateControlsFromTemplates()
-	// else if we just have remote controls and prebuilt packages
-	} else if repo.RemotePackages != "" {
-		repo.updateControlsFromRemote()
-	}
-	
-	if repo.RemotePackages != "" {
-		repo.updatePkgInfosFromRemote()
 	}
 }
 
@@ -403,7 +411,7 @@ func (repo *Repo) updateControlsFromRemote() {
 		repo.controls[c.Name] = append(repo.controls[c.Name], c)
 	}
 	
-	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkgset"), readFunc)
+	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.control"), readFunc)
 	
 	if err != nil {
 		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
@@ -433,7 +441,7 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 		repo.fetchable[key] = append(repo.fetchable[key], pki)
 	}
 	
-	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkgset"), readFunc)
+	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkginfo"), readFunc)
 	if err != nil {
 		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
 		return
@@ -442,13 +450,6 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 	json.EncodeFile(repo.pkgInfoCacheFile(), true, repo.fetchable)
 }
 
-
-func (repo *Repo) LoadCaches() {
-	repo.loadControlCache()
-	repo.loadPkgInfoCache()
-	repo.loadTemplateListCache()
-	repo.loadInstalledPackagesList()
-}
 
 func (repo *Repo) loadControlCache() {
 	log.DebugFormat("Loading controls for %s", repo.Name)
