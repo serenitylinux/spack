@@ -179,14 +179,14 @@ func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 	if !PathExists(SpakgDir + repo.Name) {
 		os.MkdirAll(SpakgDir + repo.Name, 0755)
 	}
-	return SpakgDir + fmt.Sprintf("%s/%s-%s.spakg", repo.Name, c.Name, c.Version)
+	return SpakgDir + fmt.Sprintf("%s/%s-%s%%%s.spakg", repo.Name, c.Name, c.Version, c.Iteration)
 }
 
-func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error{
+func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
 	out := repo.GetSpakgOutput(c)
 	if !PathExists(out) {
 		src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s-%s.spakg", c.Name, c.Version)
-		return httphelper.HttpFetchFileProgress(src, out, false)
+		return httphelper.HttpFetchFileProgress(src, out, true)
 	}
 	return nil
 }
@@ -207,13 +207,14 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 	if err != nil {
 		return err
 	}
-	err = ps.ToFile(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
+	
+	err = ps.ToFile(basedir + GetSpakgOutput(c))
 	repo.loadInstalledPackagesList()
 	return err
 }
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	return PathExists(basedir + fmt.Sprintf("%s/%s-%s.pkgset", repo.installedPkgsDir(), c.Name, c.Version))
+	return PathExists(basedir + GetSpakgOutput(c))
 }
 
 func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
