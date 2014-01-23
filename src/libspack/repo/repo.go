@@ -56,7 +56,6 @@ import (
 	"libspack/hash"
 	"libspack/log"
 	"libspack/gitrepo"
-	"libspack/repo/pkgset"
 	"libspack/repo/pkginstallset"
 )
 
@@ -208,7 +207,7 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 		return err
 	}
 	
-	err = ps.ToFile(basedir + repo.GetSpakgOutput(c))
+	err = ps.ToFile(basedir + repo.GetSpakgOutput(&c))
 	repo.loadInstalledPackagesList()
 	return err
 }
@@ -399,16 +398,16 @@ func (repo *Repo) updateControlsFromRemote() {
 	repo.controls = make(ControlMap)
 	
 	readFunc := func (file string) {
-		ps, err := pkgset.FromFile(file)
+		c, err := control.FromFile(file)
 		if err != nil {
 			log.WarnFormat("Invalid control %s in repo %s", file, repo.Name)
 			return
 		}
-		c := ps.Control
+		
 		if _, exists := repo.controls[c.Name]; !exists {
 			repo.controls[c.Name] = make(control.ControlList, 0)
 		}
-		repo.controls[c.Name] = append(repo.controls[c.Name], c)
+		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
 	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.control"), readFunc)
@@ -426,19 +425,18 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 	repo.fetchable = make(PkgInfoMap)
 	
 	readFunc := func (file string) {
-		ps, err := pkgset.FromFile(file)
+		pki, err := pkginfo.FromFile(file)
 		
 		if err != nil {
 			log.WarnFormat("Invalid pkginfo %s in repo %s", file, repo.Name)
 			return
 		}
-		pki := ps.PkgInfo
 		
 		key := pki.Name + "-" + pki.Version
 		if _, exists := repo.fetchable[key]; !exists {
 			repo.fetchable[key] = make([]pkginfo.PkgInfo, 0)
 		}
-		repo.fetchable[key] = append(repo.fetchable[key], pki)
+		repo.fetchable[key] = append(repo.fetchable[key], *pki)
 	}
 	
 	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkginfo"), readFunc)
