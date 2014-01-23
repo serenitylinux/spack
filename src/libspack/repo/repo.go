@@ -141,6 +141,9 @@ func (repo *Repo) templateListCacheFile() string {
 func (repo *Repo) installedPkgsDir() string {
 	return InstallDir + repo.Name + "/"
 }
+func (repo *Repo) spakgDir() string {
+	return SpakgDir + repo.Name + "/"
+}
 
 
 func (repo *Repo) GetAllControls() ControlMap {
@@ -178,21 +181,36 @@ func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 	if !PathExists(SpakgDir + repo.Name) {
 		os.MkdirAll(SpakgDir + repo.Name, 0755)
 	}
-	return SpakgDir + fmt.Sprintf("%s/%s-%s%%%s.spakg", repo.Name, c.Name, c.Version, c.Iteration)
+	repo.spakgDir()
+	return repo.spakgDir() + fmt.Sprintf("%s.spakg", c.UUID())
+}
+
+func pkgInfoFromControl(c *control.Control) *pkginfo.PkgInfo {
+	p := pkginfo.PkgInfo{ Name: c.Name, Version: c.Version, Flags: make([]string,0) }
+	return &p
 }
 
 func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
 	out := repo.GetSpakgOutput(c)
 	if !PathExists(out) {
-		src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s-%s.spakg", c.Name, c.Version)
-		return httphelper.HttpFetchFileProgress(src, out, true)
+		if(repo.HasRemoteSpakg(c)) {
+			p := pkgInfoFromControl(c)
+			src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s.spakg", p.UUID())
+			return httphelper.HttpFetchFileProgress(src, out, true)
+		} else {
+			return errors.New("PkgInfo not in repo: " + pkgInfoFromControl(c).UUID())
+		}
 	}
 	return nil
 }
 
+func (repo *Repo) HasRemoteSpakg(c *control.Control) bool {
+	_, exists := repo.fetchable[pkgInfoFromControl(c).UUID()]
+	return exists
+}
+
 func (repo *Repo) HasSpakg(c *control.Control) bool {
-	_, exists := repo.fetchable[c.Name + "-" + c.Version]
-	return PathExists(repo.GetSpakgOutput(c)) || exists
+	return PathExists(repo.GetSpakgOutput(c)) || repo.HasRemoteSpakg(c)
 }
 
 func (repo *Repo) HasTemplate(c *control.Control) bool {
@@ -432,7 +450,7 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 			return
 		}
 		
-		key := pki.Name + "-" + pki.Version
+		key := pki.UUID()
 		if _, exists := repo.fetchable[key]; !exists {
 			repo.fetchable[key] = make([]pkginfo.PkgInfo, 0)
 		}

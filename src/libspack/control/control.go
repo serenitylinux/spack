@@ -31,6 +31,10 @@ func (c *Control) String() string {
 	return json.Stringify(c)
 }
 
+func (c *Control) UUID() string {
+	return fmt.Sprintf("%s-%s%%%s", c.Name, c.Version, c.Iteration)
+}
+
 func (c ControlList) String() string {
 	return json.Stringify(c)
 }
