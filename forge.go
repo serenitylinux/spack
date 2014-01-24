@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"bytes"
+	"strings"
 	"os"
 	"os/exec"
 	"regexp"
@@ -108,8 +109,10 @@ func fetchPkgSrc(urls []string) {
 		switch {
 			case gitRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with git", url)
-				
-				err := gitrepo.Clone(url, ".")
+				base = strings.Replace(base, ".git", "", 1)
+				err := os.Mkdir(base, 0755)
+				ExitOnErrorMessage(err, "cloning repo " + url)
+				err = gitrepo.Clone(url, base)
 				ExitOnErrorMessage(err, "cloning repo " + url)
 				
 			case httpRegex.MatchString(url):
@@ -312,9 +315,7 @@ func main() {
 		buildPackage(template, c)
 	})
 	
-	if clean {
-		RemoveTmpDir()
-	}
+	RemoveTmpDir()
 	
 	log.ColorAll(log.Green, c.Name, " forged successfully")
 	fmt.Println()
