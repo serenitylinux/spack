@@ -413,8 +413,10 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	}
 	
 	spakgFile := repo.GetSpakgOutput(c)
-	err := repo.FetchIfNotCachedSpakg(c)
-	log.Warn(err)
+	if !PathExists(spakgFile) && repo.HasRemoteSpakg(c) {
+		e := repo.FetchIfNotCachedSpakg(c)
+		log.Warn(e)
+	}
 	
 	if !PathExists(spakgFile) {
 		var prev bool
