@@ -223,10 +223,10 @@ func buildPackage(template string, c *control.Control) {
 	buf := new(bytes.Buffer)
 	bashStr := fmt.Sprintf(`
 source %s
-$(declare -f pre_install)
-$(declare -f post_install)
+declare -f pre_install
+declare -f post_install
 `	, template)
-	err = RunCommand(exec.Command("bash", "-e" , "-c", bashStr), buf, os.Stderr)
+	err = RunCommand(exec.Command("bash", "-c", bashStr), buf, os.Stderr)
 	pkginstall := buf.String()
 	
 	
