@@ -155,7 +155,7 @@ func main() {
 						cmd.Stderr = errstream
 						err = cmd.Run()
 						if err != nil {
-							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err, "--yes")
+							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err)
 							continue
 						}
 						
