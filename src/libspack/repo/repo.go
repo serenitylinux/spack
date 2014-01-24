@@ -208,9 +208,12 @@ func (repo *Repo) HasRemoteSpakg(c *control.Control) bool {
 	_, exists := repo.fetchable[pkgInfoFromControl(c).UUID()]
 	return exists
 }
+func (repo *Repo) HasLocalSpakg(c *control.Control) bool {
+	return PathExists(repo.GetSpakgOutput(c))
+}
 
 func (repo *Repo) HasSpakg(c *control.Control) bool {
-	return PathExists(repo.GetSpakgOutput(c)) || repo.HasRemoteSpakg(c)
+	return repo.HasLocalSpakg(c) || repo.HasRemoteSpakg(c)
 }
 
 func (repo *Repo) HasTemplate(c *control.Control) bool {
