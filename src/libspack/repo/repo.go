@@ -49,6 +49,7 @@ import (
 	"regexp"
 	"errors"
 	"os"
+	"net/url"
 	"io/ioutil"
 	"libspack/httphelper"
 	"libspack/pkginfo"
@@ -186,7 +187,7 @@ func (repo *Repo) GetSpakgOutput(c *control.Control) string {
 }
 
 func pkgInfoFromControl(c *control.Control) *pkginfo.PkgInfo {
-	p := pkginfo.PkgInfo{ Name: c.Name, Version: c.Version, Flags: make([]string,0) }
+	p := pkginfo.PkgInfo{ Name: c.Name, Version: c.Version, Flags: make([]string,0), Iteration: c.Iteration }
 	return &p
 }
 
@@ -194,8 +195,12 @@ func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
 	out := repo.GetSpakgOutput(c)
 	if !PathExists(out) {
 		if(repo.HasRemoteSpakg(c)) {
-			p := pkgInfoFromControl(c)
-			src := repo.RemotePackages + "/pkgs/" + fmt.Sprintf("%s.spakg", p.UUID())
+			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", c.UUID()))
+
+			//TODO pkginfo
+//			p := pkgInfoFromControl(c)
+//			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", p.UUID()))
+			fmt.Println(src)
 			return httphelper.HttpFetchFileProgress(src, out, true)
 		} else {
 			return errors.New("PkgInfo not in repo: " + pkgInfoFromControl(c).UUID())
@@ -345,7 +350,7 @@ func cloneRepo(remote string, dir string, name string) {
 			}
 			
 			for _, item := range list {
-				src := remote + "/info/" + item
+				src := remote + "/info/" + url.QueryEscape(item)
 				err = httphelper.HttpFetchFileProgress(src, dir + item, false)
 				if err != nil {
 					log.Warn("Unable to fetch %s: %s", err)
