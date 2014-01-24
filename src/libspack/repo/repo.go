@@ -234,7 +234,8 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 }
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	return PathExists(basedir + repo.GetSpakgOutput(c))
+	_, exists := repo.installed[c.Name]
+	return exists
 }
 
 func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
@@ -369,7 +370,7 @@ func (repo *Repo) readAll(dir string, regex *regexp.Regexp, todo func (file stri
 	
 	for _, file := range filelist {
 		if regex.MatchString(dir + file.Name()) {
-			todo(file.Name())
+			todo(dir + "/" + file.Name())
 		}
 	}
 	return nil
@@ -399,7 +400,7 @@ func (repo *Repo) updateControlsFromTemplates() {
 			repo.templateFiles[c.Name] = make(map[string]string)
 		}
 		
-		repo.templateFiles[c.Name][c.Version] = dir + file
+		repo.templateFiles[c.Name][c.Version] = file
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
@@ -515,7 +516,7 @@ func (repo *Repo) loadInstalledPackagesList() {
 		ps, err := pkginstallset.FromFile(file)
 		
 		if err != nil {
-			log.ErrorFormat("Invalid pkgset %s in repo %s", file, repo.Name)
+			log.ErrorFormat("Invalid pkgset %s in repo %s: err", file, repo.Name, err)
 			log.Warn("This is a REALLY bad thing!")
 			return
 		}

@@ -282,7 +282,7 @@ func forgePackages(packages []string) {
 	for _, pkg := range packages {
 		c, repo := libspack.GetPackageLatest(pkg)
 		if c == nil {
-			log.InfoFormat("Cannot find package %s for %s", pkg, c.Name)
+			log.InfoFormat("Cannot find package %s", pkg)
 			os.Exit(1)
 		}
 		

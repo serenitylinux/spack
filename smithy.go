@@ -13,6 +13,7 @@ import (
 var outdir = "./"
 var outstream = os.Stdout
 var errstream = os.Stderr
+var outarg = ""
 
 func arguments() {
 	loglevel := "info"
@@ -20,6 +21,12 @@ func arguments() {
 	outdirArg := argparse.RegisterString("outdir", outdir, "Spakg, Control, and PkgInfo output directory")
 	logfileArg := argparse.RegisterString("logfile", "(stdout)", "File to log to, default to standard out")
 	loglevelArg := argparse.RegisterString("loglevel", loglevel, "Log Level")
+	
+	items := argparse.EvalDefaultArgs()
+	if len(items) > 0 {
+		log.Error("Invalid options: ", items)
+		os.Exit(-2)
+	}
 	
 	if logfileArg.IsSet() {
 		var err error
@@ -32,10 +39,13 @@ func arguments() {
 	err := log.SetLevelFromString(loglevelArg.Get())
 	libspack.ExitOnError(err)
 	
-	items := argparse.EvalDefaultArgs()
-	if len(items) > 0 {
-		log.Error("Invalid options: ", items)
-		os.Exit(-2)
+	
+	if log.CanDebug() {
+		outarg = "--verbose"
+	}
+	
+	if !log.CanDebug() && !log.CanInfo() {
+		outarg = "--quiet"
 	}
 }
 
@@ -49,13 +59,20 @@ func main() {
 		libspack.RefreshRepos()
 		//build packages
 		for _, repo := range libspack.GetAllRepos() {
+			log.Debug("Repo: ", repo.Name)
 			for name, ctrls := range repo.GetAllControls() {
+				if name == "" { //TODO this is a hack for empty templates
+					continue
+				}
+				
 				log.Info("Forging: ", name)
 				for _, ctrl := range ctrls {
 					hasAllDeps := true
 					missing := make([]string, 0)
 					done := make(map[string] bool) //TODO should be a list but I am lazy
 					
+					
+					//TODO better checking
 					var depCheck func (string) bool	
 					depCheck = func (pkg string) bool {
 						if _, exists := done[pkg]; exists {
@@ -79,14 +96,15 @@ func main() {
 					}
 					
 					//TODO support UUID/version stuffs
-					if depCheck(name) {
+					if !depCheck(name) {
 						log.WarnFormat("Unable to forge %s, unable to find dep(s) %s", ctrl.UUID(), missing)
 						continue
 					}
 					
 					
 					if hasAllDeps {
-						cmd := exec.Command("spack", "forge", ctrl.UUID())
+						//TODO use UUID
+						cmd := exec.Command("spack", "forge", ctrl.Name, outarg)
 						cmd.Stdout = outstream
 						cmd.Stderr = errstream
 						err = cmd.Run()

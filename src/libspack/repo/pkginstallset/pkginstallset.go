@@ -18,7 +18,7 @@ func (p *PkgInstallSet) ToFile(filename string) error {
 func FromFile(filename string) (p *PkgInstallSet, err error) {
 	var i PkgInstallSet
 	err = json.DecodeFile(filename, &i)
-	if err != nil {
+	if err == nil {
 		p = &i
 	}
 	return
