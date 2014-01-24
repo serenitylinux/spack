@@ -390,7 +390,7 @@ func forge(c *control.Control, repo *repo.Repo) error {
 	}
 	
 	var spakgFile string
-	if forgeoutdirArg.IsSet() {
+	if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
 		spakgFile = forgeoutdirArg.Get() + c.UUID() + ".spakg"
 	} else {
 		spakgFile = repo.GetSpakgOutput(c)
