@@ -147,7 +147,10 @@ func main() {
 					
 					if hasAllDeps {
 						//TODO use UUID
-						cmd := exec.Command("spack", "forge", ctrl.Name, outarg, "--outdir=" + pkgdir, "--yes")
+						cmd := exec.Command("spack", "forge", ctrl.Name, "--outdir=" + pkgdir, "--yes")
+						if outarg != "" {
+							cmd.Args = append(cmd.Args, outarg)
+						}
 						cmd.Stdout = outstream
 						cmd.Stderr = errstream
 						err = cmd.Run()
