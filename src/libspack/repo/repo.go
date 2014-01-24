@@ -200,7 +200,7 @@ func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
 			//TODO pkginfo
 //			p := pkgInfoFromControl(c)
 //			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", p.UUID()))
-			fmt.Println(src)
+			log.Debug(src)
 			return httphelper.HttpFetchFileProgress(src, out, true)
 		} else {
 			return errors.New("PkgInfo not in repo: " + pkgInfoFromControl(c).UUID())
