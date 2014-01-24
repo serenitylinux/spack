@@ -228,7 +228,7 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 		return err
 	}
 	
-	err = ps.ToFile(basedir + repo.GetSpakgOutput(&c))
+	err = ps.ToFile(basedir + repo.installedPkgsDir() + p.UUID() + ".pkgset")
 	repo.loadInstalledPackagesList()
 	return err
 }

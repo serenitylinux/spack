@@ -271,7 +271,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 }
 
-
+var forgeoutdirArg *argparse.StringValue
 func forgePackages(packages []string) {
 	forge_deps := make(ControlRepoList,0)
 	wield_deps := make(ControlRepoList,0)
@@ -389,7 +389,13 @@ func forge(c *control.Control, repo *repo.Repo) error {
 		destdirArg.Value = oldDestDir
 	}
 	
-	spakgFile := repo.GetSpakgOutput(c)
+	var spakgFile string
+	if forgeoutdirArg.IsSet() {
+		spakgFile = forgeoutdirArg.Get() + c.UUID() + ".spakg"
+	} else {
+		spakgFile = repo.GetSpakgOutput(c)
+	}
+	
 	err := RunCommandToStdOutErr(
 		exec.Command(
 			"forge",
@@ -530,6 +536,7 @@ func main() {
 			Usage(0)
 		case "forge":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
+			forgeoutdirArg = argparse.RegisterString("outdir", "(not set)", "Output dir for build spakgs")
 			forgePackages(ForgeWieldArgs())
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))

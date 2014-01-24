@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
 	"libspack"
-//	"libspack/repo"
 	"libspack/log"
+	"libspack/spakg"
 	"libspack/argparse"
 )
+
+import . "libspack/misc"
 
 var outdir = "./"
 var outstream = os.Stdout
@@ -49,11 +52,44 @@ func arguments() {
 	}
 }
 
+func extractSpakg(file string, infodir string) error {
+	arch, err := spakg.FromFile(file, nil)
+	if err != nil {
+		return err
+	}
+	c := arch.Control
+	c.ToFile(infodir + c.UUID() + ".control")
+	
+	pi := arch.Pkginfo
+	pi.ToFile(infodir + pi.UUID() + ".pkginfo")
+	
+	return err
+}
+
 func main() {
 	arguments()
 	
 	err := libspack.LoadRepos()
 	libspack.ExitOnError(err)
+	
+	
+	pkgdir := fmt.Sprintf("%s/pkgs/", outdir)
+	if !PathExists(pkgdir) {
+		err = os.Mkdir(pkgdir, 0755)	
+		if err != nil {
+			log.ErrorFormat("Unable to create %s: %s", pkgdir, err)
+			os.Exit(-1)
+		}
+	}
+
+	infodir := fmt.Sprintf("%s/info/", outdir)
+	err = os.Mkdir(infodir, 0755)
+	if !PathExists(infodir) {
+		if err != nil {
+			log.ErrorFormat("Unable to create %s: %s", infodir, err)
+			os.Exit(-1)
+		}
+	}
 	
 	for {
 		libspack.RefreshRepos()
@@ -67,6 +103,13 @@ func main() {
 				
 				log.Info("Forging: ", name)
 				for _, ctrl := range ctrls {
+					
+					//TODO pkginfo
+					outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, ctrl.UUID())
+					if PathExists(outfile) {
+						continue
+					}
+					
 					hasAllDeps := true
 					missing := make([]string, 0)
 					done := make(map[string] bool) //TODO should be a list but I am lazy
@@ -104,12 +147,18 @@ func main() {
 					
 					if hasAllDeps {
 						//TODO use UUID
-						cmd := exec.Command("spack", "forge", ctrl.Name, outarg)
+						cmd := exec.Command("spack", "forge", ctrl.Name, outarg, "--outdir=" + pkgdir)
 						cmd.Stdout = outstream
 						cmd.Stderr = errstream
 						err = cmd.Run()
 						if err != nil {
 							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err)
+							continue
+						}
+						
+						err := extractSpakg(outfile, infodir)
+						if err != nil {
+							log.WarnFormat("Unable to load forged %s: %s", ctrl.UUID(), err)
 						}
 					}
 				}
