@@ -408,6 +408,11 @@ func forge(c *control.Control, repo *repo.Repo) error {
 	}
 	
 	if !noBDepsArg.Value {
+		oldoutdir := forgeoutdirArg
+		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
+			forgeoutdirArg = nil
+		}
+		
 		oldDestDir := destdirArg.Value
 		destdirArg.Value = "/"
 		for _, dep := range c.Bdeps {
@@ -418,6 +423,8 @@ func forge(c *control.Control, repo *repo.Repo) error {
 			}
 		}
 		destdirArg.Value = oldDestDir
+		
+		forgeoutdirArg = oldoutdir
 	}
 	
 	var spakgFile string
