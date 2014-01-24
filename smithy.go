@@ -147,12 +147,12 @@ func main() {
 					
 					if hasAllDeps {
 						//TODO use UUID
-						cmd := exec.Command("spack", "forge", ctrl.Name, outarg, "--outdir=" + pkgdir)
+						cmd := exec.Command("spack", "forge", ctrl.Name, outarg, "--outdir=" + pkgdir, "--yes")
 						cmd.Stdout = outstream
 						cmd.Stderr = errstream
 						err = cmd.Run()
 						if err != nil {
-							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err)
+							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err, "--yes")
 							continue
 						}
 						

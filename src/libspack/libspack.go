@@ -2,6 +2,8 @@ package libspack
 
 import (
 	"os"
+	"fmt"
+	"regexp"
 	"io/ioutil"
 	"libspack/log"
 	"libspack/repo"
@@ -91,4 +93,29 @@ func ExitOnErrorMessage(err error, message string) {
 func PrintSuccessOrFail(err error) {
 	ExitOnError(err)
 	PrintSuccess()
+}
+
+func AskYesNo(question string, def bool) bool {
+	yn := "[Y/n]"
+	if !def {
+		yn = "[y/N]"
+	}
+	fmt.Printf("%s: %s ", question, yn)
+	
+	var answer string
+	fmt.Scanf("%s", &answer)
+	
+	yesRgx := regexp.MustCompile("(y|Y|yes|Yes)")
+	noRgx := regexp.MustCompile("(n|N|no|No)")
+	switch {
+		case answer == "":
+			return def
+		case yesRgx.MatchString(answer):
+			return true
+		case noRgx.MatchString(answer):
+			return false
+		default:
+			fmt.Println("Please enter Y or N")
+			return AskYesNo(question, def)
+	}
 }

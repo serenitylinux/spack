@@ -69,6 +69,10 @@ var reinstallArg *argparse.BoolValue = nil
 func registerReinstallArg() {
 	reinstallArg = argparse.RegisterBool("reinstall", false, "OVERWRITE ALL THE THINGS!")
 }
+var yesAll *argparse.BoolValue = nil
+func registerYesToAllArg() {
+	yesAll = argparse.RegisterBool("yes", false, "Automatically answer yes to all questions")
+}
 
 func ForgeWieldArgs() []string {
 	registerBaseDir()
@@ -76,6 +80,7 @@ func ForgeWieldArgs() []string {
 	registerNoDeps()
 	registerQuiet()
 	registerVerbose()
+	registerYesToAllArg()
 	packages := argparse.EvalDefaultArgs()
 
 	if len(packages) == 0 {
@@ -307,6 +312,12 @@ func forgePackages(packages []string) {
 	wield_deps.Print()
 	fmt.Println()
 	
+	if len(wield_deps) + len(forge_deps) > 1 {
+		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue wielding these packages?", true) {
+			return
+		}
+	}
+	
 	for _, pkg := range pkglist {
 		err := forge(pkg.control, pkg.repo)
 		libspack.ExitOnError(err)
@@ -350,6 +361,12 @@ func wieldPackages(packages []string) {
 	log.ColorAll(log.White, "Packages to Wield: (ignore already installed)"); fmt.Println()
 	wield_deps.Print()
 	fmt.Println()
+	
+	if len(wield_deps) + len(forge_deps) > 1 {
+		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue wielding these packages?", true) {
+			return
+		}
+	}
 	
 	
 	for _, pkg := range pkglist {
