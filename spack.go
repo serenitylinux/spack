@@ -155,6 +155,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	indent += 1
 	defer func () { indent -= 1 }()
 	log.Debug(c.Name(), "Need")
+	isbase := c.Name() == base.Name()
 	
 	checkChildren := func (deps []string) bool {
 		rethappy := true
@@ -191,7 +192,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		return true
 	}
 	
-	if !(c.Name() == base.Name()) {
+	if !(isbase) {
 		for _, repo := range libspack.GetAllRepos() {
 			if repo.IsInstalled(c.control, destdirArg.Value) {
 				log.Debug(c.Name(), "Already Installed" )
@@ -226,14 +227,17 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 	
 	// We are a package that has a binary version
-	if !(c.Name() == base.Name() && isforge) && c.repo.HasSpakg(c.control) {
-		log.Debug(c.Name(), "Binary")
+	if !(isbase && isforge) && c.repo.HasSpakg(c.control) {
+		if !(isbase) || (reinstallArg != nil && reinstallArg.Get()) {
+			log.Debug(c.Name(), "Binary")
 		
-		//We have bin, let's see if our children are ok
-		log.Debug(c.Name(), "Mark bin")
-		wield_deps.Append(c)
+			//We have bin, let's see if our children are ok
+			log.Debug(c.Name(), "Mark bin")
+			wield_deps.Append(c)
 		
-		return checkChildren(c.control.Deps)
+			return checkChildren(c.control.Deps)
+		}
+		return true
 	} else {
 		//We are a package that only available via src or are the base package to forge
 		log.Debug(c.Name(), "Source")
@@ -254,14 +258,16 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 			}
 		}
 		
-		//We have a installable version after the prior
-		wield_deps.Append(c)
-		log.Debug(c.Name(), "Mark Bin")
+		if !(isforge && isbase) {
+			//We have a installable version after the prior
+			wield_deps.Append(c)
+			log.Debug(c.Name(), "Mark Bin")
+		}
 		
 		//If we are part of a forge op and we are the base package, then we can skip this step
 			//We dont need deps
 		
-		if !(isforge && c.Name() == base.Name()) {
+		if !(isforge && isbase) {
 			olddd := destdirArg.Value
 			destdirArg.Value = "/"
 			log.Debug(c.Name(), "Deps ", c.control.Deps)
@@ -305,12 +311,16 @@ func forgePackages(packages []string) {
 		pkglist.Append(cr)
 	}
 	
-	log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
-	forge_deps.Print()
-	fmt.Println()
-	log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
-	wield_deps.Print()
-	fmt.Println()
+	if len(forge_deps) > 0 {
+		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
+		forge_deps.Print()
+		fmt.Println()
+	}
+	if len(wield_deps) > 0 {
+		log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
+		wield_deps.Print()
+		fmt.Println()
+	}
 	
 	if len(wield_deps) + len(forge_deps) > 1 {
 		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue wielding these packages?", true) {
@@ -354,13 +364,17 @@ func wieldPackages(packages []string) {
 			os.Exit(-1)
 		}
 	}
-
-	log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
-	forge_deps.Print()
-	fmt.Println()
-	log.ColorAll(log.White, "Packages to Wield: (ignore already installed)"); fmt.Println()
-	wield_deps.Print()
-	fmt.Println()
+	
+	if len(forge_deps) > 0 {
+		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
+		forge_deps.Print()
+		fmt.Println()
+	}
+	if len(wield_deps) > 0 {
+		log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
+		wield_deps.Print()
+		fmt.Println()
+	}
 	
 	if len(wield_deps) + len(forge_deps) > 1 {
 		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue wielding these packages?", true) {
@@ -456,7 +470,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	if err != nil {
 		return err
 	}
-	if !reinstallArg.Value {
+	if reinstallArg != nil && !reinstallArg.Get() {
 		for _, dep := range c.Deps {
 			dc,dr := libspack.GetPackageLatest(dep)
 			err := wield(dc, dr)
