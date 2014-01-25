@@ -620,7 +620,11 @@ func remove(pkgs []string){
 			continue
 		}
 		
-
+		if !repo.IsInstalled(c, "/") {
+			fmt.Println(pkg + " is not installed, cannot remove")
+			continue
+		}
+		
 		list := repo.UninstallList(c)
 		if len(list) == 0 {
 			log.InfoFormat("%s has no deps", c.Name)
@@ -648,6 +652,7 @@ func remove(pkgs []string){
 					continue
 				}
 			}
+			fmt.Println("Successfully removed " + pkg)
 		}
 	}
 }

@@ -296,10 +296,20 @@ func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSe
 //TODO destdir
 func (repo *Repo) Uninstall(c *control.Control) error {
 	inst := repo.GetInstalled(c)
+	basedir := "/"
 	if (inst != nil) {
 		log.InfoFormat("Removing %s", inst.PkgInfo.UUID())
 		for f, _ := range inst.Hashes {
-			log.DebugFormat(f)
+			log.Debug("Remove: " + basedir + f)
+			err := os.Remove(basedir + f)
+			if err != nil {
+				log.Warn(err)
+				//Do we return or keep trying?
+			}
+		}
+		err := os.Remove(basedir + repo.installedPkgsDir() + inst.PkgInfo.UUID() + ".pkgset")
+		if err != nil {
+			return err
 		}
 	}
 	return nil
