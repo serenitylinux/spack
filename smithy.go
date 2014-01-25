@@ -129,7 +129,7 @@ func main() {
 						}
 						done[pkg] = true
 						var depC *control.Control
-						if ver != "" {
+						if ver == "" {
 							depC, _ = libspack.GetPackageLatest(pkg)
 						} else {
 							depC, _ = libspack.GetPackageVersion(pkg, ver)

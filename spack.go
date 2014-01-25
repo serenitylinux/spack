@@ -11,6 +11,7 @@ import (
 	"libspack/log"
 	"libspack/spakg"
 	"libspack/control"
+	"libspack/pkginfo"
 	"libspack/repo"
 )
 
@@ -445,7 +446,7 @@ func forge(c *control.Control, repo *repo.Repo) error {
 	
 	var spakgFile string
 	if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-		spakgFile = forgeoutdirArg.Get() + c.UUID() + ".spakg"
+		spakgFile = forgeoutdirArg.Get() + pkginfo.FromControl(c).UUID() + ".spakg"
 	} else {
 		spakgFile = repo.GetSpakgOutput(c)
 	}
