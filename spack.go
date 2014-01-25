@@ -568,16 +568,37 @@ func info(pkgs []string) {
 }
 
 func remove(pkgs []string){
+	if verboseArg.Get() {
+		log.SetLevel(log.DebugLevel)
+	}
+	
 	for _, pkg := range pkgs {
 		c, repo := getPkg(pkg)
 		if (c == nil) {
-			fmt.Println("Unable to find package:" + pkg)
+			fmt.Println("Unable to find package: " + pkg)
 			continue
 		}
-		err := repo.Uninstall(c)
-		if err != nil {
-			log.Error(err)
-			os.Exit(1)
+		
+
+		list := repo.UninstallList(c)
+		if len(list) == 0 {
+			log.DebugFormat("%s has no deps", c.Name)
+		} else {
+			fmt.Println("Packages to remove: ")
+			fmt.Print(c.UUID())
+			for _, set := range list {
+				fmt.Print(" ", set.Control.UUID())
+			}
+			fmt.Println()
+		}
+		if libspack.AskYesNo("Are you sure you want to continue?", false) {
+			for _, rdep := range list {
+				err := repo.Uninstall(&rdep.Control)
+				if err != nil {
+					log.Warn(err)
+					break
+				}
+			}
 		}
 	}
 }
@@ -602,11 +623,14 @@ func main() {
 			registerReinstallArg()
 			wieldPackages(ForgeWieldArgs())
 		case "purge":
-			if len(os.Args) > 1 {
-				remove(os.Args[1:])
+			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "info"))
+			registerVerbose()
+			pkgs := argparse.EvalDefaultArgs()
+			if len(pkgs) >= 1 {
+				remove(pkgs)
 			} else {
 				log.Error("Must specify package(s) for information")
-				Usage(2)
+				argparse.Usage(2)
 			}
 		case "refresh":
 			libspack.RefreshRepos()
@@ -621,8 +645,6 @@ func main() {
 				log.Error("Must specify package(s) for information")
 				Usage(2)
 			}
-		case "test":
-			fmt.Println(spakg.FromFile(os.Args[1], nil))
 		default:
 			fmt.Println("Invalid command: ", command)
 			fmt.Println()

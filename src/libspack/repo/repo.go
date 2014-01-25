@@ -249,13 +249,21 @@ func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
 	return exists
 }
 
-func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
+func (repo *Repo) GetInstalled(c *control.Control) *pkginstallset.PkgInstallSet {
+	for _, set := range repo.installed {
+		if set.Control.Name == c.Name {
+			return &set
+		}
+	}
+	return nil
+}
+
+func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSet {
 	pkgs := make([]pkginstallset.PkgInstallSet,0)
 	
 	var inner func (*control.Control)
 	
 	inner = func (cur *control.Control) {
-		fmt.Println(cur)
 		for _, pkg := range pkgs {
 			if pkg.Control.Name == cur.Name {
 				return
@@ -277,16 +285,14 @@ func (repo *Repo) RDeps(c *control.Control) []pkginstallset.PkgInstallSet {
 	return pkgs
 }
 
+//TODO destdir
 func (repo *Repo) Uninstall(c *control.Control) error {
-	list := repo.RDeps(c)
-	
-	if len(list) == 0 {
-		fmt.Println("No deps")
-		return nil
-	}
-	
-	for _, set := range list {
-		fmt.Println("Remove: ", set.Control.Name)
+	inst := repo.GetInstalled(c)
+	if (inst != nil) {
+		log.InfoFormat("Removing %s", inst.PkgInfo.UUID())
+		for f, _ := range inst.Hashes {
+			log.DebugFormat(f)
+		}
 	}
 	return nil
 }
