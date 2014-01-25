@@ -639,10 +639,19 @@ func remove(pkgs []string){
 		if libspack.AskYesNo("Are you sure you want to continue?", false) {
 			var err error
 			for _, rdep := range list {
+				//Edge case
+				if !repo.IsInstalled(&rdep.Control, "/") {
+					fmt.Println(pkg + " is not installed, cannot remove")
+					continue
+				}
+				
 				err = repo.Uninstall(&rdep.Control)
 				if err != nil {
+					log.Error("Unable to remove " + rdep.Control.Name)
 					log.Warn(err)
 					break
+				} else {
+					fmt.Println("Successfully removed " + rdep.Control.Name)
 				}
 			}
 			if err == nil {
