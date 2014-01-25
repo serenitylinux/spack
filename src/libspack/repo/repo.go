@@ -161,9 +161,13 @@ func (repo *Repo) GetLatestControl(pkgname string) (*control.Control, bool) {
 	var res *control.Control = nil
 	
 	if exists {
-		res = &c[0]
+		for _, ctrl := range c {
+			if res == nil || res.Version < ctrl.Version{
+				res = &ctrl
+			}
+		}
 	}
-	return res, exists
+	return res, res != nil
 }
 
 func (repo *Repo) GetAllTemplates() TemplateFileMap {

@@ -237,6 +237,10 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		
 			return checkChildren(c.control.Deps)
 		}
+		if isbase {
+			log.InfoFormat("%s is already in the latest version", c.control.Name)
+		}
+		
 		return true
 	} else {
 		//We are a package that only available via src or are the base package to forge
@@ -282,6 +286,23 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 }
 
+func pkgSplit(pkg string) (name string, version *string) {
+	split := strings.SplitN(pkg, "::", 2)
+	name = split[0]
+	if len(split) > 1 {
+		version = &split[1]
+	}
+	return
+}
+func getPkg(pkg string) ( *control.Control, *repo.Repo) {
+	name, version := pkgSplit(pkg)
+	if version == nil {
+		return libspack.GetPackageLatest(name)
+	} else {
+		return libspack.GetPackageVersion(name, *version)
+	}
+}
+
 var forgeoutdirArg *argparse.StringValue
 func forgePackages(packages []string) {
 	forge_deps := make(ControlRepoList,0)
@@ -291,7 +312,8 @@ func forgePackages(packages []string) {
 	pkglist := make(ControlRepoList, 0)
 	
 	for _, pkg := range packages {
-		c, repo := libspack.GetPackageLatest(pkg)
+		
+		c, repo := getPkg(pkg)
 		if c == nil {
 			log.InfoFormat("Cannot find package %s", pkg)
 			os.Exit(1)
@@ -342,7 +364,7 @@ func wieldPackages(packages []string) {
 	pkglist := make(ControlRepoList, 0)
 	
 	for _, pkg := range packages {
-		c, repo := libspack.GetPackageLatest(pkg)
+		c, repo := getPkg(pkg)
 		if c == nil {
 			fmt.Println("Cannot find package " + pkg)
 			os.Exit(1)
@@ -546,7 +568,7 @@ func info(pkgs []string) {
 
 func remove(pkgs []string){
 	for _, pkg := range pkgs {
-		c, repo := libspack.GetPackageLatest(pkg)
+		c, repo := getPkg(pkg)
 		if (c == nil) {
 			fmt.Println("Unable to find package:" + pkg)
 			continue
