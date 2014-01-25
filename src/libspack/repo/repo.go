@@ -246,7 +246,8 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
 	_, exists := repo.installed[c.UUID()]
-	return exists
+	info := basedir + repo.installedPkgsDir() + pkginfo.FromControl(c).UUID() + ".pkgset" //Hack
+	return exists || PathExists(info)
 }
 
 func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
