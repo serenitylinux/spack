@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 	"hash/crc32"
+	"libspack/control"
 )
 
 import json "libspack/jsonhelper"
@@ -32,6 +33,11 @@ func (p *PkgInfo) flagHash() uint32 {
 		str += flag
 	}
 	return crc32.ChecksumIEEE([]byte(str))
+}
+
+func FromControl(c *control.Control) *PkgInfo {
+	p := PkgInfo{ Name: c.Name, Version: c.Version, Flags: make([]string,0), Iteration: c.Iteration }
+	return &p
 }
 
 func (p *PkgInfo) ToFile(filename string) error {

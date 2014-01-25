@@ -9,6 +9,7 @@ import (
 	"libspack/log"
 	"libspack/spakg"
 	"libspack/argparse"
+	"libspack/pkginfo"
 )
 
 import . "libspack/misc"
@@ -57,6 +58,8 @@ func extractSpakg(file string, infodir string) error {
 	if err != nil {
 		return err
 	}
+	
+	//This will be written to for each name-version configuration.  It should be the same for any flagset
 	c := arch.Control
 	c.ToFile(infodir + c.UUID() + ".control")
 	
@@ -73,29 +76,31 @@ func main() {
 	libspack.ExitOnError(err)
 	
 	
-	pkgdir := fmt.Sprintf("%s/pkgs/", outdir)
-	if !PathExists(pkgdir) {
-		err = os.Mkdir(pkgdir, 0755)	
-		if err != nil {
-			log.ErrorFormat("Unable to create %s: %s", pkgdir, err)
-			os.Exit(-1)
-		}
-	}
-
-	infodir := fmt.Sprintf("%s/info/", outdir)
-	err = os.Mkdir(infodir, 0755)
-	if !PathExists(infodir) {
-		if err != nil {
-			log.ErrorFormat("Unable to create %s: %s", infodir, err)
-			os.Exit(-1)
-		}
-	}
-	
 	for {
 		libspack.RefreshRepos()
 		//build packages
 		for _, repo := range libspack.GetAllRepos() {
 			log.Debug("Repo: ", repo.Name)
+			
+			
+			pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, repo.Name)
+			if !PathExists(pkgdir) {
+				err = os.Mkdir(pkgdir, 0755)	
+				if err != nil {
+					log.ErrorFormat("Unable to create %s: %s", pkgdir, err)
+					os.Exit(-1)
+				}
+			}
+
+			infodir := fmt.Sprintf("%s/%s/info/", outdir, repo.Name)
+			err = os.Mkdir(infodir, 0755)
+			if !PathExists(infodir) {
+				if err != nil {
+					log.ErrorFormat("Unable to create %s: %s", infodir, err)
+					os.Exit(-1)
+				}
+			}
+			
 			for name, ctrls := range repo.GetAllControls() {
 				if name == "" { //TODO this is a hack for empty templates
 					continue
@@ -104,8 +109,8 @@ func main() {
 				log.Info("Forging: ", name)
 				for _, ctrl := range ctrls {
 					
-					//TODO pkginfo
-					outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, ctrl.UUID())
+					p := pkginfo.FromControl(&ctrl)
+					outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.UUID())
 					if PathExists(outfile) {
 						continue
 					}
@@ -140,13 +145,13 @@ func main() {
 					
 					//TODO support UUID/version stuffs
 					if !depCheck(name) {
-						log.WarnFormat("Unable to forge %s, unable to find dep(s) %s", ctrl.UUID(), missing)
+						log.WarnFormat("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
 						continue
 					}
 					
 					
 					if hasAllDeps {
-						//TODO use UUID
+						//TODO use version
 						cmd := exec.Command("spack", "forge", ctrl.Name, "--outdir=" + pkgdir, "--yes")
 						if outarg != "" {
 							cmd.Args = append(cmd.Args, outarg)
@@ -155,13 +160,13 @@ func main() {
 						cmd.Stderr = errstream
 						err = cmd.Run()
 						if err != nil {
-							log.WarnFormat("Unable to forge %s: %s", ctrl.UUID(), err)
+							log.WarnFormat("Unable to forge %s: %s", p.UUID(), err)
 							continue
 						}
 						
 						err := extractSpakg(outfile, infodir)
 						if err != nil {
-							log.WarnFormat("Unable to load forged %s: %s", ctrl.UUID(), err)
+							log.WarnFormat("Unable to load forged %s: %s", p.UUID(), err)
 						}
 					}
 				}
