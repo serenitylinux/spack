@@ -45,7 +45,7 @@ func SetLevelFromString(strLevel string) error {
 }
 
 const (
-	Base = "\x1b["
+    Base = "\x1b["
     Reset = "0m"
 
     Black = "0;30m"
