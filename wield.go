@@ -76,27 +76,29 @@ func removeTempDir(tmpDir string) {
 	}
 }
 
-func runPart(part string, spkg *spakg.Spakg){
+func runPart(part string, spkg *spakg.Spakg) error {
 	cmd:= `
-		%s
-		%s
+		%[1]s
+		
+		declare -f %[2]s > /dev/null
+		exists=$?
+		
+		if [ $exists -eq 0 ]; then
+			%[2]s
+		fi
 		`
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
 	bash := exec.Command("bash", "-c", cmd)
 	if destdir != "//"{
-		fmt.Println(destdir)
-		//TODO cmd args "correctly"
-		if _, err := exec.LookPath("chroot"); err == nil {
-			bash = exec.Command("chroot " + destdir, bash.Args...)
-		} else if _, err := exec.LookPath("systemd-nspawn"); err == nil {
-			bash = exec.Command("systemd-nspawn " + "-D " + destdir, bash.Args...)
-
+		if _, err := exec.LookPath("systemd-nspawn"); err == nil {
+			bash.Args = append([]string { "-D", destdir }, bash.Args...)
+			bash = exec.Command("systemd-nspawn", bash.Args...)
+		} else if _, err := exec.LookPath("chroot"); err == nil {
+			bash.Args = append([]string { destdir }, bash.Args...)
+			bash = exec.Command("chroot", bash.Args...)
 		}
 	}
-	err := RunCommand(bash, log.InfoWriter(), os.Stderr)
-	if err != nil {
-		log.Warn(err)
-	}
+	return RunCommand(bash, log.DebugWriter(), os.Stderr)
 }
 
 
@@ -166,7 +168,14 @@ func main() {
 			
 			PrintSuccess()
 			
-			runPart("pre_install", spkg)
+			log.Info("Running pre-intall:")
+			log.InfoBarColor(log.Brown)
+			err := runPart("pre_install", spkg)
+			if err != nil {
+				log.Warn(err)
+			} else {
+				PrintSuccess()
+			}
 
 			log.Info("Installing files:")
 			log.InfoBarColor(log.Brown)
@@ -243,7 +252,16 @@ func main() {
 			if err != nil {
 				log.Warn(err)
 			}
-			runPart("post_install", spkg)
+			
+			
+			log.Info("Running post-intall:")
+			log.InfoBarColor(log.Brown)
+			err = runPart("post_install", spkg)
+			if err != nil {
+				log.Warn(err)
+			} else {
+				PrintSuccess()
+			}
 		})
 		
 		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
