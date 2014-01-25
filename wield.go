@@ -76,6 +76,30 @@ func removeTempDir(tmpDir string) {
 	}
 }
 
+func runPart(part string, spkg *spakg.Spakg){
+	cmd:= `
+		%s
+		%s
+		`
+	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
+	bash := exec.Command("bash", "-c", cmd)
+	if destdir != "//"{
+		fmt.Println(destdir)
+		//TODO cmd args "correctly"
+		if _, err := exec.LookPath("chroot"); err == nil {
+			bash = exec.Command("chroot " + destdir, bash.Args...)
+		} else if _, err := exec.LookPath("systemd-nspawn"); err == nil {
+			bash = exec.Command("systemd-nspawn " + "-D " + destdir, bash.Args...)
+
+		}
+	}
+	err := RunCommand(bash, log.InfoWriter(), os.Stderr)
+	if err != nil {
+		log.Warn(err)
+	}
+}
+
+
 func main() {
 	pkgs := args()
 	
@@ -142,6 +166,8 @@ func main() {
 			
 			PrintSuccess()
 			
+			runPart("pre_install", spkg)
+
 			log.Info("Installing files:")
 			log.InfoBarColor(log.Brown)
 			
@@ -217,6 +243,7 @@ func main() {
 			if err != nil {
 				log.Warn(err)
 			}
+			runPart("post_install", spkg)
 		})
 		
 		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
