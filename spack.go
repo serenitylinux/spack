@@ -386,12 +386,6 @@ func wieldPackages(packages []string) {
 	for _, pkg := range pkglist {
 		repo := pkg.repo
 		c := pkg.control
-		
-		/*spakgFile := repo.GetSpakgOutput(c)
-		if ! PathExists(spakgFile) {
-			err := forge(c, repo)
-			libspack.ExitOnErrorMessage(err, "Error forging package ")
-		}*/
 	
 		err := wield(c, repo)
 		if err != nil {
@@ -453,7 +447,9 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	spakgFile := repo.GetSpakgOutput(c)
 	if !PathExists(spakgFile) && repo.HasRemoteSpakg(c) {
 		e := repo.FetchIfNotCachedSpakg(c)
-		log.Warn(e)
+		if e != nil {
+			return e
+		}
 	}
 	
 	if !PathExists(spakgFile) {
