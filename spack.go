@@ -424,7 +424,7 @@ func forge(c *control.Control, repo *repo.Repo) error {
 		return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", c.Name))
 	}
 	
-	if !noBDepsArg.Value {
+	if noBDepsArg != nil && !noBDepsArg.Get() {
 		oldoutdir := forgeoutdirArg
 		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
 			forgeoutdirArg = nil
@@ -463,7 +463,11 @@ func forge(c *control.Control, repo *repo.Repo) error {
 
 func wield(c *control.Control, repo *repo.Repo) error {
 	isReinstall := reinstallArg != nil && reinstallArg.Get()
-	if repo.IsInstalled(c, destdirArg.Value) && !isReinstall {
+	destdir := "/"
+	if destdirArg != nil {
+		destdir = destdirArg.Value
+	}
+	if repo.IsInstalled(c, destdir) && !isReinstall {
 		return nil
 	}
 	
@@ -567,6 +571,18 @@ func info(pkgs []string) {
 	}
 }
 
+func purge() {
+	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "purge"))
+	registerVerbose()
+	pkgs := argparse.EvalDefaultArgs()
+	if len(pkgs) >= 1 {
+		remove(pkgs)
+	} else {
+		log.Error("Must specify package(s) for information")
+		argparse.Usage(2)
+	}
+}
+
 func remove(pkgs []string){
 	if verboseArg.Get() {
 		log.SetLevel(log.DebugLevel)
@@ -603,6 +619,39 @@ func remove(pkgs []string){
 	}
 }
 
+func upgrade() {
+	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "upgrade"))
+	registerQuiet()
+	registerVerbose()
+	pkgs := argparse.EvalDefaultArgs()
+	if verboseArg.Get() {
+		log.SetLevel(log.DebugLevel)
+	}
+	
+	if len(pkgs) > 0 {
+		log.ErrorFormat("Invalid options: ", pkgs)
+		argparse.Usage(2)
+	}
+	
+	list := make(ControlRepoList, 0)
+	crl := &list
+	for _, repo := range libspack.GetAllRepos() {
+		for _, pkg := range repo.GetAllInstalled() {
+			c, _ := repo.GetLatestControl(pkg.Control.Name)
+			if (c != nil && c.Version > pkg.Control.Version) {
+				crl.Append(ControlRepo{ c, &repo })
+			}
+		}
+	}
+	fmt.Println("The following packages will be upgraded: ")
+	crl.Print()
+	if libspack.AskYesNo("Do you wish to continue?", true) {
+		for _, pkg := range list {
+			wield(pkg.control, pkg.repo)
+		}
+	}
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		Usage(0)
@@ -618,26 +667,28 @@ func main() {
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			forgeoutdirArg = argparse.RegisterString("outdir", "(not set)", "Output dir for build spakgs")
 			forgePackages(ForgeWieldArgs())
+		
+		case "install": fallthrough
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			registerReinstallArg()
 			wieldPackages(ForgeWieldArgs())
-		case "purge":
-			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "info"))
-			registerVerbose()
-			pkgs := argparse.EvalDefaultArgs()
-			if len(pkgs) >= 1 {
-				remove(pkgs)
-			} else {
-				log.Error("Must specify package(s) for information")
-				argparse.Usage(2)
-			}
+			
+		case "purge": fallthrough
+		case "remove":
+			purge()
+		
+		case "update": fallthrough
 		case "refresh":
 			libspack.RefreshRepos()
-		case "packages":
-			list()
+		
+		case "upgrade":
+			upgrade()
+		
+		case "packages": fallthrough
 		case "list":
 			list()
+		
 		case "info":
 			if len(os.Args) > 1 {
 				info(os.Args[1:])

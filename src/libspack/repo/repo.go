@@ -245,8 +245,16 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 }
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	_, exists := repo.installed[c.Name]
+	_, exists := repo.installed[c.UUID()]
 	return exists
+}
+
+func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
+	res := make([]pkginstallset.PkgInstallSet, 0)
+	for _, i := range repo.installed {
+		res = append(res, i)
+	}
+	return  res
 }
 
 func (repo *Repo) GetInstalled(c *control.Control) *pkginstallset.PkgInstallSet {
@@ -538,7 +546,7 @@ func (repo *Repo) loadInstalledPackagesList() {
 			return
 		}
 		
-		repo.installed[ps.Control.Name] = *ps
+		repo.installed[ps.Control.UUID()] = *ps
 	}
 	
 	dir := repo.installedPkgsDir()
