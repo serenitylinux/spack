@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"io"
 	"os"
 	"os/exec"
 	"errors"
@@ -445,10 +446,11 @@ func forge(c *control.Control, repo *repo.Repo) error {
 	}
 	
 	var spakgFile string
+	spakgFile = repo.GetSpakgOutput(c)
+	
+	
 	if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
 		spakgFile = forgeoutdirArg.Get() + pkginfo.FromControl(c).UUID() + ".spakg"
-	} else {
-		spakgFile = repo.GetSpakgOutput(c)
 	}
 	
 	err := RunCommandToStdOutErr(
@@ -458,6 +460,29 @@ func forge(c *control.Control, repo *repo.Repo) error {
 			"--quiet="+quietArg.String(),
 			"--verbose="+verboseArg.String(),
 			template))
+	
+	if err == nil {
+		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
+			spakgFileCopy := repo.GetSpakgOutput(c)
+			
+			var e error
+			e = WithFileWriter(spakgFileCopy, true, func (writer io.Writer) {
+				e = WithFileReader(spakgFile, func (reader io.Reader) {
+					_, e = io.Copy(writer, reader)
+					if e != nil {
+						log.Warn(e)
+					}
+				})
+				if e != nil {
+					log.Warn(e)
+				}
+			})
+			if e != nil {
+				log.Warn(e)
+			}
+		}
+	}
+	
 	return err
 }
 
@@ -598,7 +623,7 @@ func remove(pkgs []string){
 
 		list := repo.UninstallList(c)
 		if len(list) == 0 {
-			log.DebugFormat("%s has no deps", c.Name)
+			log.InfoFormat("%s has no deps", c.Name)
 		} else {
 			fmt.Println("Packages to remove: ")
 			fmt.Print(c.UUID())
@@ -608,11 +633,19 @@ func remove(pkgs []string){
 			fmt.Println()
 		}
 		if libspack.AskYesNo("Are you sure you want to continue?", false) {
+			var err error
 			for _, rdep := range list {
-				err := repo.Uninstall(&rdep.Control)
+				err = repo.Uninstall(&rdep.Control)
 				if err != nil {
 					log.Warn(err)
 					break
+				}
+			}
+			if err == nil {
+				err = repo.Uninstall(c)
+				if err != nil {
+					log.Warn(err)
+					continue
 				}
 			}
 		}
