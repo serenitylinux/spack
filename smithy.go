@@ -86,7 +86,7 @@ func main() {
 			
 			pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, repo.Name)
 			if !PathExists(pkgdir) {
-				err = os.Mkdir(pkgdir, 0755)	
+				err = os.MkdirAll(pkgdir, 0755)	
 				if err != nil {
 					log.ErrorFormat("Unable to create %s: %s", pkgdir, err)
 					os.Exit(-1)
@@ -94,7 +94,7 @@ func main() {
 			}
 
 			infodir := fmt.Sprintf("%s/%s/info/", outdir, repo.Name)
-			err = os.Mkdir(infodir, 0755)
+			err = os.MkdirAll(infodir, 0755)
 			if !PathExists(infodir) {
 				if err != nil {
 					log.ErrorFormat("Unable to create %s: %s", infodir, err)
