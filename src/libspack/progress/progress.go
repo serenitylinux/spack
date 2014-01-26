@@ -59,6 +59,8 @@ func (prog *ProgressBar) print(n int64) {
 		return
 	}
 	var length= GetWidth() - 30
+	//diff := length - 100
+	
 	if length < 10 {
 		return
 	}
@@ -70,8 +72,8 @@ func (prog *ProgressBar) print(n int64) {
 			progStr := strings.Repeat("=", prog.percentComplete-1)
 			progStr += ">"
 			progStr += strings.Repeat(" ", length - prog.percentComplete)
-	
-			fmt.Printf("\r   [%s] %d/%d %d%%", progStr, prog.count, prog.size, prog.percentComplete)
+			//TODO find a better way to make sure it doesn't go beyond 100%
+			fmt.Printf("\r   [%s] %d/%d %d%%", progStr, prog.count, prog.size, int((float64(prog.percentComplete) / float64(length)) * 100))
 		}
 	} else {
 		prog.percentComplete++;
