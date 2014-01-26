@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"libspack/misc"
 )
 
 const (
@@ -125,7 +126,7 @@ func LevelWriter(ll LogLevel) (writer io.Writer) {
 	return
 }
 
-var bar = strings.Repeat("=", 80)
+var bar = strings.Repeat("=", misc.GetWidth())
 
 func BarColor(ll LogLevel, colorStr string) {
 	if CanLevel(ll) {
