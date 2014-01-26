@@ -103,7 +103,8 @@ func fetchPkgSrc(urls []string) {
 			continue
 		}
 		gitRegex := regexp.MustCompile(".*\\.git")
-		httpRegex := regexp.MustCompile("(http|https|ftp)://.*")
+		httpRegex := regexp.MustCompile("(http|https)://.*")
+		ftpRegex := regexp.MustCompile("ftp://.*")
 		
 		base := path.Base(url)
 		switch {
@@ -114,6 +115,13 @@ func fetchPkgSrc(urls []string) {
 				ExitOnErrorMessage(err, "cloning repo " + url)
 				err = gitrepo.Clone(url, base)
 				ExitOnErrorMessage(err, "cloning repo " + url)
+			case ftpRegex.MatchString(url):
+				log.DebugFormat("Fetching '%s'")
+				err := RunCommandToStdOutErr(exec.Command("wget", url))
+				ExitOnErrorMessage(err, "fetching file " + url)
+				
+				err = extractPkgSrc(base)
+				ExitOnErrorMessage(err, "extracting file " + base)
 				
 			case httpRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with http", url)
@@ -126,7 +134,6 @@ func fetchPkgSrc(urls []string) {
 				
 			default:
 				ExitOnError(errors.New(fmt.Sprintf("Unknown url format '%s', cannot continue", url)))
-				break
 		}
 	}
 	PrintSuccess()
