@@ -553,7 +553,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		for file, _ := range previousInstall.Hashes {
 			_, exists := newInstall[file]
 			if !exists {
-				err = os.Remove(file)
+				err = os.Remove(destdirArg.String() + file)
 				if err != nil {
 					log.WarnFormat("Could not remove %s: %s", file, err)
 				}
