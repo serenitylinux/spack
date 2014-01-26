@@ -142,11 +142,11 @@ func runPart(part, fileName, inner string) {
 			%[3]s
 		}
 		
+		source %[2]s
+		
 		if [ -f %[4]s ]; then
 			source %[4]s
 		fi
-		
-		source %[2]s
 		
 		cd $PWD/$srcdir
 		

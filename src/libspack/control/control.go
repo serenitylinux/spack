@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"io"
 	"bytes"
 	"libspack/misc"
@@ -63,7 +64,7 @@ func FromReader(reader io.Reader) (*Control, error) {
 
 //TODO consolidate into a single function
 
-func FromTemplateString(template string) (*Control, error) {
+func fromTemplateString(template string) (*Control, error) {
 		commands := `
 %s
 
@@ -120,5 +121,10 @@ func FromTemplateFile(template string) (*Control, error) {
 		return nil, err
 	}
 	
-	return FromTemplateString(str)
+	//Don't care if does not exist
+	misc.WithFileReader(filepath.Dir(template) + "/default", func (r io.Reader) {
+		str += misc.ReaderToString(r)
+	})
+	
+	return fromTemplateString(str)
 }
