@@ -525,26 +525,19 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	if err != nil {
 		return err
 	}
-	
+
+	previousInstall := repo.GetInstalled(c)
+
+
 	//Prevent infinite loooping
 	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
 	defer func () {
 		if err != nil {
 			repo.MarkRemoved(&spakg.Control, destdirArg.Value)
+			remove(append(make([]string, 0), spakg.Control.Name)) //This might cause problems if diff versions/iterations
 		}
 	}()
 	
-	if reinstallArg != nil && !reinstallArg.Get() {
-		for _, dep := range c.Deps {
-			dc,dr := libspack.GetPackageLatest(dep)
-			err = wield(dc, dr)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	
-	previousInstall := repo.GetInstalled(c)
 	
 	err = RunCommandToStdOutErr(
 		exec.Command(
@@ -555,6 +548,16 @@ func wield(c *control.Control, repo *repo.Repo) error {
 			spakgFile))
 	if err != nil {
 		return err
+	}
+	
+	if reinstallArg != nil && !reinstallArg.Get() {
+		for _, dep := range c.Deps {
+			dc,dr := libspack.GetPackageLatest(dep)
+			err = wield(dc, dr)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	
 	if previousInstall != nil {
