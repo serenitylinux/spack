@@ -535,6 +535,8 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		}
 	}
 	
+	previousInstall := repo.GetInstalled(c)
+	
 	err = RunCommandToStdOutErr(
 		exec.Command(
 			"wield",
@@ -544,6 +546,21 @@ func wield(c *control.Control, repo *repo.Repo) error {
 			spakgFile))
 	if err != nil {
 		return err
+	}
+	
+	if previousInstall != nil {
+		newInstall := spakg.Md5sums
+		for file, _ := range previousInstall.Hashes {
+			_, exists := newInstall[file]
+			if !exists {
+				err = os.Remove(file)
+				if err != nil {
+					log.WarnFormat("Could not remove %s: %s", file, err)
+				}
+			}
+		}
+		//we may need to switch to pkginfo at some point
+		repo.MarkRemoved(&previousInstall.Control, destdirArg.Value)
 	}
 	
 	return repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
@@ -671,6 +688,13 @@ func upgrade() {
 	registerQuiet()
 	registerVerbose()
 	pkgs := argparse.EvalDefaultArgs()
+	
+	
+	//TODO support DESTDIR!!!!
+	tmp := argparse.StringValue{}
+	destdirArg = &tmp
+	destdirArg.Value = "/"
+	
 	if verboseArg.Get() {
 		log.SetLevel(log.DebugLevel)
 	}

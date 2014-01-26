@@ -294,6 +294,12 @@ func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSe
 	return pkgs
 }
 
+func (repo *Repo) MarkRemoved(c *control.Control, basedir string) {
+	inst := repo.GetInstalled(c)
+	//TODO handle err
+	os.Remove(basedir + repo.installedPkgsDir() + inst.PkgInfo.UUID() + ".pkgset")
+}
+
 //TODO destdir
 func (repo *Repo) Uninstall(c *control.Control) error {
 	inst := repo.GetInstalled(c)
