@@ -525,10 +525,19 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	if err != nil {
 		return err
 	}
+	
+	//Prevent infinite loooping
+	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
+	defer func () {
+		if err != nil {
+			repo.MarkRemoved(&spakg.Control, destdirArg.Value)
+		}
+	}()
+	
 	if reinstallArg != nil && !reinstallArg.Get() {
 		for _, dep := range c.Deps {
 			dc,dr := libspack.GetPackageLatest(dep)
-			err := wield(dc, dr)
+			err = wield(dc, dr)
 			if err != nil {
 				return err
 			}
@@ -556,6 +565,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 				err = os.Remove(destdirArg.String() + file)
 				if err != nil {
 					log.WarnFormat("Could not remove %s: %s", file, err)
+					err = nil
 				}
 			}
 		}
@@ -563,7 +573,7 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		repo.MarkRemoved(&previousInstall.Control, destdirArg.Value)
 	}
 	
-	return repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
+	return nil
 }
 
 func list() {
