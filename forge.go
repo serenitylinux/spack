@@ -142,9 +142,8 @@ func runPart(part, fileName, inner string) {
 			%[3]s
 		}
 		
-		echo %[4]
-		if [ -f %[4] ]; then
-			source %[4]
+		if [ -f %[4]s ]; then
+			source %[4]s
 		fi
 		
 		source %[2]s
