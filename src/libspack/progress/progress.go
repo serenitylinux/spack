@@ -4,6 +4,7 @@ import (
 	"io"
 	"fmt"
 	"strings"
+	"libspack/misc"
 )
 
 type ProgressBar struct {
@@ -28,13 +29,19 @@ func (prog *ProgressBar) Write(p []byte) (n int, err error) {
         return
 }
 
-var length=60
+
+
 
 func (prog *ProgressBar) print(n int64) {
 	if !prog.stdout {
 		return
 	}
+	var length= misc.GetWidth() - 30
+	//diff := length - 100
 	
+	if length < 10 {
+		return
+	}
 	prog.count += n;
 	if prog.size > 0 {
 		newProg := int(prog.count * int64(length) / prog.size)
@@ -43,8 +50,8 @@ func (prog *ProgressBar) print(n int64) {
 			progStr := strings.Repeat("=", prog.percentComplete-1)
 			progStr += ">"
 			progStr += strings.Repeat(" ", length - prog.percentComplete)
-	
-			fmt.Printf("\r   [%s] %d/%d %d%%", progStr, prog.count, prog.size, prog.percentComplete)
+			//TODO find a better way to make sure it doesn't go beyond 100%
+			fmt.Printf("\r   [%s] %d/%d %d%%", progStr, prog.count, prog.size, int((float64(prog.percentComplete) / float64(length)) * 100))
 		}
 	} else {
 		prog.percentComplete++;

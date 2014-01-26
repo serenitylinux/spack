@@ -294,6 +294,12 @@ func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSe
 	return pkgs
 }
 
+func (repo *Repo) MarkRemoved(c *control.Control, basedir string) {
+	inst := repo.GetInstalled(c)
+	//TODO handle err
+	os.Remove(basedir + repo.installedPkgsDir() + inst.PkgInfo.UUID() + ".pkgset")
+}
+
 //TODO destdir
 func (repo *Repo) Uninstall(c *control.Control) error {
 	inst := repo.GetInstalled(c)
@@ -325,9 +331,13 @@ Repo Dir Management
 
 func (repo *Repo) RefreshRemote() {
 	if repo.RemoteTemplates != "" {
+		log.Info("Checking remoteTemplates")
+		log.Debug(repo.RemoteTemplates)
 		cloneRepo(repo.RemoteTemplates, repo.templatesDir(), repo.Name)
 	}
 	if repo.RemotePackages != "" {
+		log.Info("Checking remotePackages")
+		log.Debug(repo.RemotePackages)
 		cloneRepo(repo.RemotePackages, repo.packagesDir(), repo.Name)
 	}
 	

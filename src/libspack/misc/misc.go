@@ -7,7 +7,21 @@ import (
 	"bufio"
 	"bytes"
 	"regexp"
+	"strconv"
 )
+
+func GetWidth() int{
+	var buf bytes.Buffer
+	cmd := exec.Command("tput", "cols")
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+
+	str := buf.String()
+	width, _ := strconv.Atoi(str[:len(str)-1])
+	
+	return width
+}
 
 func WithFileReader(filename string, action func (io.Reader)) error {
 	file, ioerr := os.Open(filename)
