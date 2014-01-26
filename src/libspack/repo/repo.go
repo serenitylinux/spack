@@ -331,9 +331,13 @@ Repo Dir Management
 
 func (repo *Repo) RefreshRemote() {
 	if repo.RemoteTemplates != "" {
+		log.Info("Checking remoteTemplates")
+		log.Debug(repo.RemoteTemplates)
 		cloneRepo(repo.RemoteTemplates, repo.templatesDir(), repo.Name)
 	}
 	if repo.RemotePackages != "" {
+		log.Info("Checking remotePackages")
+		log.Debug(repo.RemotePackages)
 		cloneRepo(repo.RemotePackages, repo.packagesDir(), repo.Name)
 	}
 	

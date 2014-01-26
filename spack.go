@@ -723,6 +723,24 @@ func upgrade() {
 	}
 }
 
+func refresh(){
+	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "refresh"))
+	registerQuiet()
+	registerVerbose()
+	
+	pkgs := argparse.EvalDefaultArgs()
+	if len(pkgs) > 0 {
+		log.ErrorFormat("Invalid options: ", pkgs)
+		argparse.Usage(2)
+	}
+	
+	if verboseArg.Get() {
+		log.SetLevel(log.DebugLevel)
+	}
+	
+	libspack.RefreshRepos()
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		Usage(0)
@@ -751,7 +769,8 @@ func main() {
 		
 		case "update": fallthrough
 		case "refresh":
-			libspack.RefreshRepos()
+			//libspack.RefreshRepos()
+			refresh()
 		
 		case "upgrade":
 			upgrade()

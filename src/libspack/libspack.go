@@ -42,8 +42,12 @@ func LoadRepos() error {
 }
 
 func RefreshRepos() {
+	log.Info()
 	for _, repo := range repos {
+		log.Info("Refreshing ",repo.Name)
+		log.InfoBarColor(log.Brown)
 		repo.RefreshRemote()
+		PrintSuccess()
 	}
 }
 
