@@ -142,6 +142,10 @@ func runPart(part, fileName, inner string) {
 			%[3]s
 		}
 		
+		if [ -f %[4] ]; then
+			source %[4]
+		fi
+		
 		source %[2]s
 		
 		cd $PWD/$srcdir
@@ -157,7 +161,7 @@ func runPart(part, fileName, inner string) {
 			%[1]s
 		fi`
 	
-	forge_helper = fmt.Sprintf(forge_helper, part, fileName, inner)
+	forge_helper = fmt.Sprintf(forge_helper, part, fileName, inner, filepath.Base(fileName) + "/default")
 
 	log.Info("Running " + part)
 	log.InfoBarColor(log.Brown)
