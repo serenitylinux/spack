@@ -685,7 +685,7 @@ func upgrade() {
 	for _, repo := range libspack.GetAllRepos() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
-			if (c != nil && c.Version > pkg.Control.Version) {
+			if (c != nil && c.UUID() > pkg.Control.UUID()) {
 				crl.Append(ControlRepo{ c, &repo })
 			}
 		}
