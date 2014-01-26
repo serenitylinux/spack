@@ -3,7 +3,12 @@ package progress
 import (
 	"io"
 	"fmt"
+	"os/exec"
 	"strings"
+	"libspack/log"
+	"os"
+	"bytes"
+	"strconv"
 )
 
 type ProgressBar struct {
@@ -28,13 +33,35 @@ func (prog *ProgressBar) Write(p []byte) (n int, err error) {
         return
 }
 
-var length=60
+//TODO find terminal width and set to
+
+func GetWidth() int{
+	var buf bytes.Buffer
+	cmd := exec.Command("tput", "cols")
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		log.Warn(err)
+	}
+	str := buf.String()
+	width, err := strconv.Atoi(str[:len(str)-1])
+	if err != nil {
+		log.Warn(err)
+	}
+	return width
+}
+
+
 
 func (prog *ProgressBar) print(n int64) {
 	if !prog.stdout {
 		return
 	}
-	
+	var length= GetWidth() - 30
+	if length < 10 {
+		return
+	}
 	prog.count += n;
 	if prog.size > 0 {
 		newProg := int(prog.count * int64(length) / prog.size)
