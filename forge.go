@@ -161,7 +161,7 @@ func runPart(part, fileName, inner string) {
 			%[1]s
 		fi`
 	
-	forge_helper = fmt.Sprintf(forge_helper, part, fileName, inner, filepath.Base(fileName) + "/default")
+	forge_helper = fmt.Sprintf(forge_helper, part, fileName, inner, filepath.Dir(fileName) + "/default")
 
 	log.Info("Running " + part)
 	log.InfoBarColor(log.Brown)
