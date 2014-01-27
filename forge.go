@@ -79,7 +79,7 @@ func arguments() string {
 }
 
 func extractPkgSrc(srcPath string) error {
-	tarRegex := regexp.MustCompile(".*\\.tar.*")
+	tarRegex := regexp.MustCompile(".*\\.(tar|tgz).*")
 	zipRegex := regexp.MustCompile(".*\\.zip")
 	var cmd *exec.Cmd
 	switch {
@@ -116,7 +116,7 @@ func fetchPkgSrc(urls []string) {
 				err = gitrepo.Clone(url, base)
 				ExitOnErrorMessage(err, "cloning repo " + url)
 			case ftpRegex.MatchString(url):
-				log.DebugFormat("Fetching '%s'")
+				log.DebugFormat("Fetching '%s'", url)
 				err := RunCommandToStdOutErr(exec.Command("wget", url))
 				ExitOnErrorMessage(err, "fetching file " + url)
 				
