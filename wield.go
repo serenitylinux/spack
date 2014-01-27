@@ -104,10 +104,15 @@ func runPart(part string, spkg *spakg.Spakg) error {
 
 func main() {
 	pkgs := args()
-	
+	code := 0
 	for _, pkg := range pkgs {
 		pkg, err := filepath.Abs(pkg)
-		ExitOnErrorMessage(err, "Cannot access package " + pkg)
+		//ExitOnErrorMessage(err, "Cannot access package " + pkg)
+		
+		if err != nil {
+			log.Error(err, "Cannot acces package " + pkg)
+			code = 1
+		}
 		tmpDir, fsDir := createTempDir()
 		defer removeTempDir(tmpDir)
 		
@@ -121,7 +126,12 @@ func main() {
 		log.InfoBarColor(log.Brown)
 		
 		spkg, err := spakg.FromFile(pkg, &tmpDir)
-		ExitOnError(err)
+		
+		if err != nil {
+			log.Error(err)
+			code = 1
+		}
+		//ExitOnError(err)
 		
 		log.Debug()
 		PrintSuccess()
@@ -131,7 +141,12 @@ func main() {
 			log.Info("Extracting FS")
 			log.InfoBarColor(log.Brown)
 			err = RunCommand(exec.Command("tar", "-xvf", "fs.tar", "-C", fsDir), log.DebugWriter(), os.Stderr)
-			ExitOnError(err)
+			
+			if err != nil {
+				log.Error(err)
+				code = 2
+			}
+			//ExitOnError(err)
 			log.Debug()
 			
 			PrintSuccess()
@@ -144,6 +159,10 @@ func main() {
 				if !f.IsDir() && f.Mode()&os.ModeSymlink == 0 {
 					origSum, exists := spkg.Md5sums[path]
 					if ! exists {
+						code = 3
+						//err := errors.New(fmt.Sprintf("Sum for %s does not exist", path))
+						//log.Error(err)
+						//return err
 						ExitOnError(errors.New(fmt.Sprintf("Sum for %s does not exist", path)))
 					}
 					
@@ -267,4 +286,5 @@ func main() {
 		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
 		fmt.Println()
 	}
+	os.Exit(code)
 }
