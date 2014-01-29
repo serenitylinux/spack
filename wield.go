@@ -114,7 +114,7 @@ func main() {
 			code = 1
 		}
 		tmpDir, fsDir := createTempDir()
-		defer removeTempDir(tmpDir)
+
 		
 
 		log.ColorAll(log.Green, fmt.Sprintf("Wielding %s with the force of a ", pkg)); log.ColorAll(log.Red, "GOD")
@@ -282,9 +282,12 @@ func main() {
 				PrintSuccess()
 			}
 		})
-		
-		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
-		fmt.Println()
+		removeTempDir(tmpDir)
+		if code == 0{
+			log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
+			fmt.Println()
+		} else {
+			os.Exit(code)		
+		}
 	}
-	os.Exit(code)
 }
