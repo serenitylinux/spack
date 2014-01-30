@@ -162,7 +162,7 @@ func (repo *Repo) GetLatestControl(pkgname string) (*control.Control, bool) {
 	
 	if exists {
 		for _, ctrl := range c {
-			if res == nil || res.Version < ctrl.Version{
+			if res == nil || res.UUID() < ctrl.UUID() {
 				res = &ctrl
 			}
 		}
@@ -177,9 +177,9 @@ func (repo *Repo) GetAllTemplates() TemplateFileMap {
 func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
 	byName, exists := repo.templateFiles[c.Name]
 	if !exists { return "", false }
-	byVersion := byName[c.Version]
+	byUUID := byName[c.UUID()]
 	if !exists { return "", false }
-	return byVersion, true
+	return byUUID, true
 }
 
 func (repo *Repo) GetSpakgOutput(c *control.Control) string {
@@ -446,7 +446,7 @@ func (repo *Repo) updateControlsFromTemplates() {
 			repo.templateFiles[c.Name] = make(map[string]string)
 		}
 		
-		repo.templateFiles[c.Name][c.Version] = file
+		repo.templateFiles[c.Name][c.UUID()] = file
 		repo.controls[c.Name] = append(repo.controls[c.Name], *c)
 	}
 	
