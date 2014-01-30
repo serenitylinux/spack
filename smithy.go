@@ -133,42 +133,37 @@ func main() {
 					
 					
 					//TODO better version checking
-					var depCheck func (string, string) bool	
-					depCheck = func (pkg string, ver string) bool {
-						if _, exists := done[pkg]; exists {
+					var depCheck func (*control.Control) bool
+					depCheck = func (ctrl *control.Control) bool {
+						if _, exists := done[ctrl.UUID()]; exists {
 							return true
 						}
-						done[pkg] = true
-						var depC *control.Control
-						if ver == "" {
-							depC, _ = libspack.GetPackageLatest(pkg)
-						} else {
-							depC, _ = libspack.GetPackageVersion(pkg, ver)
-						}
-						if depC == nil {
-							hasAllDeps = false
-							missing = append(missing, pkg)
-							return false
-						}
+						done[ctrl.UUID()] = true
 						
-						for _, dep := range depC.Bdeps {
-							if !depCheck(dep, "") {
+						for _, dep := range ctrl.Bdeps {
+							depC, _ := libspack.GetPackageLatest(dep)
+							if depC == nil {
+								hasAllDeps = false
+								missing = append(missing, dep)
+								return false
+							}
+							
+							if !depCheck(depC) {
 								return false
 							}
 						}
 						return true
 					}
 					
-					//TODO support UUID/version stuffs
-					if !depCheck(ctrl.Name, ctrl.Version) {
+					if !depCheck(&ctrl) {
 						log.WarnFormat("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
 						continue
 					}
 					
 					
 					if hasAllDeps {
-						//TODO use iteration
-						cmd := exec.Command("spack", "forge", fmt.Sprintf("%s::%s", ctrl.Name, ctrl.Version), "--outdir=" + pkgdir, "--yes")
+						pkgarg := fmt.Sprintf("%s::%s::%s", ctrl.Name, ctrl.Version, ctrl.Iteration)
+						cmd := exec.Command("spack", "forge", pkgarg, "--outdir=" + pkgdir, "--yes")
 						if outarg != "" {
 							cmd.Args = append(cmd.Args, outarg)
 						}

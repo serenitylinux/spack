@@ -65,16 +65,39 @@ func GetPackageAllVersions(pkgname string) (control.ControlList, *repo.Repo) {
 	return nil, nil
 }
 
-func GetPackageVersion(pkgname, version string) (*control.Control, *repo.Repo) {
+func GetPackageVersionIteration(pkgname, version, iteration string) (*control.Control, *repo.Repo) {
 	pkgs, repo := GetPackageAllVersions(pkgname)
+	var ctrl * control.Control
 	for _, ver := range pkgs {
 		if (ver.Version == version) {
-			return &ver, repo
+			if ctrl != nil && ctrl.Iteration == ver.Iteration {
+				ctrl = &ver
+				break
+			}
 		}
 	}
-	return nil, nil
+	if ctrl == nil {
+		return nil, nil
+	} else {
+		return ctrl, repo
+	}
 }
-
+func GetPackageVersion(pkgname, version string) (*control.Control, *repo.Repo) {
+	pkgs, repo := GetPackageAllVersions(pkgname)
+	var ctrl * control.Control
+	for _, ver := range pkgs {
+		if (ver.Version == version) {
+			if ctrl == nil || ctrl.Iteration < ver.Iteration {
+				ctrl = &ver
+			}
+		}
+	}
+	if ctrl == nil {
+		return nil, nil
+	} else {
+		return ctrl, repo
+	}
+}
 func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	for _, repo := range repos {
 		c, exists := repo.GetLatestControl(pkgname)

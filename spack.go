@@ -288,20 +288,27 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 }
 
-func pkgSplit(pkg string) (name string, version *string) {
-	split := strings.SplitN(pkg, "::", 2)
+func pkgSplit(pkg string) (name string, version *string, iteration *string) {
+	split := strings.SplitN(pkg, "::", 3)
 	name = split[0]
 	if len(split) > 1 {
 		version = &split[1]
 	}
+	if len(split) > 2 {
+		iteration = &split[2]
+	}
 	return
 }
 func getPkg(pkg string) ( *control.Control, *repo.Repo) {
-	name, version := pkgSplit(pkg)
+	name, version, iteration := pkgSplit(pkg)
 	if version == nil {
 		return libspack.GetPackageLatest(name)
 	} else {
-		return libspack.GetPackageVersion(name, *version)
+		if iteration == nil {
+			return libspack.GetPackageVersion(name, *version)
+		} else {
+			return libspack.GetPackageVersionIteration(name, *version, *iteration)
+		}
 	}
 }
 
