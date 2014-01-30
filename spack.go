@@ -107,7 +107,7 @@ func (cr *ControlRepo) Name() string {
 	if indent > 0 {
 		ind = strings.Repeat("|\t", indent-1)
 	}
-	return fmt.Sprintf(ind + "%s-%s:%s ", cr.control.Name, cr.control.Version, cr.repo.Name)
+	return fmt.Sprintf(ind + "%s:%s ", cr.control.UUID(), cr.repo.Name)
 }
 
 type ControlRepoList []ControlRepo
@@ -594,7 +594,7 @@ func list() {
 		for _, pkglist := range list {
 			for _, pkg := range pkglist {
 				if (!installed || repo.IsInstalled(&pkg, "/")) {
-					fmt.Println(pkg.Name, pkg.Version)
+					fmt.Println(pkg.UUID())
 				}
 			}
 		}
