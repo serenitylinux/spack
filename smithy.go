@@ -20,7 +20,7 @@ var outstream = os.Stdout
 var errstream = os.Stderr
 var outarg = ""
 
-func arguments() {
+func arguments() []string {
 	loglevel := "info"
 
 	outdirArg := argparse.RegisterString("outdir", outdir, "Spakg, Control, and PkgInfo output directory")
@@ -28,10 +28,6 @@ func arguments() {
 	loglevelArg := argparse.RegisterString("loglevel", loglevel, "Log Level")
 	
 	items := argparse.EvalDefaultArgs()
-	if len(items) > 0 {
-		log.Error("Invalid options: ", items)
-		os.Exit(-2)
-	}
 	
 	if logfileArg.IsSet() {
 		var err error
@@ -52,6 +48,8 @@ func arguments() {
 	if !log.CanDebug() && !log.CanInfo() {
 		outarg = "--quiet"
 	}
+
+	return items
 }
 
 func extractSpakg(file string, infodir string) error {
@@ -71,7 +69,7 @@ func extractSpakg(file string, infodir string) error {
 }
 
 func main() {
-	arguments()
+	repoNames := arguments()
 	
 	err := libspack.LoadRepos()
 	libspack.ExitOnError(err)
@@ -80,7 +78,14 @@ func main() {
 	for {
 		libspack.RefreshRepos()
 		//build packages
-		for _, repo := range libspack.GetAllRepos() {
+		repolist := libspack.GetAllRepos()
+		for _, repoName := range repoNames {
+			repo, exists := repolist[repoName]
+			if !exists {
+				log.Warn("Cannot find " + repoName)
+				continue
+			}
+			
 			log.Debug("Repo: ", repo.Name)
 			
 			
@@ -109,7 +114,13 @@ func main() {
 				
 				log.Info("Forging: ", name)
 				for _, ctrl := range ctrls {
+					//Temporarily only support building the latestW
+					foo, _ := repo.GetLatestControl(ctrl.Name)
+					if foo.UUID() != ctrl.UUID() {
+						continue
+					}
 					
+
 					p := pkginfo.FromControl(&ctrl)
 					outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.UUID())
 					if PathExists(outfile) {
@@ -156,7 +167,7 @@ func main() {
 					
 					
 					if hasAllDeps {
-						//TODO use version
+						//TODO use iteration
 						cmd := exec.Command("spack", "forge", fmt.Sprintf("%s::%s", ctrl.Name, ctrl.Version), "--outdir=" + pkgdir, "--yes")
 						if outarg != "" {
 							cmd.Args = append(cmd.Args, outarg)
