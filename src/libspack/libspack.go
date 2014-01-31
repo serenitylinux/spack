@@ -4,6 +4,7 @@ import (
 	"os"
 	"fmt"
 	"regexp"
+	"strconv"
 	"io/ioutil"
 	"libspack/log"
 	"libspack/repo"
@@ -67,10 +68,15 @@ func GetPackageAllVersions(pkgname string) (control.ControlList, *repo.Repo) {
 
 func GetPackageVersionIteration(pkgname, version, iteration string) (*control.Control, *repo.Repo) {
 	pkgs, repo := GetPackageAllVersions(pkgname)
+	itri, e := strconv.Atoi(iteration)
+	if e != nil {
+		log.Warn(e)
+		return nil, nil
+	}
 	var ctrl * control.Control
 	for _, ver := range pkgs {
 		if (ver.Version == version) {
-			if ctrl != nil && ctrl.Iteration == ver.Iteration {
+			if itri == ver.Iteration {
 				ctrl = &ver
 				break
 			}

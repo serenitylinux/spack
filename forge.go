@@ -102,7 +102,7 @@ func fetchPkgSrc(urls []string) {
 		if url == "" { //Hack while we are still using dumb bash str lists for urls
 			continue
 		}
-		gitRegex := regexp.MustCompile(".*\\.git")
+		gitRegex := regexp.MustCompile("(.*\\.git|git://)")
 		httpRegex := regexp.MustCompile("(http|https)://.*")
 		ftpRegex := regexp.MustCompile("ftp://.*")
 		
