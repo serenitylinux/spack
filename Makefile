@@ -28,7 +28,7 @@ install:
 	install -c $(DEST)/spack  $(DESTDIR)/usr/bin/spack
 	install -c $(DEST)/smithy $(DESTDIR)/usr/bin/smithy
 
-	install -c conf/core.repo $(DESTDIR)/etc/spack/repos/core.repo
+	install -c conf/* $(DESTDIR)/etc/spack/repos/
 
 clean:
 	rm $(DEST)/*
