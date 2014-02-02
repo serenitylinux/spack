@@ -495,15 +495,18 @@ func forge(c *control.Control, repo *repo.Repo) error {
 
 func wield(c *control.Control, repo *repo.Repo) error {
 	isReinstall := reinstallArg != nil && reinstallArg.Get()
-	destdir := "/"
-	if destdirArg != nil {
-		destdir = destdirArg.Value
+	if destdirArg == nil {
+		tmp := argparse.StringValue{ Value: "/" }
+		destdirArg = &tmp
 	}
-	if repo.IsInstalled(c, destdir) && !isReinstall {
+	
+	if repo.IsInstalled(c, destdirArg.Get()) && !isReinstall {
 		return nil
 	}
 	
 	spakgFile := repo.GetSpakgOutput(c)
+	
+	//Fetch/Build
 	if !PathExists(spakgFile) && repo.HasRemoteSpakg(c) {
 		e := repo.FetchIfNotCachedSpakg(c)
 		if e != nil {
@@ -533,14 +536,14 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		return err
 	}
 
-	previousInstall := repo.GetInstalled(c)
+	previousInstall := repo.GetInstalled(pkginfo.FromControl(c), destdirArg.Get())
 
 
 	//Prevent infinite loooping
-	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Value)
+	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Get())
 	defer func () {
 		if err != nil {
-			repo.MarkRemoved(&spakg.Control, destdirArg.Value)
+			repo.MarkRemoved(&spakg.Pkginfo, destdirArg.Get())
 			remove(append(make([]string, 0), spakg.Control.Name)) //This might cause problems if diff versions/iterations
 		}
 	}()
@@ -572,15 +575,14 @@ func wield(c *control.Control, repo *repo.Repo) error {
 		for file, _ := range previousInstall.Hashes {
 			_, exists := newInstall[file]
 			if !exists {
-				err = os.Remove(destdirArg.String() + file)
+				err = os.Remove(destdirArg.Get() + file)
 				if err != nil {
 					log.WarnFormat("Could not remove %s: %s", file, err)
 					err = nil
 				}
 			}
 		}
-		//we may need to switch to pkginfo at some point
-		repo.MarkRemoved(&previousInstall.Control, destdirArg.Value)
+		repo.MarkRemoved(&previousInstall.PkgInfo, destdirArg.Get())
 	}
 	
 	return nil
@@ -636,6 +638,7 @@ func info(pkgs []string) {
 func purge() {
 	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "purge"))
 	registerVerbose()
+	registerBaseDir()
 	pkgs := argparse.EvalDefaultArgs()
 	if len(pkgs) >= 1 {
 		remove(pkgs)
@@ -682,7 +685,7 @@ func remove(pkgs []string){
 					continue
 				}
 				
-				err = repo.Uninstall(&rdep.Control)
+				err = repo.Uninstall(&rdep.Control, destdirArg.Get())
 				if err != nil {
 					log.Error("Unable to remove " + rdep.Control.Name)
 					log.Warn(err)
@@ -692,7 +695,7 @@ func remove(pkgs []string){
 				}
 			}
 			if err == nil {
-				err = repo.Uninstall(c)
+				err = repo.Uninstall(c, destdirArg.Get())
 				if err != nil {
 					log.Warn(err)
 					continue

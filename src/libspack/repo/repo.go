@@ -51,6 +51,7 @@ import (
 	"os"
 	"net/url"
 	"io/ioutil"
+	"path/filepath"
 	"libspack/httphelper"
 	"libspack/pkginfo"
 	"libspack/control"
@@ -232,6 +233,10 @@ func (repo *Repo) HasTemplate(c *control.Control) bool {
 	return exists
 }
 
+func (repo *Repo) installSetFile(p pkginfo.PkgInfo, basedir string) string {
+	return basedir + repo.installedPkgsDir() + p.UUID() + ".pkgset"
+}
+
 func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
 	ps := pkginstallset.PkgInstallSet { c, p, hl }
 	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
@@ -239,15 +244,19 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 		return err
 	}
 	
-	err = ps.ToFile(basedir + repo.installedPkgsDir() + p.UUID() + ".pkgset")
+	err = ps.ToFile(repo.installSetFile(p, basedir))
 	repo.loadInstalledPackagesList()
 	return err
 }
 
 func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
-	_, exists := repo.installed[c.UUID()]
-	info := basedir + repo.installedPkgsDir() + pkginfo.FromControl(c).UUID() + ".pkgset" //Hack
-	return exists || PathExists(info)
+	if filepath.Clean(basedir) == "/" {
+		_, exists := repo.installed[c.UUID()]
+		return exists
+	} else {
+		//We should really load the pkginstallsetfiles in the basedir and iterate through like if basedir = /
+		return PathExists(repo.installSetFile(*pkginfo.FromControl(c), basedir))
+	}
 }
 
 func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
@@ -258,10 +267,21 @@ func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
 	return  res
 }
 
-func (repo *Repo) GetInstalled(c *control.Control) *pkginstallset.PkgInstallSet {
-	for _, set := range repo.installed {
-		if set.Control.Name == c.Name {
-			return &set
+func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *pkginstallset.PkgInstallSet {
+	if filepath.Clean(basedir) == "/" {
+		for _, set := range repo.installed {
+			if set.PkgInfo.UUID() == p.UUID() {
+				return &set
+			}
+		}
+	} else {
+		file := repo.installSetFile(*p, basedir)
+		s, err := pkginstallset.FromFile(file)
+		if err != nil {
+			log.WarnFormat("Unable to load %s: %s", file, err)
+			return nil
+		} else {
+			return s
 		}
 	}
 	return nil
@@ -294,15 +314,15 @@ func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSe
 	return pkgs
 }
 
-func (repo *Repo) MarkRemoved(c *control.Control, basedir string) {
-	inst := repo.GetInstalled(c)
+func (repo *Repo) MarkRemoved(p *pkginfo.PkgInfo, basedir string) {
+	//TODO handle null
+//	inst := repo.GetInstalled(p, basedir)
 	//TODO handle err
-	os.Remove(basedir + repo.installedPkgsDir() + inst.PkgInfo.UUID() + ".pkgset")
+	os.Remove(repo.installSetFile(*p, basedir))
 }
 
-//TODO destdir
-func (repo *Repo) Uninstall(c *control.Control) error {
-	inst := repo.GetInstalled(c)
+func (repo *Repo) Uninstall(c *control.Control, destdir string) error {
+	inst := repo.GetInstalled(pkginfo.FromControl(c), destdir)
 	basedir := "/"
 	if (inst != nil) {
 		log.InfoFormat("Removing %s", inst.PkgInfo.UUID())
