@@ -441,7 +441,7 @@ func forge(c *control.Control, repo *repo.Repo, destdir string, noBDeps bool) er
 		return err
 	}
 	if forgeOutDir != "" {
-		spakgFileCopy := repo.GetSpakgOutput(c)
+		spakgFileCopy := forgeOutDir + pkginfo.FromControl(c).UUID() + ".spakg"
 		
 		var e error
 		e = WithFileWriter(spakgFileCopy, true, func (writer io.Writer) {
