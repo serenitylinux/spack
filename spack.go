@@ -489,11 +489,11 @@ func wield(c *control.Control, repo *repo.Repo, destdir string, isReinstall bool
 		return err
 	}
 
-	previousInstall := repo.GetInstalled(pkginfo.FromControl(c), destdirArg.Get())
+	previousInstall := repo.GetInstalled(pkginfo.FromControl(c), destdir)
 
 
 	//Prevent infinite loooping
-	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Get())
+	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdir)
 	
 	insterr := func () error {
 		err = RunCommandToStdOutErr(
