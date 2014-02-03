@@ -411,10 +411,15 @@ func cloneRepo(remote string, dir string, name string) {
 			}
 			
 			for _, item := range list {
-				src := remote + "/info/" + url.QueryEscape(item)
-				err = httphelper.HttpFetchFileProgress(src, dir + item, false)
-				if err != nil {
-					log.Warn("Unable to fetch %s: %s", err)
+				if !PathExists(dir + item) {
+					log.DebugFormat("Fetching %s", item)
+					src := remote + "/info/" + url.QueryEscape(item)
+					err = httphelper.HttpFetchFileProgress(src, dir + item, false)
+					if err != nil {
+						log.Warn("Unable to fetch %s: %s", err)
+					}
+				} else {	
+					log.DebugFormat("Skipping %s", item)
 				}
 			}
 		case RsyncRegex.MatchString(remote):
