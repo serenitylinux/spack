@@ -158,6 +158,8 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	defer func () { indent -= 1 }()
 	log.Debug(c.Name(), "Need")
 	isbase := c.Name() == base.Name()
+	isInstalled := c.repo.IsInstalled(c.control, destdirArg.Value)
+	isLatest := repo.GetLatestControl(c.control.Name).UUID() == c.control.UUID()
 	
 	checkChildren := func (deps []string) bool {
 		rethappy := true
@@ -195,11 +197,9 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 	
 	if !(isbase) {
-		for _, repo := range libspack.GetAllRepos() {
-			if repo.IsInstalled(c.control, destdirArg.Value) {
-				log.Debug(c.Name(), "Already Installed" )
-				return true
-			}
+		if isInstalled {
+			log.Debug(c.Name(), "Already Installed" )
+			return true
 		}
 	}
 	
@@ -228,22 +228,27 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		return happy
 	}
 	
-	// We are a package that has a binary version
+	// We are a package that has a binary version available and we (are not the base package and the operation is not forge)
 	if !(isbase && isforge) && c.repo.HasSpakg(c.control) {
-		if !(isbase) || (reinstallArg != nil && reinstallArg.Get()) {
-			log.Debug(c.Name(), "Binary")
-		
-			//We have bin, let's see if our children are ok
-			log.Debug(c.Name(), "Mark bin")
-			wield_deps.Append(c)
-		
-			return checkChildren(c.control.Deps)
-		}
-		if isbase {
+		//The base package is already installed and is the latest version and we are not reinstalling the base package
+		if isbase && isInstalled && isLatest && !(reinstallArg != nil && reinstallArg.Get()) {
 			log.InfoFormat("%s is already in the latest version", c.control.Name)
+			return true
+		}
+		//We are installed and in the latest version/iteration
+		if isInstalled && isLatest{
+			log.DebugFormat(c.Name(), "Already in the latest version")
+			return true
 		}
 		
-		return true
+		//We need to be installed or updated
+		log.Debug(c.Name(), "Binary")
+		
+		//We have bin, let's see if our children are ok
+		log.Debug(c.Name(), "Mark bin")
+		wield_deps.Append(c)
+		
+		return checkChildren(c.control.Deps)
 	} else {
 		//We are a package that only available via src or are the base package to forge
 		log.Debug(c.Name(), "Source")
