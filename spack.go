@@ -75,6 +75,10 @@ var yesAll *argparse.BoolValue = nil
 func registerYesToAllArg() {
 	yesAll = argparse.RegisterBool("yes", false, "Automatically answer yes to all questions")
 }
+var forgeoutdirArg *argparse.StringValue = nil
+func registerForgeOutDirArg() {
+	forgeoutdirArg = argparse.RegisterString("outdir", "(not set)", "Output dir for build spakgs")
+}
 
 func ForgeWieldArgs() []string {
 	registerBaseDir()
@@ -159,7 +163,10 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	log.Debug(c.Name(), "Need")
 	isbase := c.Name() == base.Name()
 	isInstalled := c.repo.IsInstalled(c.control, destdirArg.Value)
-	isLatest := repo.GetLatestControl(c.control.Name).UUID() == c.control.UUID()
+	isLatest := true
+	if newer, newerexists := c.repo.GetLatestControl(c.control.Name); newerexists {
+		isLatest = newer.UUID() == c.control.UUID()
+	}
 	
 	checkChildren := func (deps []string) bool {
 		rethappy := true
@@ -317,8 +324,7 @@ func getPkg(pkg string) ( *control.Control, *repo.Repo) {
 	}
 }
 
-var forgeoutdirArg *argparse.StringValue
-func forgePackages(packages []string) {
+func forgewieldPackages(packages []string, isForge bool) {
 	forge_deps := make(ControlRepoList,0)
 	wield_deps := make(ControlRepoList,0)
 	missing    := make(MissingInfoList, 0)
@@ -326,61 +332,9 @@ func forgePackages(packages []string) {
 	pkglist := make(ControlRepoList, 0)
 	
 	for _, pkg := range packages {
-		
 		c, repo := getPkg(pkg)
 		if c == nil {
 			log.InfoFormat("Cannot find package %s", pkg)
-			os.Exit(1)
-		}
-		
-		cr := ControlRepo { c,repo }
-		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, true)
-		log.Debug()
-		
-		if !happy {
-			log.Info("Missing:")
-			for _, item := range missing {
-				log.Info("\t", item.item.Name(), item.missing.Name())
-			}
-			os.Exit(-1)
-		}
-		pkglist.Append(cr)
-	}
-	
-	if len(forge_deps) > 0 {
-		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
-		forge_deps.Print()
-		fmt.Println()
-	}
-	if len(wield_deps) > 0 {
-		log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
-		wield_deps.Print()
-		fmt.Println()
-	}
-	
-	if len(wield_deps) + len(forge_deps) > 1 {
-		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue wielding these packages?", true) {
-			return
-		}
-	}
-	
-	for _, pkg := range pkglist {
-		err := forge(pkg.control, pkg.repo)
-		libspack.ExitOnError(err)
-	}
-}
-
-func wieldPackages(packages []string) {
-	forge_deps := make(ControlRepoList,0)
-	wield_deps := make(ControlRepoList,0)
-	missing    := make(MissingInfoList, 0)
-	
-	pkglist := make(ControlRepoList, 0)
-	
-	for _, pkg := range packages {
-		c, repo := getPkg(pkg)
-		if c == nil {
-			fmt.Println("Cannot find package " + pkg)
 			os.Exit(1)
 		}
 		
@@ -389,7 +343,7 @@ func wieldPackages(packages []string) {
 	}
 	
 	for _, cr := range pkglist {
-		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, false)
+		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, isForge)
 		log.Debug()
 		
 		if !happy {
@@ -422,48 +376,58 @@ func wieldPackages(packages []string) {
 	for _, pkg := range pkglist {
 		repo := pkg.repo
 		c := pkg.control
-	
-		err := wield(c, repo)
+		
+		destdir := "/"
+		if destdirArg != nil {
+			destdir = destdirArg.Get()
+		}
+		
+		isreinstall := false
+		if reinstallArg != nil {
+			isreinstall = reinstallArg.Get()
+		}
+		
+		nobdeps := false
+		if noBDepsArg != nil {
+			nobdeps = noBDepsArg.Get()
+		}
+		
+		var err error
+		if isForge {
+			err = forge(c, repo, destdir, nobdeps)
+		} else {
+			err = wield(c, repo, destdir, isreinstall, nobdeps)
+		}
+		
 		if err != nil {
 			libspack.ExitOnError(err)
 		}
 	}
 }
 
-func forge(c *control.Control, repo *repo.Repo) error {
+func forge(c *control.Control, repo *repo.Repo, destdir string, noBDeps bool) error {
 	template, exists := repo.GetTemplateByControl(c)
-		
+	forgeOutDir := ""
+	if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
+		forgeOutDir = forgeoutdirArg.Get()
+	}
+	
 	if !exists {
 		return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", c.Name))
 	}
 	
-	if noBDepsArg != nil && !noBDepsArg.Get() {
-		oldoutdir := forgeoutdirArg
-		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-			forgeoutdirArg = nil
-		}
-		
-		oldDestDir := destdirArg.Value
-		destdirArg.Value = "/"
+	if noBDeps {
 		for _, dep := range c.Bdeps {
 			dc,dr := libspack.GetPackageLatest(dep)
-			err := wield(dc, dr)
+			err := wield(dc, dr, "/", false, noBDeps)
 			if err != nil {
 				return err
 			}
 		}
-		destdirArg.Value = oldDestDir
-		
-		forgeoutdirArg = oldoutdir
 	}
 	
 	var spakgFile string
 	spakgFile = repo.GetSpakgOutput(c)
-	
-	
-	if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-		spakgFile = forgeoutdirArg.Get() + pkginfo.FromControl(c).UUID() + ".spakg"
-	}
 	
 	err := RunCommandToStdOutErr(
 		exec.Command(
@@ -473,18 +437,16 @@ func forge(c *control.Control, repo *repo.Repo) error {
 			"--verbose="+verboseArg.String(),
 			template))
 	
-	if err == nil {
-		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-			spakgFileCopy := repo.GetSpakgOutput(c)
-			
-			var e error
-			e = WithFileWriter(spakgFileCopy, true, func (writer io.Writer) {
-				e = WithFileReader(spakgFile, func (reader io.Reader) {
-					_, e = io.Copy(writer, reader)
-					if e != nil {
-						log.Warn(e)
-					}
-				})
+	if err != nil {
+		return err
+	}
+	if forgeOutDir != "" {
+		spakgFileCopy := repo.GetSpakgOutput(c)
+		
+		var e error
+		e = WithFileWriter(spakgFileCopy, true, func (writer io.Writer) {
+			e = WithFileReader(spakgFile, func (reader io.Reader) {
+				_, e = io.Copy(writer, reader)
 				if e != nil {
 					log.Warn(e)
 				}
@@ -492,20 +454,16 @@ func forge(c *control.Control, repo *repo.Repo) error {
 			if e != nil {
 				log.Warn(e)
 			}
+		})
+		if e != nil {
+			log.Warn(e)
 		}
 	}
-	
-	return err
+	return nil
 }
 
-func wield(c *control.Control, repo *repo.Repo) error {
-	isReinstall := reinstallArg != nil && reinstallArg.Get()
-	if destdirArg == nil {
-		tmp := argparse.StringValue{ Value: "/" }
-		destdirArg = &tmp
-	}
-	
-	if repo.IsInstalled(c, destdirArg.Get()) && !isReinstall {
+func wield(c *control.Control, repo *repo.Repo, destdir string, isReinstall bool, noBDeps bool) error {
+	if repo.IsInstalled(c, destdir) && !isReinstall {
 		return nil
 	}
 	
@@ -520,19 +478,9 @@ func wield(c *control.Control, repo *repo.Repo) error {
 	}
 	
 	if !PathExists(spakgFile) {
-		var prev bool
-		if reinstallArg != nil {
-			prev = reinstallArg.Value
-			reinstallArg.Value = false
-		}
-		
-		err := forge(c,repo)
+		err := forge(c,repo, destdir, noBDeps)
 		if err != nil {
 			return err
-		}
-		
-		if reinstallArg != nil {
-			reinstallArg.Value = prev
 		}
 	}
 	
@@ -546,51 +494,51 @@ func wield(c *control.Control, repo *repo.Repo) error {
 
 	//Prevent infinite loooping
 	repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdirArg.Get())
-	defer func () {
-		if err != nil {
-			repo.MarkRemoved(&spakg.Pkginfo, destdirArg.Get())
-			remove(append(make([]string, 0), spakg.Control.Name)) //This might cause problems if diff versions/iterations
-		}
-	}()
 	
-	
-	err = RunCommandToStdOutErr(
+	insterr := func () error {
+		err = RunCommandToStdOutErr(
 		exec.Command(
 			"wield",
 			"--quiet="+quietArg.String(),
 			"--verbose="+verboseArg.String(),
-			"--destdir="+destdirArg.String(),
+			"--destdir="+destdir,
 			spakgFile))
-	if err != nil {
-		return err
-	}
-	
-	if reinstallArg != nil && !reinstallArg.Get() {
-		for _, dep := range c.Deps {
-			dc,dr := libspack.GetPackageLatest(dep)
-			err = wield(dc, dr)
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
-	}
-	
-	if previousInstall != nil {
-		newInstall := spakg.Md5sums
-		for file, _ := range previousInstall.Hashes {
-			_, exists := newInstall[file]
-			if !exists {
-				err = os.Remove(destdirArg.Get() + file)
+
+		if !isReinstall {
+			for _, dep := range c.Deps {
+				dc,dr := libspack.GetPackageLatest(dep)
+				err = wield(dc, dr, destdir, isReinstall, noBDeps)
 				if err != nil {
-					log.WarnFormat("Could not remove %s: %s", file, err)
-					err = nil
+					return err
 				}
 			}
 		}
-		repo.MarkRemoved(&previousInstall.PkgInfo, destdirArg.Get())
-	}
+
+		if previousInstall != nil {
+			newInstall := spakg.Md5sums
+			for file, _ := range previousInstall.Hashes {
+				_, exists := newInstall[file]
+				if !exists {
+					err := os.Remove(destdir + file)
+					if err != nil {
+						log.WarnFormat("Could not remove %s: %s", file, err)
+					}
+				}
+			}
+			repo.MarkRemoved(&previousInstall.PkgInfo, destdir)
+		}
+
+		return nil
+	}()
 	
-	return nil
+	if insterr != nil {
+		repo.MarkRemoved(&spakg.Pkginfo, destdir)
+		repo.Uninstall(c, destdir)
+	}
+	return insterr
 }
 
 func list() {
@@ -717,12 +665,6 @@ func upgrade() {
 	registerVerbose()
 	pkgs := argparse.EvalDefaultArgs()
 	
-	
-	//TODO support DESTDIR!!!!
-	tmp := argparse.StringValue{}
-	destdirArg = &tmp
-	destdirArg.Value = "/"
-	
 	if verboseArg.Get() {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -738,16 +680,22 @@ func upgrade() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
-				crl.Append(ControlRepo{ c, &repo })
+				repocpy := repo
+				crl.Append(ControlRepo{ c, &repocpy })
+				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
 		}
 	}
-	fmt.Println("The following packages will be upgraded: ")
-	crl.Print()
-	if libspack.AskYesNo("Do you wish to continue?", true) {
-		for _, pkg := range list {
-			wield(pkg.control, pkg.repo)
+	if len(list) > 0 {
+		fmt.Println("The following packages will be upgraded: ")
+		crl.Print()
+		if libspack.AskYesNo("Do you wish to continue?", true) {
+			for _, pkg := range list {
+				wield(pkg.control, pkg.repo, "/", false, false)
+			}
 		}
+	} else {
+		fmt.Println("No packages to upgrade (Horay!)")
 	}
 }
 
@@ -782,14 +730,13 @@ func main() {
 			Usage(0)
 		case "forge":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
-			forgeoutdirArg = argparse.RegisterString("outdir", "(not set)", "Output dir for build spakgs")
-			forgePackages(ForgeWieldArgs())
+			forgewieldPackages(ForgeWieldArgs(), true)
 		
 		case "install": fallthrough
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			registerReinstallArg()
-			wieldPackages(ForgeWieldArgs())
+			forgewieldPackages(ForgeWieldArgs(), false)
 			
 		case "purge": fallthrough
 		case "remove":
