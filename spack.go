@@ -730,6 +730,7 @@ func main() {
 			Usage(0)
 		case "forge":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
+			registerForgeOutDirArg()
 			forgewieldPackages(ForgeWieldArgs(), true)
 		
 		case "install": fallthrough
