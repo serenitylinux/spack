@@ -684,8 +684,7 @@ func upgrade() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
-				repocpy := repo
-				crl.Append(ControlRepo{ c, &repocpy })
+				crl.Append(ControlRepo{ c, repo })
 				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
 		}

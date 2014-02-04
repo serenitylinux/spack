@@ -69,7 +69,7 @@ func extractSpakg(file string, infodir string) error {
 	return err
 }
 
-func processRepo(repo repo.Repo) {
+func processRepo(repo *repo.Repo) {
 	log.Debug("Repo: ", repo.Name)
 			
 	var err error	

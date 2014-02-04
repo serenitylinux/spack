@@ -15,7 +15,7 @@ import (
 const reposDir = "/etc/spack/repos/"
 
 
-type RepoList map[string]repo.Repo
+type RepoList map[string]*repo.Repo
 
 var repos RepoList
 
@@ -60,7 +60,7 @@ func GetPackageAllVersions(pkgname string) (control.ControlList, *repo.Repo) {
 	for _, repo := range repos {
 		cl, exists := repo.GetControls(pkgname)
 		if exists {
-			return cl, &repo
+			return cl, repo
 		}
 	}
 	return nil, nil
@@ -108,7 +108,7 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	for _, repo := range repos {
 		c, exists := repo.GetLatestControl(pkgname)
 		if exists {
-			return c, &repo
+			return c, repo
 		}
 	}
 	return nil, nil

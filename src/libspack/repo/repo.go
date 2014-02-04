@@ -108,7 +108,7 @@ func (repo *Repo) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, repo)
 }
 
-func FromFile(filename string) (Repo, error) {
+func FromFile(filename string) (*Repo, error) {
 	var repo Repo
 	err := json.DecodeFile(filename, &repo)
 	
@@ -116,7 +116,7 @@ func FromFile(filename string) (Repo, error) {
 		repo.LoadCaches() 
 	}
 	
-	return repo, err
+	return &repo, err
 }
 
 /*
