@@ -107,6 +107,7 @@ func ForgeWieldArgs() []string {
 type ControlRepo struct {
 	control *control.Control
 	repo *repo.Repo
+	isbdep bool
 }
 
 func (cr *ControlRepo) Name() string {
@@ -114,7 +115,11 @@ func (cr *ControlRepo) Name() string {
 	if indent > 0 {
 		ind = strings.Repeat("|\t", indent-1)
 	}
-	return fmt.Sprintf(ind + "%s:%s ", cr.control.UUID(), cr.repo.Name)
+	astr := ""
+	if cr.isbdep {
+		astr="*"
+	}
+	return fmt.Sprintf(ind + "%s:%s%s ", cr.control.UUID(), cr.repo.Name, astr)
 }
 
 type ControlRepoList []ControlRepo
@@ -123,7 +128,7 @@ func (crl *ControlRepoList) Contains(cr ControlRepo) bool {
 	found := false
 	
 	for _, item := range *crl {
-		if item.Name() == cr.Name() {
+		if item.control.UUID() == cr.control.UUID() {
 			found = true
 		}
 	}
@@ -131,7 +136,29 @@ func (crl *ControlRepoList) Contains(cr ControlRepo) bool {
 	return found
 }
 
-func (ctrl *ControlRepoList) Append(c ControlRepo) {
+func (crl *ControlRepoList) IsBDep(cr ControlRepo) bool {
+	for _, item := range *crl {
+		if item.control.UUID() == cr.control.UUID() {
+			return item.isbdep
+		}
+	}
+	
+	return false
+}
+
+
+func (ctrl *ControlRepoList) Append(c ControlRepo, isbdep bool) {
+	if ctrl.Contains(c) {
+		if !isbdep {
+			for i, item := range *ctrl {
+				if item.control.UUID() == c.control.UUID() {
+					(*ctrl)[i].isbdep = false
+					log.Debug(item.Name(), " Is no longer just a bdep")
+				}
+			}
+		}
+		return
+	}
 	*ctrl = append(*ctrl, c)
 }
 func (ctrl *ControlRepoList) Print() {
@@ -160,18 +187,18 @@ func (mil *MissingInfoList) Append(mi MissingInfo) {
 }
 
 var indent = 0
-func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, isforge bool) bool {
+func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, isforge bool, isbdep bool) bool {
 	indent += 1
 	defer func () { indent -= 1 }()
 	log.Debug(c.Name(), "Need")
-	isbase := c.Name() == base.Name()
+	isbase := c.control.UUID() == base.control.UUID()
 	isInstalled := c.repo.IsInstalled(c.control, destdirArg.Value)
 	isLatest := true
 	if newer, newerexists := c.repo.GetLatestControl(c.control.Name); newerexists {
 		isLatest = newer.UUID() == c.control.UUID()
 	}
 	
-	checkChildren := func (deps []string) bool {
+	checkChildren := func (deps []string, is_dep_bdep bool) bool {
 		rethappy := true
 		//We need all wield deps satisfied now or have a bin version of ourselves
 		for _,dep := range deps {
@@ -185,10 +212,11 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 			crdep := ControlRepo {
 				control : ctrl,
 				repo : r,
+				isbdep : is_dep_bdep,
 			}
 			
 			//Need to recheck, now that we have been marked bin
-			happy := dep_check(crdep, base, forge_deps, wield_deps, missing, isforge)
+			happy := dep_check(crdep, base, forge_deps, wield_deps, missing, isforge, is_dep_bdep)
 			if ! happy {
 				missing.Append(MissingInfo {
 					item: c,
@@ -201,7 +229,7 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 	}
 	
 	//If we have already been marked as bin, we are done here
-	if wield_deps.Contains(c) {
+	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
 		log.Debug(c.Name(), "Already Wield" )
 		return true
 	}
@@ -223,11 +251,11 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		
 		//We have bin, let's see if our children are ok
 		log.Debug(c.Name(), "Mark bin")
-		wield_deps.Append(c)
+		wield_deps.Append(c, isbdep)
 		
 		
 		//We need all wield deps satisfied now or have a bin version of ourselves
-		happy := checkChildren(c.control.Deps)
+		happy := checkChildren(c.control.Deps, isbdep)
 		
 		//We don't have bin
 		if !c.repo.HasSpakg(c.control) {
@@ -256,9 +284,9 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		
 		//We have bin, let's see if our children are ok
 		log.Debug(c.Name(), "Mark bin")
-		wield_deps.Append(c)
+		wield_deps.Append(c, isbdep)
 		
-		return checkChildren(c.control.Deps)
+		return checkChildren(c.control.Deps, isbdep)
 	} else {
 		//We are a package that only available via src or are the base package to forge
 		log.Debug(c.Name(), "Source")
@@ -269,19 +297,19 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		}
 		
 		log.Debug(c.Name(), "Mark Src")
-		forge_deps.Append(c)
+		forge_deps.Append(c, isbdep)
 		
 		happy := true
 		if !noBDepsArg.Value {
 			log.Debug(c.Name(), "BDeps ", c.control.Bdeps)
-			if !checkChildren(c.control.Bdeps) {
+			if !checkChildren(c.control.Bdeps, true) {
 				happy = false
 			}
 		}
 		
 		if !(isforge && isbase) {
 			//We have a installable version after the prior
-			wield_deps.Append(c)
+			wield_deps.Append(c, isbdep)
 			log.Debug(c.Name(), "Mark Bin")
 		}
 		
@@ -291,8 +319,8 @@ func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wie
 		if !(isforge && isbase) {
 			olddd := destdirArg.Value
 			destdirArg.Value = "/"
-			log.Debug(c.Name(), "Deps ", c.control.Deps)
-			if !checkChildren(c.control.Deps) {
+			log.Debug(c.Name(), "Deps ", c.control.Deps, isbdep)
+			if !checkChildren(c.control.Deps, isbdep) {
 				happy = false
 			}
 			destdirArg.Value = olddd
@@ -341,12 +369,12 @@ func forgewieldPackages(packages []string, isForge bool) {
 			os.Exit(1)
 		}
 		
-		cr := ControlRepo { c,repo }
-		pkglist.Append(cr)
+		cr := ControlRepo { c,repo, false }
+		pkglist.Append(cr, false)
 	}
 	
 	for _, cr := range pkglist {
-		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, isForge)
+		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, isForge, false)
 		log.Debug()
 		
 		if !happy {
@@ -493,7 +521,7 @@ func wield(c *control.Control, repo *repo.Repo, destdir string, isReinstall bool
 		return err
 	}
 
-	previousInstall := repo.GetInstalled(pkginfo.FromControl(c), destdir)
+	previousInstall := repo.GetInstalledByName(c.Name, destdir)
 
 
 	//Prevent infinite loooping
@@ -684,7 +712,7 @@ func upgrade() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
-				crl.Append(ControlRepo{ c, repo })
+				crl.Append(ControlRepo{ c, repo, false }, false)
 				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
 		}

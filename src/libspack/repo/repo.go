@@ -267,6 +267,29 @@ func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
 	return  res
 }
 
+func (repo *Repo) GetInstalledByName(name string, basedir string) *pkginstallset.PkgInstallSet {
+	var list *PkgInstallSetMap
+	
+	if filepath.Clean(basedir) == "/" {
+		list = repo.installed
+		
+	} else {
+		var err error
+		list, err = installedPackageList(basedir + repo.installedPkgsDir())
+		if err != nil {
+			log.WarnFormat("Unable to load packages: %s", err)
+			return nil
+		}
+	}
+	
+	for _, set := range *list {
+		if set.PkgInfo.Name == name {
+			return &set
+		}
+	}
+	return nil
+}
+
 func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *pkginstallset.PkgInstallSet {
 	if filepath.Clean(basedir) == "/" {
 		for _, set := range *repo.installed {
@@ -275,6 +298,7 @@ func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *pkginstallse
 			}
 		}
 	} else {
+		//TODO basedir better
 		file := repo.installSetFile(*p, basedir)
 		s, err := pkginstallset.FromFile(file)
 		if err != nil {
@@ -429,7 +453,7 @@ func cloneRepo(remote string, dir string, name string) {
 	}
 }
 
-func (repo *Repo) readAll(dir string, regex *regexp.Regexp, todo func (file string)) error {
+func readAll(dir string, regex *regexp.Regexp, todo func (file string)) error {
 	if !PathExists(dir) {
 		return errors.New("Unable to access directory")
 	}
@@ -475,7 +499,7 @@ func (repo *Repo) updateControlsFromTemplates() {
 		list[c.Name] = append(list[c.Name], *c)
 	}
 	
-	err := repo.readAll(dir, regexp.MustCompile(".*\\.pie"), readFunc)
+	err := readAll(dir, regexp.MustCompile(".*\\.pie"), readFunc)
 	
 	if err != nil {
 		log.WarnFormat("Unable to load repo %s's templates: %s", repo.Name, err)
@@ -504,7 +528,7 @@ func (repo *Repo) updateControlsFromRemote() {
 		list[c.Name] = append(list[c.Name], *c)
 	}
 	
-	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.control"), readFunc)
+	err := readAll(repo.packagesDir(), regexp.MustCompile(".*.control"), readFunc)
 	
 	if err != nil {
 		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
@@ -534,7 +558,7 @@ func (repo *Repo) updatePkgInfosFromRemote() {
 		list[key] = append(list[key], *pki)
 	}
 	
-	err := repo.readAll(repo.packagesDir(), regexp.MustCompile(".*.pkginfo"), readFunc)
+	err := readAll(repo.packagesDir(), regexp.MustCompile(".*.pkginfo"), readFunc)
 	if err != nil {
 		log.WarnFormat("Unable to load repo %s's controls: %s", repo.Name, err)
 		return
@@ -587,20 +611,6 @@ func (repo *Repo) loadTemplateListCache() {
 func (repo *Repo) loadInstalledPackagesList() {
 	log.DebugFormat("Loading installed packages for %s", repo.Name)
 	
-	list := make(PkgInstallSetMap)
-	
-	readFunc := func(file string) {
-		ps, err := pkginstallset.FromFile(file)
-		
-		if err != nil {
-			log.ErrorFormat("Invalid pkgset %s in repo %s: err", file, repo.Name, err)
-			log.Warn("This is a REALLY bad thing!")
-			return
-		}
-		
-		list[ps.Control.UUID()] = *ps
-	}
-	
 	dir := repo.installedPkgsDir()
 	
 	if !PathExists(dir) {
@@ -608,11 +618,29 @@ func (repo *Repo) loadInstalledPackagesList() {
 		return
 	}
 	
-	err := repo.readAll(dir, regexp.MustCompile(".*.pkgset"), readFunc)
+	list, err := installedPackageList(dir)
 	if err != nil {
 		log.ErrorFormat("Unable to load repo %s's installed packages: %s", repo.Name, err)
 		log.Warn("This is a REALLY bad thing!")
-		return
 	}
-	repo.installed = &list 
+	repo.installed = list
+}
+
+func installedPackageList(dir string) (*PkgInstallSetMap, error) {
+	list := make(PkgInstallSetMap)
+	
+	readFunc := func(file string) {
+		ps, err := pkginstallset.FromFile(file)
+		
+		if err != nil {
+			log.ErrorFormat("Invalid pkgset %s: %s", file, err)
+			log.Warn("This is a REALLY bad thing!")
+			return
+		}
+		
+		list[ps.Control.UUID()] = *ps
+	}
+	
+	err := readAll(dir, regexp.MustCompile(".*.pkgset"), readFunc)
+	return &list, err
 }
