@@ -97,6 +97,9 @@ func ForgeWieldArgs() []string {
 	if verboseArg.Get() {
 		log.SetLevel(log.DebugLevel)
 	}
+	if quietArg.Get() {
+		log.SetLevel(log.ErrorLevel)
+	}
 	
 	return packages;
 }
@@ -463,7 +466,8 @@ func forge(c *control.Control, repo *repo.Repo, destdir string, noBDeps bool) er
 }
 
 func wield(c *control.Control, repo *repo.Repo, destdir string, isReinstall bool, noBDeps bool) error {
-	if repo.IsInstalled(c, destdir) && !isReinstall {
+	isInstalled := repo.IsInstalled(c, destdir)
+	if isInstalled && !isReinstall {
 		return nil
 	}
 	
@@ -510,7 +514,7 @@ func wield(c *control.Control, repo *repo.Repo, destdir string, isReinstall bool
 		if !isReinstall {
 			for _, dep := range c.Deps {
 				dc,dr := libspack.GetPackageLatest(dep)
-				err = wield(dc, dr, destdir, isReinstall, noBDeps)
+				err = wield(dc, dr, destdir, false, noBDeps)
 				if err != nil {
 					return err
 				}
