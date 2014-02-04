@@ -17,6 +17,7 @@ import (
 )
 
 import . "libspack/misc"
+import . "libspack/depres"
 
 func Usage(retval int) {
 	fmt.Println("Usage: ", os.Args[0], "command [--help]")
@@ -104,232 +105,6 @@ func ForgeWieldArgs() []string {
 	return packages;
 }
 
-type ControlRepo struct {
-	control *control.Control
-	repo *repo.Repo
-	isbdep bool
-}
-
-func (cr *ControlRepo) Name() string {
-	ind := ""
-	if indent > 0 {
-		ind = strings.Repeat("|\t", indent-1)
-	}
-	astr := ""
-	if cr.isbdep {
-		astr="*"
-	}
-	return fmt.Sprintf(ind + "%s:%s%s ", cr.control.UUID(), cr.repo.Name, astr)
-}
-
-type ControlRepoList []ControlRepo
-
-func (crl *ControlRepoList) Contains(cr ControlRepo) bool {
-	found := false
-	
-	for _, item := range *crl {
-		if item.control.UUID() == cr.control.UUID() {
-			found = true
-		}
-	}
-	
-	return found
-}
-
-func (crl *ControlRepoList) IsBDep(cr ControlRepo) bool {
-	for _, item := range *crl {
-		if item.control.UUID() == cr.control.UUID() {
-			return item.isbdep
-		}
-	}
-	
-	return false
-}
-
-
-func (ctrl *ControlRepoList) Append(c ControlRepo, isbdep bool) {
-	if ctrl.Contains(c) {
-		if !isbdep {
-			for i, item := range *ctrl {
-				if item.control.UUID() == c.control.UUID() {
-					(*ctrl)[i].isbdep = false
-					log.Debug(item.Name(), " Is no longer just a bdep")
-				}
-			}
-		}
-		return
-	}
-	*ctrl = append(*ctrl, c)
-}
-func (ctrl *ControlRepoList) Print() {
-	i := 0
-	for _, item := range *ctrl {
-		str := item.Name()
-		i += len(str)
-		if i > 80 {
-			fmt.Println()
-			i = 0
-		}
-		fmt.Print(str)
-	}
-	fmt.Println()
-}
-
-type MissingInfo struct {
-	item ControlRepo
-	missing ControlRepo
-}
-
-type MissingInfoList []MissingInfo
-
-func (mil *MissingInfoList) Append(mi MissingInfo) {
-	*mil = append(*mil, mi)
-}
-
-var indent = 0
-func dep_check(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, isforge bool, isbdep bool) bool {
-	indent += 1
-	defer func () { indent -= 1 }()
-	log.Debug(c.Name(), "Need")
-	isbase := c.control.UUID() == base.control.UUID()
-	isInstalled := c.repo.IsInstalled(c.control, destdirArg.Value)
-	isLatest := true
-	if newer, newerexists := c.repo.GetLatestControl(c.control.Name); newerexists {
-		isLatest = newer.UUID() == c.control.UUID()
-	}
-	
-	checkChildren := func (deps []string, is_dep_bdep bool) bool {
-		rethappy := true
-		//We need all wield deps satisfied now or have a bin version of ourselves
-		for _,dep := range deps {
-			ctrl, r := libspack.GetPackageLatest(dep)
-			
-			if ctrl == nil {
-				log.Error(c.Name(), "Unable to find package", dep)
-				return false
-			}
-			
-			crdep := ControlRepo {
-				control : ctrl,
-				repo : r,
-				isbdep : is_dep_bdep,
-			}
-			
-			//Need to recheck, now that we have been marked bin
-			happy := dep_check(crdep, base, forge_deps, wield_deps, missing, isforge, is_dep_bdep)
-			if ! happy {
-				missing.Append(MissingInfo {
-					item: c,
-					missing: crdep,
-				})
-				rethappy = false
-			}
-		}
-		return rethappy
-	}
-	
-	//If we have already been marked as bin, we are done here
-	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
-		log.Debug(c.Name(), "Already Wield" )
-		return true
-	}
-	
-	if !(isbase) {
-		if isInstalled {
-			log.Debug(c.Name(), "Already Installed" )
-			return true
-		}
-	}
-	
-	
-	//If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
-	//We are in our own bdeb tree, should only happen for $base if we are having a good day
-	if forge_deps.Contains(c) {
-		log.Debug(c.Name(), "Already Forge, need bin")
-		
-		
-		
-		//We have bin, let's see if our children are ok
-		log.Debug(c.Name(), "Mark bin")
-		wield_deps.Append(c, isbdep)
-		
-		
-		//We need all wield deps satisfied now or have a bin version of ourselves
-		happy := checkChildren(c.control.Deps, isbdep)
-		
-		//We don't have bin
-		if !c.repo.HasSpakg(c.control) {
-			log.Error(c.Name(), "Must have a binary version (from cirular dependency)")
-			return false
-		}
-		
-		return happy
-	}
-	
-	// We are a package that has a binary version available and we (are not the base package and the operation is not forge)
-	if !(isbase && isforge) && c.repo.HasSpakg(c.control) {
-		//The base package is already installed and is the latest version and we are not reinstalling the base package
-		if isbase && isInstalled && isLatest && !(reinstallArg != nil && reinstallArg.Get()) {
-			log.InfoFormat("%s is already in the latest version", c.control.Name)
-			return true
-		}
-		//We are installed and in the latest version/iteration
-		if isInstalled && isLatest{
-			log.DebugFormat(c.Name(), "Already in the latest version")
-			return true
-		}
-		
-		//We need to be installed or updated
-		log.Debug(c.Name(), "Binary")
-		
-		//We have bin, let's see if our children are ok
-		log.Debug(c.Name(), "Mark bin")
-		wield_deps.Append(c, isbdep)
-		
-		return checkChildren(c.control.Deps, isbdep)
-	} else {
-		//We are a package that only available via src or are the base package to forge
-		log.Debug(c.Name(), "Source")
-		
-		if !c.repo.HasTemplate(c.control) {
-			log.Error(c.Name(), "No template available")
-			return false
-		}
-		
-		log.Debug(c.Name(), "Mark Src")
-		forge_deps.Append(c, isbdep)
-		
-		happy := true
-		if !noBDepsArg.Value {
-			log.Debug(c.Name(), "BDeps ", c.control.Bdeps)
-			if !checkChildren(c.control.Bdeps, true) {
-				happy = false
-			}
-		}
-		
-		if !(isforge && isbase) {
-			//We have a installable version after the prior
-			wield_deps.Append(c, isbdep)
-			log.Debug(c.Name(), "Mark Bin")
-		}
-		
-		//If we are part of a forge op and we are the base package, then we can skip this step
-			//We dont need deps
-		
-		if !(isforge && isbase) {
-			olddd := destdirArg.Value
-			destdirArg.Value = "/"
-			log.Debug(c.Name(), "Deps ", c.control.Deps, isbdep)
-			if !checkChildren(c.control.Deps, isbdep) {
-				happy = false
-			}
-			destdirArg.Value = olddd
-		}
-		
-		log.Debug(c.Name(), "Done")
-		return happy
-	}
-}
 
 func pkgSplit(pkg string) (name string, version *string, iteration *string) {
 	split := strings.SplitN(pkg, "::", 3)
@@ -369,18 +144,26 @@ func forgewieldPackages(packages []string, isForge bool) {
 			os.Exit(1)
 		}
 		
-		cr := ControlRepo { c,repo, false }
+		cr := NewControlRepo(c,repo)
 		pkglist.Append(cr, false)
 	}
 	
+	params := DepResParams {
+		IsForge: isForge,
+		IsBDep: false,
+		IsReinstall: reinstallArg.Get(),
+		NoBDeps: noBDepsArg.Get(),
+		DestDir: destdirArg.Get(),
+	}
+	
 	for _, cr := range pkglist {
-		happy := dep_check(cr, cr, &forge_deps, &wield_deps, &missing, isForge, false)
+		happy := DepCheck(cr, cr, &forge_deps, &wield_deps, &missing, params)
 		log.Debug()
 		
 		if !happy {
 			log.Info("Missing:")
 			for _, item := range missing {
-				log.Info("\t", item.item.Name(), item.missing.Name())
+				log.Info("\t", item)
 			}
 			os.Exit(-1)
 		}
@@ -405,8 +188,8 @@ func forgewieldPackages(packages []string, isForge bool) {
 	
 	
 	for _, pkg := range pkglist {
-		repo := pkg.repo
-		c := pkg.control
+		repo := pkg.Repo
+		c := pkg.Control
 		
 		destdir := "/"
 		if destdirArg != nil {
@@ -722,7 +505,7 @@ func upgrade() {
 		crl.Print()
 		if libspack.AskYesNo("Do you wish to continue?", true) {
 			for _, pkg := range list {
-				wield(pkg.control, pkg.repo, "/", false, false)
+				wield(pkg.Control, pkg.Repo, "/", false, false)
 			}
 		}
 	} else {
