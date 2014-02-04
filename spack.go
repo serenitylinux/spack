@@ -419,7 +419,7 @@ func forge(c *control.Control, repo *repo.Repo, destdir string, noBDeps bool) er
 		return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", c.Name))
 	}
 	
-	if noBDeps {
+	if !noBDeps {
 		for _, dep := range c.Bdeps {
 			dc,dr := libspack.GetPackageLatest(dep)
 			err := wield(dc, dr, "/", false, noBDeps)
