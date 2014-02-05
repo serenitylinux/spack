@@ -140,23 +140,23 @@ func Bar(ll LogLevel) {
 	BarColor(ll, levelColor(ll))
 }
 
-func Error(messages ...interface{}) { logPrint(ErrorLevel, false, messages) }
-func Warn (messages ...interface{}) { logPrint(WarnLevel,  false, messages) }
-func Info (messages ...interface{}) { logPrint(InfoLevel,  false, messages) }
-func Debug(messages ...interface{}) { logPrint(DebugLevel, false, messages) }
-func ErrorInLine(messages ...interface{}) { logPrint(ErrorLevel, true, messages) }
-func WarnInLine (messages ...interface{}) { logPrint(WarnLevel,  true, messages) }
-func InfoInLine (messages ...interface{}) { logPrint(InfoLevel,  true, messages) }
-func DebugInLine(messages ...interface{}) { logPrint(DebugLevel, true, messages) }
+func Error(messages ...interface{}) { logPrint(ErrorLevel, true, messages) }
+func Warn (messages ...interface{}) { logPrint(WarnLevel,  true, messages) }
+func Info (messages ...interface{}) { logPrint(InfoLevel,  true, messages) }
+func Debug(messages ...interface{}) { logPrint(DebugLevel, true, messages) }
+func ErrorInLine(messages ...interface{}) { logPrint(ErrorLevel, false, messages) }
+func WarnInLine (messages ...interface{}) { logPrint(WarnLevel,  false, messages) }
+func InfoInLine (messages ...interface{}) { logPrint(InfoLevel,  false, messages) }
+func DebugInLine(messages ...interface{}) { logPrint(DebugLevel, false, messages) }
 
-func ErrorColor(color string, messages ...interface{}) { logPrintColor(color, ErrorLevel, false, messages) }
-func WarnColor (color string, messages ...interface{}) { logPrintColor(color, WarnLevel,  false, messages) }
-func InfoColor (color string, messages ...interface{}) { logPrintColor(color, InfoLevel,  false, messages) }
-func DebugColor(color string, messages ...interface{}) { logPrintColor(color, DebugLevel, false, messages) }
-func ErrorColorInLine(color string, messages ...interface{}) { logPrintColor(color, ErrorLevel, true, messages) }
-func WarnColorInLine (color string, messages ...interface{}) { logPrintColor(color, WarnLevel,  true, messages) }
-func InfoColorInLine (color string, messages ...interface{}) { logPrintColor(color, InfoLevel,  true, messages) }
-func DebugColorInLine(color string, messages ...interface{}) { logPrintColor(color, DebugLevel, true, messages) }
+func ErrorColor(color string, messages ...interface{}) { logPrintColor(color, ErrorLevel, true, messages) }
+func WarnColor (color string, messages ...interface{}) { logPrintColor(color, WarnLevel,  true, messages) }
+func InfoColor (color string, messages ...interface{}) { logPrintColor(color, InfoLevel,  true, messages) }
+func DebugColor(color string, messages ...interface{}) { logPrintColor(color, DebugLevel, true, messages) }
+func ErrorColorInLine(color string, messages ...interface{}) { logPrintColor(color, ErrorLevel, false, messages) }
+func WarnColorInLine (color string, messages ...interface{}) { logPrintColor(color, WarnLevel,  false, messages) }
+func InfoColorInLine (color string, messages ...interface{}) { logPrintColor(color, InfoLevel,  false, messages) }
+func DebugColorInLine(color string, messages ...interface{}) { logPrintColor(color, DebugLevel, false, messages) }
 
 func ErrorFormat(format string, objs ...interface{}) { Error(fmt.Sprintf(format, objs...)) }
 func WarnFormat (format string, objs ...interface{}) { Warn (fmt.Sprintf(format, objs...)) }
