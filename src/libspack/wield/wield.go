@@ -12,6 +12,31 @@ import (
 )
 import . "libspack/misc"
 import . "libspack/hash"
+import . "libspack"
+
+func Wield(file string, destdir string) error {
+	spkg, err := spakg.FromFile(file, nil)
+	if err != nil { return err }
+	
+	log.InfoFormat("Running PreInstall")
+	log.DebugBarColor(log.Brown)
+	err = PreInstall(spkg, destdir)
+	if err != nil { return err }
+	log.Debug()
+	PrintSuccess()
+	
+	err = ExtractCheckCopy(file, destdir)
+	if err != nil { return err }
+	
+	log.InfoFormat("Running PostInstall")
+	log.DebugBarColor(log.Brown)
+	err = PostInstall(spkg, destdir)
+	if err != nil { return err }
+	log.Debug()
+	PrintSuccess()
+	
+	return nil
+}
 
 func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 	cmd := `
@@ -61,16 +86,16 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	pkg, err := spakg.FromFile(pkgfile, &tmpDir)
 	
 	fsDir := tmpDir + "/fs"
+	os.MkdirAll(fsDir, 0755)
 	
 	log.Info("Extracting FS:")
 	log.DebugBarColor(log.Brown)
-	cmd := exec.Command("tar", "-xvfp", "fs.tar", "-C", fsDir)
+	cmd := exec.Command("tar", "-xvpf", tmpDir + "/fs.tar", "-C", fsDir)
 	err = RunCommand(cmd, log.DebugWriter(), os.Stderr)
 	if err != nil { return err }
 	
 	log.Debug()
-	log.InfoColor(log.Green, "Success")
-	log.Info()
+	PrintSuccess()
 	
 	log.Info("Checking package:")
 	log.DebugBarColor(log.Brown)
@@ -105,8 +130,7 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 		return err
 	}
 	log.Debug()
-	log.InfoColor(log.Green, "Success")
-	log.Info()
+	PrintSuccess()
 	
 /*	log.Info("Running pre-intall:")
 	log.InfoBarColor(log.Brown)
@@ -163,7 +187,6 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	}
 	
 	log.Debug()
-	log.InfoColor(log.Green, "Success")
-	log.Info()
+	PrintSuccess()
 	return nil
 }

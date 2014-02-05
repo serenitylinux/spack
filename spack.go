@@ -188,6 +188,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 	
 	var forge_ind,wield_ind func (c *control.Control, r *repo.Repo) error
 	
+	
 	fetch_or_forge_ind := func (c *control.Control, r *repo.Repo) (string, error) {
 		spakgFile := r.GetSpakgOutput(c)
 		
@@ -228,13 +229,6 @@ func forgewieldPackages(packages []string, isForge bool) {
 					return err
 				}
 			}
-			
-			//Remove bdeps
-			for _, pkg := range wield_deps {
-				if pkg.IsBDep && r.IsInstalled(c, "/") {
-					fmt.Println("Remove ", pkg.Control.UUID())
-				}
-			}
 		}
 		
 		spakgFile := r.GetSpakgOutput(c)
@@ -242,12 +236,27 @@ func forgewieldPackages(packages []string, isForge bool) {
 		fmt.Println("Forge ", c.UUID(), template, spakgFile)
 		
 		
-		return RunCommandToStdOutErr(exec.Command(
-				"forge",
-				"--output="+spakgFile,
-				"--quiet="+quietArg.String(),
-				"--verbose="+verboseArg.String(),
-				template))
+		err := RunCommandToStdOutErr(exec.Command(
+			"forge",
+			"--output="+spakgFile,
+			"--quiet="+quietArg.String(),
+			"--verbose="+verboseArg.String(),
+			template))
+		
+		if !params.NoBDeps {	
+			//Remove bdeps
+			for _, pkg := range wield_deps {
+				if pkg.IsBDep && pkg.Repo.IsInstalled(pkg.Control, "/") {
+					fmt.Println("Remove ", pkg.Control.UUID())
+					err := pkg.Repo.Uninstall(pkg.Control, params.DestDir)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+		
+		return err
 	}
 	wield_ind = func (c *control.Control, r *repo.Repo) error {
 		isInstalled := r.IsInstalled(c, "/")
@@ -259,7 +268,6 @@ func forgewieldPackages(packages []string, isForge bool) {
 		if err != nil {
 			return err
 		}
-		
 		//Fetch deps
 		for _, dep := range c.Deps {
 			dc,dr := libspack.GetPackageLatest(dep)
@@ -279,22 +287,32 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 		
 		fmt.Println("wield ", c.UUID())
-		return RunCommandToStdOutErr(exec.Command(
-				"wield",
-				"--quiet="+quietArg.String(),
-				"--verbose="+verboseArg.String(),
-				"--destdir="+params.DestDir,
-				spakgFile))
+		err = wield.Wield(spakgFile, params.DestDir)
+		
+		for _, pkg := range wield_deps {
+			if pkg.IsBDep && pkg.Repo.IsInstalled(pkg.Control, "/") {
+				fmt.Println("Remove ", pkg.Control.UUID())
+				err := pkg.Repo.Uninstall(pkg.Control, params.DestDir)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		
+		return err
 	}
 	
 	if len(forge_deps) > 0 {
 		log.Info("Forging required packages: ")
 		log.InfoBar()
 		
-		
 		for _, pkg := range forge_deps {
-			forge_ind(pkg.Control, pkg.Repo)
-		
+			err := forge_ind(pkg.Control, pkg.Repo)
+			if err != nil {
+				log.Error(err)
+				os.Exit(-1)
+			}
+			
 			if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
 				forgeOutDir := forgeoutdirArg.Get()
 				err := CopyFile(pkg.Repo.GetSpakgOutput(pkg.Control), forgeOutDir + pkginfo.FromControl(pkg.Control).UUID() + ".spakg")
@@ -331,8 +349,8 @@ func forgewieldPackages(packages []string, isForge bool) {
 			
 			//Preinstall
 			for _, pkg := range spkgs {
-				fmt.Println("Preinst " + pkg.Control.UUID())
-				wield.PreInstall(pkg.spakg, params.DestDir)
+				fmt.Println("Preinst " + pkg.spkg.Control.UUID())
+				wield.PreInstall(pkg.spkg, params.DestDir)
 			}
 			
 			for _ ,pkg := range spkgs {
@@ -346,15 +364,10 @@ func forgewieldPackages(packages []string, isForge bool) {
 				pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
 			}
 			for _, pkg := range spkgs {
-				fmt.Println("PostInst " + pkg.Control.UUID())
+				fmt.Println("PostInst " + pkg.spkg.Control.UUID())
 				wield.PostInstall(pkg.spkg, params.DestDir)
 			}
 			
-			
-			//Mark Installed
-			for _, pkg := range wield_deps {	
-				repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdir)
-			}
 			return nil
 		}()
 		if insterr != nil {

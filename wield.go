@@ -3,21 +3,18 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"errors"
 	"path/filepath"
-	"io/ioutil"
 	"libspack/argparse"
 	"libspack/log"
 	"libspack/spakg"
+	"libspack/wield"
 )
-//import . "libspack"
-import . "libspack/misc"
 import . "libspack"
 
 var pretend = false
 var verbose = false
 var quiet = false
-var clean = true
 var destdir = "/"
 
 func args() []string {
@@ -25,7 +22,6 @@ func args() []string {
 	pretendArg := argparse.RegisterBool("pretend", pretend, "")
 	verboseArg := argparse.RegisterBool("verbose", verbose, "")
 	quietArg := argparse.RegisterBool("quiet", quiet, "")
-	cleanArg := argparse.RegisterBool("clean", clean, "Remove tmp dir used for package extraction")
 	destArg := argparse.RegisterString("destdir", destdir, "Root to install package into")
 	
 	packages := argparse.EvalDefaultArgs()
@@ -38,7 +34,6 @@ func args() []string {
 	pretend = pretendArg.Get()
 	verbose = verboseArg.Get()
 	quiet = quietArg.Get()
-	clean = cleanArg.Get()
 	var err error
 	destdir, err = filepath.Abs(destArg.Get())
 	ExitOnError(err)
@@ -56,127 +51,39 @@ func args() []string {
 	return packages
 }
 
-func createTempDir() (string, string) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "wield")
-	ExitOnErrorMessage(err, "Could not create temp directory")
-
-	destDir := fmt.Sprintf("%s%c%s", tmpDir, os.PathSeparator, "dest")
-	ExitOnError(os.Mkdir(destDir, 0700))
-	return tmpDir, destDir
+func wrapError(msg string, err error) error {
+	return errors.New(fmt.Sprintf("%s: %s", msg, err))
 }
-
-func removeTempDir(tmpDir string) {
-	if clean {
-		os.RemoveAll(tmpDir)
-		log.Debug("Removed " + tmpDir)
-	}
-}
-
-func runPart(part string, spkg *spakg.Spakg) error {
-	cmd:= `
-		%[1]s
-		
-		declare -f %[2]s > /dev/null
-		exists=$?
-		
-		if [ $exists -eq 0 ]; then
-			%[2]s
-		fi
-		`
-	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
-	bash := exec.Command("bash", "-c", cmd)
-	if destdir != "//"{
-		if _, err := exec.LookPath("systemd-nspawn"); err == nil {
-			bash.Args = append([]string { "-D", destdir }, bash.Args...)
-			bash = exec.Command("systemd-nspawn", bash.Args...)
-		} else if _, err := exec.LookPath("chroot"); err == nil {
-			bash.Args = append([]string { destdir }, bash.Args...)
-			bash = exec.Command("chroot", bash.Args...)
-		}
-	}
-	return RunCommand(bash, log.DebugWriter(), os.Stderr)
-}
-
 
 func main() {
 	pkgs := args()
-	code := 0
+	var err error = nil
+	
 	for _, pkg := range pkgs {
-		pkg, err := filepath.Abs(pkg)
-		//ExitOnErrorMessage(err, "Cannot access package " + pkg)
+		pkg, err = filepath.Abs(pkg)
 		
 		if err != nil {
-			log.Error(err, "Cannot acces package " + pkg)
-			code = 1
+			err = wrapError("Cannot access package", err)
+			break
 		}
-		tmpDir, fsDir := createTempDir()
-
 		
-
-		log.ColorAll(log.Green, fmt.Sprintf("Wielding %s with the force of a ", pkg)); log.ColorAll(log.Red, "GOD")
-		fmt.Println()
+		spkg, err := spakg.FromFile(pkg, nil)
+		if err != nil {
+			break
+		}
+		
+		log.ColorAll(log.Green, fmt.Sprintf("Wielding %s with the force of a ", spkg.Control.UUID())); log.ColorAll(log.Red, "GOD")
+		
+		err = wield.Wield(pkg, destdir)
+		if err != nil {
+			break
+		}
+		
 		log.Info()
-		
-		
-		log.Info("Loading package:")
-		log.InfoBarColor(log.Brown)
-		
-		spkg, err := spakg.FromFile(pkg, &tmpDir)
-		
-		if err != nil {
-			log.Error(err)
-			code = 1
-		}
-		//ExitOnError(err)
-		
-		log.Debug()
-		PrintSuccess()
-		
-		InDir(tmpDir, func () {
-			//ExtractCheckCopy
-			
-			//Handle package being previously installed
-			/*
-			previousInstall := repo.GetInstalledByName(c.Name, destdir)
-			if previousInstall != nil {
-				newInstall := spakg.Md5sums
-				for file, _ := range previousInstall.Hashes {
-					_, exists := newInstall[file]
-					if !exists {
-						err := os.Remove(destdir + file)
-						if err != nil {
-							log.WarnFormat("Could not remove %s: %s", file, err)
-						}
-					}
-				}
-				repo.MarkRemoved(&previousInstall.PkgInfo, destdir)
-			}*/
-			
-			
-			PrintSuccess()
-			
-			log.Info("Updating Library Cache")
-			err = RunCommand(exec.Command("ldconfig", "-r", destdir), log.DebugWriter(), os.Stderr)
-			if err != nil {
-				log.Warn(err)
-			}
-			
-			
-			log.Info("Running post-intall:")
-			log.InfoBarColor(log.Brown)
-			err = runPart("post_install", spkg)
-			if err != nil {
-				log.Warn(err)
-			} else {
-				PrintSuccess()
-			}
-		})
-		removeTempDir(tmpDir)
-		if code == 0{
-			log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , pkg)
-			fmt.Println()
-		} else {
-			os.Exit(code)		
-		}
+		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , spkg.Control.UUID())
+	}
+	if err != nil {
+		log.Error(err)
+		os.Exit(-1)
 	}
 }
