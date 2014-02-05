@@ -208,8 +208,8 @@ func DepCheck(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wiel
 			return true
 		}
 		//We are installed and in the latest version/iteration
-		if isInstalled && isLatest{
-			log.DebugFormat(c.Name(), "Already in the latest version")
+		if isInstalled && isLatest && !params.IsReinstall {
+			log.Debug(c.Name(), "Already in the latest version")
 			return true
 		}
 		
@@ -220,7 +220,10 @@ func DepCheck(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wiel
 		log.Debug(c.Name(), "Mark bin")
 		wield_deps.Append(c, params.IsBDep)
 		
-		return checkChildren(c.Control.Deps, params.IsBDep, params)
+		paramsNew := params
+		paramsNew.IsReinstall = false
+		
+		return checkChildren(c.Control.Deps, paramsNew.IsBDep, paramsNew)
 	} else {
 		//We are a package that only available via src or are the base package to forge
 		log.Debug(c.Name(), "Source")
