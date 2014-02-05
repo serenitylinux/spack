@@ -59,7 +59,7 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
 	
 	bash := exec.Command("bash", "-c", cmd)
-	if destdir != "//"{
+	if filepath.Clean(destdir) != "/"{
 		if _, err := exec.LookPath("systemd-nspawn"); err == nil {
 			bash.Args = append([]string { "-D", destdir }, bash.Args...)
 			bash = exec.Command("systemd-nspawn", bash.Args...)
@@ -131,15 +131,6 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	}
 	log.Debug()
 	PrintSuccess()
-	
-/*	log.Info("Running pre-intall:")
-	log.InfoBarColor(log.Brown)
-	err := runPart("pre_install", spkg)
-	if err != nil {
-		log.Warn(err)
-	} else {
-		PrintSuccess()
-	}*/
 
 	log.Info("Installing files:")
 	log.DebugBarColor(log.Brown)
@@ -147,38 +138,39 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	copyWalk := func (path string, f os.FileInfo, err error) error {
 		if err != nil { return err }
 		
+		fsPath := fsDir + "/"  + path
+		destPath := destdir + path
+		
 		if IsSymlink(f) {
-			target, e := os.Readlink(fsDir + "/"  + path)
+			target, e := os.Readlink(fsPath)
 			if e != nil { return e }
 			
-			if PathExists(destdir + path) {
-				e := os.Remove(destdir + path)
-				if e != nil { return e }
-			}
+			//Let's just wing it!
+			os.Remove(destPath)
 			
-			e = os.Symlink(target , destdir + path)
+			e = os.Symlink(target , destPath)
 			if e != nil { return e }
 		} else if f.IsDir() {
-			if !PathExists(destdir + path) {
-				e := os.Mkdir(destdir + path, f.Mode())
+			if !PathExists(destPath) {
+				e := os.Mkdir(destPath, f.Mode())
 				if e != nil { return e }
 			}
 		} else {
-			if PathExists(destdir + path) {
-				e := os.Remove(destdir + path)
+			if PathExists(destPath) {
+				e := os.Remove(destPath)
 				if e != nil { return e }
 			}
 			
-			e := CopyFile(fsDir + "/" +path, destdir + path)
+			e := CopyFile(fsPath, destPath)
 			if e != nil { return e }
 		}
 
 		uid, gid := GetUidGid(f)
-		os.Lchown(destdir + path, uid, gid)
-		os.Chmod(destdir + path, f.Mode())
+		os.Lchown(destPath, uid, gid)
+		os.Chmod(destPath, f.Mode())
 		return nil
 		//TODO collisions and changed conf files
-	}		
+	}
 	InDir(fsDir, func() {
 		err = filepath.Walk(".", copyWalk);
 	})
