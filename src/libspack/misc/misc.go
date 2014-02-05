@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 	"bufio"
 	"bytes"
 	"regexp"
@@ -90,6 +91,15 @@ func InDir(path string, action func()) error {
 func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func IsSymlink(f os.FileInfo) bool {
+	return f.Mode()&os.ModeSymlink != 0
+}
+
+func GetUidGid(f os.FileInfo) (int, int) {
+	st := f.Sys().(*syscall.Stat_t)
+	return int(st.Uid), int(st.Gid)
 }
 
 func ReaderToString(reader io.Reader) string {

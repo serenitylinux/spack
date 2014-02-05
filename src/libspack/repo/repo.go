@@ -56,6 +56,7 @@ import (
 	"libspack/pkginfo"
 	"libspack/control"
 	"libspack/hash"
+	"libspack/spakg"
 	"libspack/log"
 	"libspack/gitrepo"
 	"libspack/repo/pkginstallset"
@@ -235,6 +236,10 @@ func (repo *Repo) HasTemplate(c *control.Control) bool {
 
 func (repo *Repo) installSetFile(p pkginfo.PkgInfo, basedir string) string {
 	return basedir + repo.installedPkgsDir() + p.UUID() + ".pkgset"
+}
+
+func (repo *Repo) InstallSpakg(spkg *spakg.Spakg, basedir string) error {
+	return repo.Install(spkg.Control, spkg.Pkginfo, spkg.Md5sums, basedir)
 }
 
 func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
