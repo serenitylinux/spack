@@ -18,22 +18,14 @@ func Wield(file string, destdir string) error {
 	spkg, err := spakg.FromFile(file, nil)
 	if err != nil { return err }
 	
-	log.InfoFormat("Running PreInstall")
-	log.DebugBarColor(log.Brown)
 	err = PreInstall(spkg, destdir)
 	if err != nil { return err }
-	log.Debug()
-	PrintSuccess()
 	
 	err = ExtractCheckCopy(file, destdir)
 	if err != nil { return err }
 	
-	log.InfoFormat("Running PostInstall")
-	log.DebugBarColor(log.Brown)
 	err = PostInstall(spkg, destdir)
 	if err != nil { return err }
-	log.Debug()
-	PrintSuccess()
 	
 	return nil
 }
@@ -72,10 +64,23 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 }
 
 func PreInstall(pkg *spakg.Spakg, destdir string) error {
-	return runPart("pre_install", pkg, destdir)
+	Header("Running PreInstall")
+	err := runPart("pre_install", pkg, destdir)
+	if err != nil { return err }
+	log.Debug()
+	PrintSuccess()
+	
+	return nil
 }
 func PostInstall(pkg *spakg.Spakg, destdir string) error {
-	return runPart("post_install", pkg, destdir)
+	Header("Running PostInstall")
+	log.DebugBarColor(log.Brown)
+	err := runPart("post_install", pkg, destdir)
+	if err != nil { return err }
+	log.Debug()
+	PrintSuccess()
+	
+	return nil
 }
 
 func ExtractCheckCopy(pkgfile string, destdir string) error {

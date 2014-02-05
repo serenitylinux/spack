@@ -114,6 +114,11 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	return nil, nil
 }
 
+func Header(str string) {
+	log.InfoInLine(str + ": "); log.Debug()
+	log.DebugBarColor(log.Brown)
+}
+
 func PrintSuccess() {
 	log.InfoColor(log.Green, "Success")
 	log.Info()
