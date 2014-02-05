@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strings"
 	"os"
+	"os/exec"
 	"errors"
 	"libspack"
 	"libspack/argparse"
 	"libspack/log"
 	"libspack/control"
 	"libspack/pkginfo"
+	"libspack/spakg"
 	"libspack/repo"
 	"libspack/wield"
 )
@@ -186,17 +188,17 @@ func forgewieldPackages(packages []string, isForge bool) {
 	
 	var forge_ind,wield_ind func (c *control.Control, r *repo.Repo) error
 	
-	fetch_or_forge_ind := func (c *control.Control, r *repo.Repo) error {
+	fetch_or_forge_ind := func (c *control.Control, r *repo.Repo) (string, error) {
 		spakgFile := r.GetSpakgOutput(c)
 		
 		if PathExists(spakgFile) {
-			return nil
+			return spakgFile, nil
 		}
 		
 		if r.HasRemoteSpakg(c) { //Fetch
-			return r.FetchIfNotCachedSpakg(c)
+			return spakgFile, r.FetchIfNotCachedSpakg(c)
 		} else { //Build
-			return forge_ind(c, r)
+			return spakgFile, forge_ind(c, r)
 		}
 	}
 	
@@ -212,7 +214,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			//Fetch bdeps
 			for _, dep := range c.Bdeps {
 				dc,dr := libspack.GetPackageLatest(dep)
-				err := fetch_or_forge_ind(dc, dr)
+				_, err := fetch_or_forge_ind(dc, dr)
 				if err != nil {
 					return err
 				}
@@ -235,18 +237,17 @@ func forgewieldPackages(packages []string, isForge bool) {
 			}
 		}
 		
-		var spakgFile string
-		spakgFile = r.GetSpakgOutput(c)
+		spakgFile := r.GetSpakgOutput(c)
 		
 		fmt.Println("Forge ", c.UUID(), template, spakgFile)
 		
 		
-		return nil /*RunCommandToStdOutErr(exec.Command(
+		return RunCommandToStdOutErr(exec.Command(
 				"forge",
 				"--output="+spakgFile,
 				"--quiet="+quietArg.String(),
 				"--verbose="+verboseArg.String(),
-				template))*/
+				template))
 	}
 	wield_ind = func (c *control.Control, r *repo.Repo) error {
 		isInstalled := r.IsInstalled(c, "/")
@@ -254,7 +255,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			return nil
 		}
 		
-		err := fetch_or_forge_ind(c, r)
+		spakgFile, err := fetch_or_forge_ind(c, r)
 		if err != nil {
 			return err
 		}
@@ -262,7 +263,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		//Fetch deps
 		for _, dep := range c.Deps {
 			dc,dr := libspack.GetPackageLatest(dep)
-			err := fetch_or_forge_ind(dc, dr)
+			_, err := fetch_or_forge_ind(dc, dr)
 			if err != nil {
 				return err
 			}
@@ -278,7 +279,12 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 		
 		fmt.Println("wield ", c.UUID())
-		return nil
+		return RunCommandToStdOutErr(exec.Command(
+				"wield",
+				"--quiet="+quietArg.String(),
+				"--verbose="+verboseArg.String(),
+				"--destdir="+params.DestDir,
+				spakgFile))
 	}
 	
 	if len(forge_deps) > 0 {
@@ -304,31 +310,46 @@ func forgewieldPackages(packages []string, isForge bool) {
 		log.Info("Wielding required packages: ")
 		log.InfoBar()
 		insterr := func () error {
+			type pkgset struct {
+				spkg *spakg.Spakg
+				repo *repo.Repo
+				file string 	
+			}
+			spkgs := make([]pkgset, 0)
+
 			//Fetch Packages
 			for _, pkg := range wield_deps {
 				err := pkg.Repo.FetchIfNotCachedSpakg(pkg.Control)
-				if err != nil {
-					return err
-				}
+				if err != nil { return err }
+				
+				pkgfile := pkg.Repo.GetSpakgOutput(pkg.Control)
+				spkg, err := spakg.FromFile(pkgfile, nil)
+				if err != nil { return err }
+				
+				spkgs = append(spkgs, pkgset{ spkg, pkg.Repo, pkgfile} )
 			}
 			
 			//Preinstall
-			for _, pkg := range wield_deps {
+			for _, pkg := range spkgs {
 				fmt.Println("Preinst " + pkg.Control.UUID())
 				wield.PreInstall(pkg.spakg, params.DestDir)
 			}
 			
-			//Install Files
-			for _, pkg := range wield_deps {
-				fmt.Println("InstallFiles " + pkg.Control.UUID())
-				wield.ExtractCheckCopy(pkg, params.DestDir)
+			for _ ,pkg := range spkgs {
+				fmt.Println("InstallFiles " + pkg.spkg.Control.UUID())
+				err := wield.ExtractCheckCopy(pkg.file, params.DestDir)
+				
+				if err != nil {
+					return err
+				}
+				
+				pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
 			}
-			
-			//Post Install
-			for _, pkg := range wield_deps {
+			for _, pkg := range spkgs {
 				fmt.Println("PostInst " + pkg.Control.UUID())
 				wield.PostInstall(pkg.spkg, params.DestDir)
 			}
+			
 			
 			//Mark Installed
 			for _, pkg := range wield_deps {	

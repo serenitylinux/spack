@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 	"path/filepath"
 	"io/ioutil"
 	"libspack/argparse"
 	"libspack/log"
 	"libspack/spakg"
-	"errors"
 )
 //import . "libspack"
 import . "libspack/misc"
-import . "libspack/hash"
 import . "libspack"
 
 var pretend = false
@@ -136,117 +133,7 @@ func main() {
 		PrintSuccess()
 		
 		InDir(tmpDir, func () {
-			
-			log.Info("Extracting FS")
-			log.InfoBarColor(log.Brown)
-			err = RunCommand(exec.Command("tar", "-xvf", "fs.tar", "-C", fsDir), log.DebugWriter(), os.Stderr)
-			
-			if err != nil {
-				log.Error(err)
-				code = 2
-			}
-			//ExitOnError(err)
-			log.Debug()
-			
-			PrintSuccess()
-			
-			
-			log.Info("Checking package:")
-			log.InfoBarColor(log.Brown)
-			
-			walk := func (path string, f os.FileInfo, err error) (erri error) {
-				if !f.IsDir() && f.Mode()&os.ModeSymlink == 0 {
-					origSum, exists := spkg.Md5sums[path]
-					if ! exists {
-						code = 3
-						//err := errors.New(fmt.Sprintf("Sum for %s does not exist", path))
-						//log.Error(err)
-						//return err
-						ExitOnError(errors.New(fmt.Sprintf("Sum for %s does not exist", path)))
-					}
-					
-					sum, erri := Md5sum(path)
-					ExitOnErrorMessage(erri, fmt.Sprintf("Cannot compute sum of %s", path))
-					
-					if origSum != sum {
-						ExitOnError(errors.New(fmt.Sprintf("Sum of %s does not match. Expected %s, calculated %s", path, origSum, sum)))
-					}
-					log.DebugFormat("%s\t: %s", sum, path)
-					//TODO collisions and changed conf files
-				}
-				return
-			}
-			
-			
-			InDir(fsDir, func() {
-				err = filepath.Walk(".", walk);
-			})
-			ExitOnErrorMessage(err, "Unable to check md5sums")
-			log.Debug()
-			
-			PrintSuccess()
-			
-			log.Info("Running pre-intall:")
-			log.InfoBarColor(log.Brown)
-			err := runPart("pre_install", spkg)
-			if err != nil {
-				log.Warn(err)
-			} else {
-				PrintSuccess()
-			}
-
-			log.Info("Installing files:")
-			log.InfoBarColor(log.Brown)
-			
-			copyWalk := func (path string, f os.FileInfo, err error) (erri error) {
-				if f.Mode()&os.ModeSymlink != 0 {
-					target, e := os.Readlink(fsDir + "/"  + path)
-					if e != nil {
-						log.Warn(e)
-					}
-					
-					if PathExists(destdir + path) {
-						e := os.Remove(destdir + path)
-						if e != nil {
-							log.Warn(e)
-						}
-					}
-					
-					e = os.Symlink(target , destdir + path)
-					if e != nil {
-						log.Warn(e)
-					}
-				} else if f.IsDir() {
-					if !PathExists(destdir + path) {
-						e := os.Mkdir(destdir + path, f.Mode())
-						if e != nil {
-							log.Warn(e)
-						}
-					}
-				} else {
-					if PathExists(destdir + path) {
-						e := os.Remove(destdir + path)
-						if e != nil {
-							log.Warn(e)
-						}
-					}
-					
-					e := CopyFile(fsDir + "/" +path, destdir + path)
-					if e != nil {
-						log.Warn(e)
-					}
-					
-					/*e := os.Rename(fsDir + "/" +path, destdir + path)
-					if e != nil {
-						log.Warn(e)
-					}*/
-				}
-				
-				st := f.Sys().(*syscall.Stat_t)
-				os.Lchown(destdir + path, int(st.Uid), int(st.Gid))
-				os.Chmod(destdir + path, f.Mode())
-				return nil
-			}
+			//ExtractCheckCopy
 			
 			//Handle package being previously installed
 			/*
@@ -265,9 +152,6 @@ func main() {
 				repo.MarkRemoved(&previousInstall.PkgInfo, destdir)
 			}*/
 			
-			InDir(fsDir, func() {
-				err = filepath.Walk(".", copyWalk);
-			})
 			
 			PrintSuccess()
 			
