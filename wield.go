@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"syscall"
@@ -232,18 +231,7 @@ func main() {
 						}
 					}
 					
-					var e error
-					e = WithFileWriter(destdir + path, true, func (writer io.Writer) {
-						e = WithFileReader(fsDir + "/" +path, func (reader io.Reader) {
-							_, e = io.Copy(writer, reader)
-							if e != nil {
-								log.Warn(e)
-							}
-						})
-						if e != nil {
-							log.Warn(e)
-						}
-					})
+					e := CopyFile(fsDir + "/" +path, destdir + path)
 					if e != nil {
 						log.Warn(e)
 					}
@@ -259,6 +247,23 @@ func main() {
 				os.Chmod(destdir + path, f.Mode())
 				return nil
 			}
+			
+			//Handle package being previously installed
+			/*
+			previousInstall := repo.GetInstalledByName(c.Name, destdir)
+			if previousInstall != nil {
+				newInstall := spakg.Md5sums
+				for file, _ := range previousInstall.Hashes {
+					_, exists := newInstall[file]
+					if !exists {
+						err := os.Remove(destdir + file)
+						if err != nil {
+							log.WarnFormat("Could not remove %s: %s", file, err)
+						}
+					}
+				}
+				repo.MarkRemoved(&previousInstall.PkgInfo, destdir)
+			}*/
 			
 			InDir(fsDir, func() {
 				err = filepath.Walk(".", copyWalk);

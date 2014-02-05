@@ -1,5 +1,8 @@
 package depres
 
+//Containing the Insanity to a single file (hopefully)
+//Christian Mesh Feb 2014
+
 import (
 	"fmt"
 	"strings"
@@ -82,6 +85,15 @@ func (ctrl *ControlRepoList) Print() {
 		fmt.Print(str)
 	}
 	fmt.Println()
+}
+func (this *ControlRepoList) WithoutBDeps() ControlRepoList {
+	nl := make(ControlRepoList, 0)
+	for _, pkg := range *this {
+		if !pkg.IsBDep {
+			nl = append(nl, pkg)
+		}
+	}
+	return nl
 }
 
 type MissingInfo struct {

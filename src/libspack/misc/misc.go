@@ -51,6 +51,29 @@ func WithFileWriter(filename string, create bool, action func (io.Writer)) error
 	return file.Close()
 }
 
+//I think this will work
+//Christian Mesh 2014
+func CopyFile(src, dest string) error {
+	var err, e error
+	
+	e = WithFileWriter(dest, true, func (writer io.Writer) {
+		e = WithFileReader(src, func (reader io.Reader) {
+			_, e = io.Copy(writer, reader)
+			if e != nil {
+				err = e
+			}
+		})
+		if e != nil {
+			err = e
+		}
+	})
+	if e != nil {
+		err = e
+	}
+	
+	return err
+}
+
 
 func InDir(path string, action func()) error {
 	prevDir, _ := os.Getwd()
