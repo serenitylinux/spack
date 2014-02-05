@@ -11,6 +11,7 @@ import (
 	"libspack/control"
 	"libspack/pkginfo"
 	"libspack/repo"
+	"libspack/wield"
 )
 
 import . "libspack/misc"
@@ -303,37 +304,35 @@ func forgewieldPackages(packages []string, isForge bool) {
 		log.Info("Wielding required packages: ")
 		log.InfoBar()
 		insterr := func () error {
+			//Fetch Packages
 			for _, pkg := range wield_deps {
 				err := pkg.Repo.FetchIfNotCachedSpakg(pkg.Control)
 				if err != nil {
 					return err
 				}
 			}
-		
+			
+			//Preinstall
 			for _, pkg := range wield_deps {
 				fmt.Println("Preinst " + pkg.Control.UUID())
+				wield.PreInstall(pkg.spakg, params.DestDir)
 			}
+			
+			//Install Files
 			for _, pkg := range wield_deps {
 				fmt.Println("InstallFiles " + pkg.Control.UUID())
-				/*
-				repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdir)
-				err = RunCommandToStdOutErr(
-					exec.Command(
-						"wield",
-						"--quiet="+quietArg.String(),
-						"--verbose="+verboseArg.String(),
-						"--destdir="+destdir,
-						spakgFile))
-			
-				if err != nil {
-					repo.MarkRemoved(&spakg.Pkginfo, destdir)
-					repo.Uninstall(c, destdir)
-					return err
-				}
-				*/
+				wield.ExtractCheckCopy(pkg, params.DestDir)
 			}
+			
+			//Post Install
 			for _, pkg := range wield_deps {
 				fmt.Println("PostInst " + pkg.Control.UUID())
+				wield.PostInstall(pkg.spkg, params.DestDir)
+			}
+			
+			//Mark Installed
+			for _, pkg := range wield_deps {	
+				repo.Install(spakg.Control, spakg.Pkginfo, spakg.Md5sums, destdir)
 			}
 			return nil
 		}()

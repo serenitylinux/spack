@@ -13,6 +13,46 @@ import (
 import . "libspack/misc"
 import . "libspack/hash"
 
+func runPart(part string, spkg *spakg.Spakg, destdir string) error {
+	cmd := `
+		%[1]s
+		
+		declare -f %[2]s > /dev/null
+`
+	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
+	err := RunCommand(exec.Command("bash", "-c", cmd), log.DebugWriter(), os.Stderr)
+	
+	//We don't have a pre or postinstall function
+	if err != nil {
+		return nil
+	}
+	
+	cmd = `
+		%[1]s
+		%[2]s
+`
+	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
+	
+	bash := exec.Command("bash", "-c", cmd)
+	if destdir != "//"{
+		if _, err := exec.LookPath("systemd-nspawn"); err == nil {
+			bash.Args = append([]string { "-D", destdir }, bash.Args...)
+			bash = exec.Command("systemd-nspawn", bash.Args...)
+		} else if _, err := exec.LookPath("chroot"); err == nil {
+			bash.Args = append([]string { destdir }, bash.Args...)
+			bash = exec.Command("chroot", bash.Args...)
+		}
+	}
+	return RunCommand(bash, log.DebugWriter(), os.Stderr)
+}
+
+func PreInstall(pkg *spakg.Spakg, destdir string) error {
+	return runPart("pre_install", pkg, destdir)
+}
+func PostInstall(pkg *spakg.Spakg, destdir string) error {
+	return runPart("post_install", pkg, destdir)
+}
+
 func ExtractCheckCopy(pkgfile string, destdir string) error {
 	
 	tmpDir, _ := ioutil.TempDir(os.TempDir(), "wield")
