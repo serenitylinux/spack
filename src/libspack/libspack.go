@@ -118,10 +118,13 @@ func Header(str string) {
 	log.InfoInLine(str + ": "); log.Debug()
 	log.DebugBarColor(log.Brown)
 }
+func HeaderFormat(str string, extra ...interface{}) {
+	Header(fmt.Sprintf(str, extra...))
+}
 
 func PrintSuccess() {
 	log.InfoColor(log.Green, "Success")
-	log.Info()
+	log.Debug()
 }
 
 func ExitOnError(err error) {

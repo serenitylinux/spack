@@ -24,10 +24,17 @@ func Wield(file string, destdir string) error {
 	err = ExtractCheckCopy(file, destdir)
 	if err != nil { return err }
 	
+	//Don't care if this fails
+	Ldconfig(destdir)
+	
 	err = PostInstall(spkg, destdir)
 	if err != nil { return err }
 	
 	return nil
+}
+
+func Ldconfig(destdir string) error {
+	return RunCommand(exec.Command("ldconfig", "-r", destdir), log.DebugWriter(), os.Stderr)
 }
 
 func runPart(part string, spkg *spakg.Spakg, destdir string) error {
@@ -46,38 +53,45 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 	
 	cmd = `
 		%[1]s
+		
+		if ! [ -d /dev/ ]; then
+			mkdir /dev;
+		fi
+		
+		if ! [ -f /dev/null ]; then
+			touch /dev/null;
+			trap "rm /dev/null" EXIT
+		fi
+		
 		%[2]s
 `
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
 	
 	bash := exec.Command("bash", "-c", cmd)
 	if filepath.Clean(destdir) != "/"{
-		if _, err := exec.LookPath("systemd-nspawn"); err == nil {
-			bash.Args = append([]string { "-D", destdir }, bash.Args...)
-			bash = exec.Command("systemd-nspawn", bash.Args...)
-		} else if _, err := exec.LookPath("chroot"); err == nil {
+		if _, err := exec.LookPath("chroot"); err == nil {
 			bash.Args = append([]string { destdir }, bash.Args...)
 			bash = exec.Command("chroot", bash.Args...)
+		} else if _, err := exec.LookPath("systemd-nspawn"); err == nil {
+			bash.Args = append([]string { "-D", destdir }, bash.Args...)
+			bash = exec.Command("systemd-nspawn", bash.Args...)
 		}
 	}
 	return RunCommand(bash, log.DebugWriter(), os.Stderr)
 }
 
 func PreInstall(pkg *spakg.Spakg, destdir string) error {
-	Header("Running PreInstall")
+	HeaderFormat("PreInstall %s", pkg.Control.Name)
 	err := runPart("pre_install", pkg, destdir)
 	if err != nil { return err }
-	log.Debug()
 	PrintSuccess()
 	
 	return nil
 }
 func PostInstall(pkg *spakg.Spakg, destdir string) error {
-	Header("Running PostInstall")
-	log.DebugBarColor(log.Brown)
+	HeaderFormat("PostInstall %s", pkg.Control.Name)
 	err := runPart("post_install", pkg, destdir)
 	if err != nil { return err }
-	log.Debug()
 	PrintSuccess()
 	
 	return nil
@@ -93,17 +107,14 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	fsDir := tmpDir + "/fs"
 	os.MkdirAll(fsDir, 0755)
 	
-	log.Info("Extracting FS:")
-	log.DebugBarColor(log.Brown)
+	HeaderFormat("Unpacking %s", pkg.Control.Name)
 	cmd := exec.Command("tar", "-xvpf", tmpDir + "/fs.tar", "-C", fsDir)
 	err = RunCommand(cmd, log.DebugWriter(), os.Stderr)
 	if err != nil { return err }
 	
-	log.Debug()
 	PrintSuccess()
 	
-	log.Info("Checking package:")
-	log.DebugBarColor(log.Brown)
+	HeaderFormat("Checking %s", pkg.Control.Name)
 	
 	walk := func (path string, f os.FileInfo, e error) error {
 		if e != nil { return e }
@@ -134,11 +145,9 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	if err != nil {
 		return err
 	}
-	log.Debug()
 	PrintSuccess()
 
-	log.Info("Installing files:")
-	log.DebugBarColor(log.Brown)
+	HeaderFormat("Installing %s", pkg.Control.Name)
 	
 	copyWalk := func (path string, f os.FileInfo, err error) error {
 		if err != nil { return err }
@@ -183,7 +192,6 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 		return err
 	}
 	
-	log.Debug()
 	PrintSuccess()
 	return nil
 }

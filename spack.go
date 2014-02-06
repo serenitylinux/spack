@@ -286,7 +286,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			}
 		}
 		
-		fmt.Println("wield ", c.UUID())
+		log.ColorAll(log.Cyan, "Wield ", c.UUID())
 		err = wield.Wield(spakgFile, params.DestDir)
 		
 		for _, pkg := range wield_deps {
@@ -346,15 +346,16 @@ func forgewieldPackages(packages []string, isForge bool) {
 				
 				spkgs = append(spkgs, pkgset{ spkg, pkg.Repo, pkgfile} )
 			}
+			log.Info()
 			
 			//Preinstall
 			for _, pkg := range spkgs {
-				fmt.Println("Preinst " + pkg.spkg.Control.UUID())
 				wield.PreInstall(pkg.spkg, params.DestDir)
 			}
+			log.Info()
 			
+			//Install
 			for _ ,pkg := range spkgs {
-				fmt.Println("InstallFiles " + pkg.spkg.Control.UUID())
 				err := wield.ExtractCheckCopy(pkg.file, params.DestDir)
 				
 				if err != nil {
@@ -363,10 +364,14 @@ func forgewieldPackages(packages []string, isForge bool) {
 				
 				pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
 			}
+			log.Info()
+			wield.Ldconfig(params.DestDir)
+			
+			//PostInstall
 			for _, pkg := range spkgs {
-				fmt.Println("PostInst " + pkg.spkg.Control.UUID())
 				wield.PostInstall(pkg.spkg, params.DestDir)
 			}
+			log.Info()
 			
 			return nil
 		}()
