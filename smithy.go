@@ -16,6 +16,20 @@ import (
 
 import . "libspack/misc"
 
+func ExitOnError(err error) {
+	if err != nil {
+		log.Error(err)
+		os.Exit(-1)
+	}
+}
+
+func ExitOnErrorMessage(err error, message string) {
+	if err != nil {
+		log.Error(message + ":", err)
+		os.Exit(-1)
+	}
+}
+
 var outdir = "./"
 var outstream = os.Stdout
 var errstream = os.Stderr
@@ -33,13 +47,13 @@ func arguments() []string {
 	if logfileArg.IsSet() {
 		var err error
 		outstream, err = os.Open(logfileArg.Get())
-		libspack.ExitOnErrorMessage(err, "Unable to open log file")
+		ExitOnErrorMessage(err, "Unable to open log file")
 		//todo errstream
 	}
 	
 	outdir = outdirArg.Get()
 	err := log.SetLevelFromString(loglevelArg.Get())
-	libspack.ExitOnError(err)
+	ExitOnError(err)
 	
 	
 	if log.CanDebug() {
@@ -172,8 +186,7 @@ func processRepo(repo *repo.Repo) {
 func main() {
 	repoNames := arguments()
 	
-	err := libspack.LoadRepos()
-	libspack.ExitOnError(err)
+	ExitOnError(libspack.LoadRepos())
 	
 	
 	for {

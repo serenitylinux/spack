@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"os"
-	"os/exec"
 	"errors"
+	"libforge"
 	"libspack"
 	"libspack/argparse"
 	"libspack/log"
@@ -151,7 +151,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 	params := DepResParams {
 		IsForge: isForge,
 		IsBDep: false,
-		IsReinstall: reinstallArg.Get(),
+		IsReinstall: reinstallArg != nil && reinstallArg.Get(),
 		NoBDeps: noBDepsArg.Get(),
 		DestDir: destdirArg.Get(),
 	}
@@ -214,34 +214,32 @@ func forgewieldPackages(packages []string, isForge bool) {
 		if !params.NoBDeps {
 			//Fetch bdeps
 			for _, dep := range c.Bdeps {
-				dc,dr := libspack.GetPackageLatest(dep)
-				_, err := fetch_or_forge_ind(dc, dr)
-				if err != nil {
-					return err
+				if !libspack.IsInstalled(dep, "/") {
+					dc,dr := libspack.GetPackageLatest(dep)
+					_, err := fetch_or_forge_ind(dc, dr)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			
 			//Install bdeps
 			for _, dep := range c.Bdeps {
-				dc,dr := libspack.GetPackageLatest(dep)
-				err := wield_ind(dc, dr)
-				if err != nil {
-					return err
+				if !libspack.IsInstalled(dep, "/") {
+					dc,dr := libspack.GetPackageLatest(dep)
+					err := wield_ind(dc, dr)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 		
 		spakgFile := r.GetSpakgOutput(c)
 		
-		fmt.Println("Forge ", c.UUID(), template, spakgFile)
+		log.Info("Forge ", c.UUID())
 		
-		
-		err := RunCommandToStdOutErr(exec.Command(
-			"forge",
-			"--output="+spakgFile,
-			"--quiet="+quietArg.String(),
-			"--verbose="+verboseArg.String(),
-			template))
+		err := libforge.Forge(template, spakgFile, false)
 		
 		if !params.NoBDeps {	
 			//Remove bdeps
@@ -270,19 +268,23 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 		//Fetch deps
 		for _, dep := range c.Deps {
-			dc,dr := libspack.GetPackageLatest(dep)
-			_, err := fetch_or_forge_ind(dc, dr)
-			if err != nil {
-				return err
+			if !libspack.IsInstalled(dep, "/") {
+				dc,dr := libspack.GetPackageLatest(dep)
+				_, err := fetch_or_forge_ind(dc, dr)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		
 		//Install deps
 		for _, dep := range c.Deps {
-			dc,dr := libspack.GetPackageLatest(dep)
-			err := wield_ind(dc, dr)
-			if err != nil {
-				return err
+			if !libspack.IsInstalled(dep, "/") {
+				dc,dr := libspack.GetPackageLatest(dep)
+				err := wield_ind(dc, dr)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		
@@ -377,6 +379,8 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}()
 		if insterr != nil {
 			log.Error(insterr)
+		} else {
+			libspack.PrintSuccess()
 		}
 	}
 }

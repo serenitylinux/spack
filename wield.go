@@ -10,7 +10,6 @@ import (
 	"libspack/spakg"
 	"libspack/wield"
 )
-import . "libspack"
 
 var pretend = false
 var verbose = false
@@ -36,7 +35,10 @@ func args() []string {
 	quiet = quietArg.Get()
 	var err error
 	destdir, err = filepath.Abs(destArg.Get())
-	ExitOnError(err)
+	if err != nil {
+		log.Error(err)
+		os.Exit(-1)
+	}
 	
 	destdir += "/"
 	

@@ -1,7 +1,7 @@
 package libspack
 
 import (
-	"os"
+//	"os"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -113,6 +113,19 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	}
 	return nil, nil
 }
+func IsInstalled(pkgname string, basedir string) bool {
+	for _, repo := range repos {
+		cl, exists := repo.GetControls(pkgname)
+		if exists {
+			for _,c := range cl {
+				if repo.IsInstalled(&c, basedir) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
 
 func Header(str string) {
 	log.InfoInLine(str + ": "); log.Debug()
@@ -125,25 +138,6 @@ func HeaderFormat(str string, extra ...interface{}) {
 func PrintSuccess() {
 	log.InfoColor(log.Green, "Success")
 	log.Debug()
-}
-
-func ExitOnError(err error) {
-	if err != nil {
-		log.Error(err)
-		os.Exit(-1)
-	}
-}
-
-func ExitOnErrorMessage(err error, message string) {
-	if err != nil {
-		log.Error(message + ":", err)
-		os.Exit(-1)
-	}
-}
-
-func PrintSuccessOrFail(err error) {
-	ExitOnError(err)
-	PrintSuccess()
 }
 
 func AskYesNo(question string, def bool) bool {
