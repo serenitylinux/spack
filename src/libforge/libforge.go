@@ -53,7 +53,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 		ftpRegex := regexp.MustCompile("ftp://.*")
 		
 		base := path.Base(url)
-		file := basedir + base
+		file := basedir + "/" + base
 		switch {
 			case gitRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with git", url)
@@ -302,7 +302,7 @@ func BuildPackage(template string, c *control.Control, destdir, basedir, outfile
 	return nil
 }
 
-func Forge(template, outfile string, test bool) error {
+func Forge(template, outfile string, test bool, interactive bool) error {
 	c, err := control.FromTemplateFile(template)
 	if err != nil { return err }
 	
@@ -314,17 +314,32 @@ func Forge(template, outfile string, test bool) error {
 	os.Mkdir(dest_dir, 0755)
 	os.Mkdir(src_dir, 0755)
 	
+	OnError := func (err error) error {
+		if interactive {
+			log.Error(err)
+			log.Info("Dropping you to a shell")
+			InDir(basedir, func() {
+				cmd := exec.Command("bash")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+				cmd.Run()
+			})
+		}
+		return err
+	}
+	
 	err = FetchPkgSrc(c.Src, basedir, src_dir)
-	if err != nil { return err }
+	if err != nil { return OnError(err) }
 	
 	err = runParts(template, src_dir, dest_dir, test)
-	if err != nil { return err }
+	if err != nil { return OnError(err) }
 	
 	err = StripPackage(dest_dir)
-	if err != nil { return err }
+	if err != nil { return OnError(err) }
 	
 	err = BuildPackage(template, c, dest_dir, basedir, outfile)
-	if err != nil { return err }
+	if err != nil { return OnError(err) }
 	
 	return nil
 }

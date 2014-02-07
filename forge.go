@@ -16,6 +16,7 @@ var quiet = false
 var test = false
 var output = ""
 var clean = true
+var interactive = false
 
 func arguments() string {
 
@@ -26,6 +27,7 @@ func arguments() string {
 	quietArg := argparse.RegisterBool("quiet", quiet, "")
 	testArg := argparse.RegisterBool("test", test, "")
 	cleanArg := argparse.RegisterBool("clean", clean, "Remove tmp dir used for package creation")
+	interactiveArg := argparse.RegisterBool("interactive", interactive, "Drop to shell in directory of failed build")
 	
 	outputArg := argparse.RegisterString("output", "./pkgName.spakg", "")
 	
@@ -42,6 +44,7 @@ func arguments() string {
 	quiet = quietArg.Get()
 	test = testArg.Get()
 	clean = cleanArg.Get()
+	interactive = interactiveArg.Get()
 	
 	if outputArg.IsSet() {
 		output = outputArg.Get()
@@ -79,7 +82,7 @@ func main() {
 	log.Warn("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
 	log.Info()
 	
-	err = libforge.Forge(template, output, test)
+	err = libforge.Forge(template, output, test, interactive)
 	if err != nil {
 		log.Error(err)
 	}

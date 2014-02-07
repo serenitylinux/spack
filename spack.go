@@ -80,6 +80,10 @@ var forgeoutdirArg *argparse.StringValue = nil
 func registerForgeOutDirArg() {
 	forgeoutdirArg = argparse.RegisterString("outdir", "(not set)", "Output dir for build spakgs")
 }
+var interactiveArg *argparse.BoolValue = nil
+func registerInteractiveArg() {
+	interactiveArg = argparse.RegisterBool("interactive", false, "Drop to shell in directory of failed build")
+}
 
 func ForgeWieldArgs() []string {
 	registerBaseDir()
@@ -196,7 +200,7 @@ func forge_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps
 	
 	log.Info("Forge ", c.UUID()); fmt.Println()
 	
-	err := libforge.Forge(template, spakgFile, false)
+	err := libforge.Forge(template, spakgFile, false, interactiveArg != nil && interactiveArg.Get())
 	
 	return err
 }
@@ -570,6 +574,7 @@ func main() {
 		case "forge":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			registerForgeOutDirArg()
+			registerInteractiveArg()
 			forgewieldPackages(ForgeWieldArgs(), true)
 		
 		case "install": fallthrough
