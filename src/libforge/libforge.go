@@ -167,12 +167,19 @@ func StripPackage(destdir string) error {
 	Header("Strip package")
 	
 	Clean := func (filter, strip string) error {
-		return RunCommand(exec.Command("bash", "-c", fmt.Sprintf("'find %s | grep %s | xargs strip %s '", destdir, filter, strip)), log.DebugWriter(), os.Stderr)
+		cmd := fmt.Sprintf(`
+			files=$(find %s -type f | grep %s)
+			if ! [ -z "$files" ]; then
+				strip %s $files
+			fi
+			`, destdir, filter, strip)
+		
+		return RunCommand(exec.Command("bash", "-c", cmd), log.DebugWriter(), os.Stderr)
 	}
 	Clean("/bin/", "-s")
 	Clean("/sbin/", "-s")
 	Clean("\\.so", "-s")
-	Clean("\\.a", "--strip-debug")
+	Clean("\\.a$", "--strip-debug")
 	
 	PrintSuccess()
 	return nil
