@@ -130,6 +130,120 @@ func getPkg(pkg string) ( *control.Control, *repo.Repo) {
 	} 
 }
 
+
+
+func fetch_or_forge_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps ControlRepoList) (string, error) {
+	spakgFile := r.GetSpakgOutput(c)
+	
+	if PathExists(spakgFile) {
+		return spakgFile, nil
+	}
+	
+	if r.HasRemoteSpakg(c) { //Fetch
+		return spakgFile, r.FetchIfNotCachedSpakg(c)
+	} else { //Build
+		return spakgFile, forge_ind(c, r, params, wield_deps)
+	}
+}
+
+func forge_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps ControlRepoList) error {
+	//Get Template
+	template, exists := r.GetTemplateByControl(c)
+	if !exists {
+		return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", c.Name))
+	}
+	
+	defer func() {
+		if !params.NoBDeps {	
+			//Remove bdeps
+			for _, pkg := range wield_deps {
+				if pkg.IsBDep && pkg.Repo.IsInstalled(pkg.Control, "/") {
+					err := pkg.Repo.Uninstall(pkg.Control, params.DestDir)
+					if err != nil {
+						log.Warn(err)
+					}
+				}
+			}
+		}
+	}()
+	
+	//Install BDeps
+	if !params.NoBDeps {
+		//Fetch bdeps
+		for _, dep := range c.Bdeps {
+			if !libspack.IsInstalled(dep, "/") {
+				dc,dr := libspack.GetPackageLatest(dep)
+				_, err := fetch_or_forge_ind(dc, dr, params, wield_deps)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		
+		//Install bdeps
+		for _, dep := range c.Bdeps {
+			if !libspack.IsInstalled(dep, "/") {
+				dc,dr := libspack.GetPackageLatest(dep)
+				err := wield_ind(dc, dr, params, wield_deps)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	
+	spakgFile := r.GetSpakgOutput(c)
+	
+	log.Info("Forge ", c.UUID()); fmt.Println()
+	
+	err := libforge.Forge(template, spakgFile, false)
+	
+	return err
+}
+
+func wield_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps ControlRepoList) error {
+	isInstalled := r.IsInstalled(c, "/")
+	
+	if isInstalled {
+		return nil
+	}
+	
+	spakgFile, err := fetch_or_forge_ind(c, r, params, wield_deps)
+	if err != nil {
+		return err
+	}
+	//Fetch deps
+	for _, dep := range c.Deps {
+		if !libspack.IsInstalled(dep, "/") {
+			dc,dr := libspack.GetPackageLatest(dep)
+			_, err := fetch_or_forge_ind(dc, dr, params, wield_deps)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	
+	//Install deps
+	for _, dep := range c.Deps {
+		if !libspack.IsInstalled(dep, "/") {
+			dc,dr := libspack.GetPackageLatest(dep)
+			err := wield_ind(dc, dr, params, wield_deps)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	
+	log.ColorAll(log.Cyan, "Wield ", c.UUID()); fmt.Println()
+	err = wield.Wield(spakgFile, params.DestDir)
+	if err == nil {
+		pkg, _ := spakg.FromFile(spakgFile, nil)
+		r.InstallSpakg(pkg, "/")
+	}
+	return err
+}
+
+
 func forgewieldPackages(packages []string, isForge bool) {
 	forge_deps := make(ControlRepoList,0)
 	wield_deps := make(ControlRepoList,0)
@@ -186,122 +300,12 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 	}
 	
-	var forge_ind,wield_ind func (c *control.Control, r *repo.Repo) error
-	
-	
-	fetch_or_forge_ind := func (c *control.Control, r *repo.Repo) (string, error) {
-		spakgFile := r.GetSpakgOutput(c)
-		
-		if PathExists(spakgFile) {
-			return spakgFile, nil
-		}
-		
-		if r.HasRemoteSpakg(c) { //Fetch
-			return spakgFile, r.FetchIfNotCachedSpakg(c)
-		} else { //Build
-			return spakgFile, forge_ind(c, r)
-		}
-	}
-	
-	forge_ind = func (c *control.Control, r *repo.Repo) error {
-		//Get Template
-		template, exists := r.GetTemplateByControl(c)
-		if !exists {
-			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", c.Name))
-		}
-		
-		//Install BDeps
-		if !params.NoBDeps {
-			//Fetch bdeps
-			for _, dep := range c.Bdeps {
-				if !libspack.IsInstalled(dep, "/") {
-					dc,dr := libspack.GetPackageLatest(dep)
-					_, err := fetch_or_forge_ind(dc, dr)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			
-			//Install bdeps
-			for _, dep := range c.Bdeps {
-				if !libspack.IsInstalled(dep, "/") {
-					dc,dr := libspack.GetPackageLatest(dep)
-					err := wield_ind(dc, dr)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-		
-		spakgFile := r.GetSpakgOutput(c)
-		
-		log.Info("Forge ", c.UUID()); fmt.Println()
-		
-		err := libforge.Forge(template, spakgFile, false)
-		
-		if !params.NoBDeps {	
-			//Remove bdeps
-			for _, pkg := range wield_deps {
-				if pkg.IsBDep && pkg.Repo.IsInstalled(pkg.Control, "/") {
-					err := pkg.Repo.Uninstall(pkg.Control, params.DestDir)
-					if err != nil {
-						log.Warn(err)
-					}
-				}
-			}
-		}
-		
-		return err
-	}
-	wield_ind = func (c *control.Control, r *repo.Repo) error {
-		isInstalled := r.IsInstalled(c, "/")
-		if isInstalled {
-			return nil
-		}
-		
-		spakgFile, err := fetch_or_forge_ind(c, r)
-		if err != nil {
-			return err
-		}
-		//Fetch deps
-		for _, dep := range c.Deps {
-			if !libspack.IsInstalled(dep, "/") {
-				dc,dr := libspack.GetPackageLatest(dep)
-				_, err := fetch_or_forge_ind(dc, dr)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		
-		//Install deps
-		for _, dep := range c.Deps {
-			if !libspack.IsInstalled(dep, "/") {
-				dc,dr := libspack.GetPackageLatest(dep)
-				err := wield_ind(dc, dr)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		
-		log.ColorAll(log.Cyan, "Wield ", c.UUID()); fmt.Println()
-		err = wield.Wield(spakgFile, params.DestDir)
-		if err == nil {
-			pkg, _ := spakg.FromFile(spakgFile, nil)
-			r.InstallSpakg(pkg, "/")
-		}
-		return err
-	}
-	
 	if len(forge_deps) > 0 {
 		log.Info("Forging required packages: ")
 		log.InfoBar()
 		
 		for _, pkg := range forge_deps {
-			err := forge_ind(pkg.Control, pkg.Repo)
+			err := forge_ind(pkg.Control, pkg.Repo, params, wield_deps)
 			if err != nil {
 				log.Error(err)
 				os.Exit(-1)
