@@ -58,11 +58,6 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 			mkdir /dev;
 		fi
 		
-		if ! [ -f /dev/null ]; then
-			touch /dev/null;
-			trap "rm /dev/null" EXIT
-		fi
-		
 		%[2]s
 `
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)

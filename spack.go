@@ -423,9 +423,15 @@ func list() {
 
 func info(pkgs []string) {
 	for _, pkg := range pkgs {
-		c, _ := libspack.GetPackageLatest(pkg)
+		c, repo := libspack.GetPackageLatest(pkg)
 		if c != nil {
 			fmt.Println(c)
+			i := repo.GetInstalledByName(pkg, "/")
+			if i != nil {
+				for f, _ := range i.Hashes {
+					fmt.Println(f)
+				}
+			}
 		} else {
 			fmt.Println("Package", pkg, "not found")
 		}

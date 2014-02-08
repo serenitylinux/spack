@@ -34,6 +34,7 @@ var outdir = "./"
 var outstream = os.Stdout
 var errstream = os.Stderr
 var outarg = ""
+var interactive = false
 
 func arguments() []string {
 	loglevel := "info"
@@ -41,8 +42,11 @@ func arguments() []string {
 	outdirArg := argparse.RegisterString("outdir", outdir, "Spakg, Control, and PkgInfo output directory")
 	logfileArg := argparse.RegisterString("logfile", "(stdout)", "File to log to, default to standard out")
 	loglevelArg := argparse.RegisterString("loglevel", loglevel, "Log Level")
+	interactiveArg := argparse.RegisterBool("interactive", interactive, "Drop to a shell on error")
 	
 	items := argparse.EvalDefaultArgs()
+	
+	interactive = interactiveArg.Get()
 	
 	if logfileArg.IsSet() {
 		var err error
@@ -161,13 +165,14 @@ func processRepo(repo *repo.Repo) {
 			
 			if hasAllDeps {
 				pkgarg := fmt.Sprintf("%s::%s::%d", ctrl.Name, ctrl.Version, ctrl.Iteration)
-				cmd := exec.Command("spack", "forge", pkgarg, "--outdir=" + pkgdir, "--yes")
+				cmd := exec.Command("spack", "forge", pkgarg, "--outdir=" + pkgdir, "--yes", fmt.Sprintf("--interactive=%t", interactive))
 				fmt.Println(cmd)
 				if outarg != "" {
 					cmd.Args = append(cmd.Args, outarg)
 				}
 				cmd.Stdout = outstream
 				cmd.Stderr = errstream
+				cmd.Stdin = os.Stdin
 				err = cmd.Run()
 				if err != nil {
 					log.WarnFormat("Unable to forge %s: %s", p.UUID(), err)
