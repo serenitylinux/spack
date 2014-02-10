@@ -531,12 +531,11 @@ func upgrade() {
 			}
 		}
 	}
+	
+	
 	if len(list) > 0 {
 		fmt.Println("The following packages will be upgraded: ")
-		crl.Print()
-		if libspack.AskYesNo("Do you wish to continue?", true) {
-			forgewieldPackages(nameList, false)
-		}
+		forgewieldPackages(nameList, false)
 	} else {
 		fmt.Println("No packages to upgrade (Horay!)")
 	}
