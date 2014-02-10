@@ -559,6 +559,45 @@ func refresh(){
 	libspack.RefreshRepos()
 }
 
+func find(pkgs []string){
+
+	for _, repo := range libspack.GetAllRepos() {
+		for _, ctrlmap := range repo.GetAllControls() {
+			for _, ctrl := range ctrlmap{
+				for _, pkg := range pkgs{
+					if pkg == ctrl.Name{
+						c, repo := getPkg(pkg)
+						if (c == nil) {
+							fmt.Println("Unable to find package: " + pkg)
+							continue
+						} else if repo.IsInstalled(c, "/") {
+							fmt.Println(ctrl.UUID() + " is installed")
+						} else if repo.HasSpakg(c){
+							fmt.Println(ctrl.UUID() + " has a source file")
+						} else if repo.HasTemplate(c){
+							fmt.Println(ctrl.UUID() + " has a template")
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+
+func search() {
+	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "search"))
+	registerVerbose()
+	registerBaseDir()
+	pkgs := argparse.EvalDefaultArgs()
+	if len(pkgs) >= 1 {
+		find(pkgs)
+	} else {
+		log.Error("Must specify package(s) for information")
+		argparse.Usage(2)
+	}
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		Usage(0)
@@ -597,7 +636,8 @@ func main() {
 		case "packages": fallthrough
 		case "list":
 			list()
-		
+		case "search":
+			search()
 		case "info":
 			if len(os.Args) > 1 {
 				info(os.Args[1:])
