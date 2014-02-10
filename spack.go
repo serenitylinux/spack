@@ -568,15 +568,21 @@ func find(pkgs []string){
 					if pkg == ctrl.Name{
 						c, repo := getPkg(pkg)
 						if (c == nil) {
-							fmt.Println("Unable to find package: " + pkg)
+							log.ColorAll(log.Yellow,"Unable to find package: ", pkg)
 							continue
-						} else if repo.IsInstalled(c, "/") {
-							fmt.Println(ctrl.UUID() + " is installed")
-						} else if repo.HasSpakg(c){
-							fmt.Println(ctrl.UUID() + " has a source file")
-						} else if repo.HasTemplate(c){
-							fmt.Println(ctrl.UUID() + " has a template")
-						}
+						} else {	
+							switch{
+								case repo.IsInstalled(c, "/"):
+									log.ColorAll(log.White,"WLD")
+								case repo.HasSpakg(c):
+									log.ColorAll(log.White,"BIN")
+								case repo.HasTemplate(c):
+									log.ColorAll(log.White,"SRC")
+							}
+							log.ColorAll(log.Green, " ", ctrl.UUID(), "     ")
+							log.ColorAll(log.Cyan,ctrl.Description)
+							log.Info()
+						}			
 					}
 				}
 			}
