@@ -85,7 +85,7 @@ func registerInteractiveArg() {
 	interactiveArg = argparse.RegisterBool("interactive", false, "Drop to shell in directory of failed build")
 }
 
-func ForgeWieldArgs() []string {
+func ForgeWieldArgs(requirePackages bool) []string {
 	registerBaseDir()
 	registerNoBDeps()
 	registerNoDeps()
@@ -93,8 +93,8 @@ func ForgeWieldArgs() []string {
 	registerVerbose()
 	registerYesToAllArg()
 	packages := argparse.EvalDefaultArgs()
-
-	if len(packages) == 0 {
+	
+	if len(packages) == 0 && requirePackages {
 		fmt.Println("Must specify package(s)!")
 		argparse.Usage(2)
 	}
@@ -281,7 +281,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		if !happy {
 			log.Info("Missing:")
 			for _, item := range missing {
-				log.Info("\t", item)
+				log.Info("\t", item.String())
 			}
 			os.Exit(-1)
 		}
@@ -510,14 +510,8 @@ func remove(pkgs []string){
 }
 
 func upgrade() {
-/*	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "upgrade"))
-	registerQuiet()
-	registerVerbose()
-	pkgs := argparse.EvalDefaultArgs()
-	
-	if verboseArg.Get() {
-		log.SetLevel(log.DebugLevel)
-	}
+	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "upgrade"))
+	pkgs := ForgeWieldArgs(false)
 	
 	if len(pkgs) > 0 {
 		log.ErrorFormat("Invalid options: ", pkgs)
@@ -526,11 +520,13 @@ func upgrade() {
 	
 	list := make(ControlRepoList, 0)
 	crl := &list
+	nameList := make([]string, 0)
 	for _, repo := range libspack.GetAllRepos() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
 				crl.Append(ControlRepo{ c, repo, false }, false)
+				nameList = append(nameList, c.Name)
 				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
 		}
@@ -539,13 +535,11 @@ func upgrade() {
 		fmt.Println("The following packages will be upgraded: ")
 		crl.Print()
 		if libspack.AskYesNo("Do you wish to continue?", true) {
-			for _, pkg := range list {
-				wield(pkg.Control, pkg.Repo, "/", false, false)
-			}
+			forgewieldPackages(nameList, false)
 		}
 	} else {
 		fmt.Println("No packages to upgrade (Horay!)")
-	}*/
+	}
 }
 
 func refresh(){
@@ -581,13 +575,13 @@ func main() {
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			registerForgeOutDirArg()
 			registerInteractiveArg()
-			forgewieldPackages(ForgeWieldArgs(), true)
+			forgewieldPackages(ForgeWieldArgs(true), true)
 		
 		case "install": fallthrough
 		case "wield":
 			argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 			registerReinstallArg()
-			forgewieldPackages(ForgeWieldArgs(), false)
+			forgewieldPackages(ForgeWieldArgs(true), false)
 			
 		case "purge": fallthrough
 		case "remove":
