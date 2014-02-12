@@ -105,6 +105,16 @@ func GetUidGid(f os.FileInfo) (int, int) {
 	return int(st.Uid), int(st.Gid)
 }
 
+func RunCommandToString(cmd *exec.Cmd) (string, error) {
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil { return "", err	}
+	
+	return buf.String(), nil
+}
+
 func ReaderToString(reader io.Reader) string {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(reader)
