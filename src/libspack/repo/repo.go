@@ -243,6 +243,8 @@ func (repo *Repo) InstallSpakg(spkg *spakg.Spakg, basedir string) error {
 }
 
 func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
+	old := repo.GetInstalledByName(c.Name, basedir)
+	
 	ps := pkginstallset.PkgInstallSet { c, p, hl }
 	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
 	if err != nil {
@@ -250,6 +252,19 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 	}
 	
 	err = ps.ToFile(repo.installSetFile(p, basedir))
+	
+	if old != nil && old.PkgInfo.UUID() != p.UUID() {
+		for file, _ := range old.Hashes {
+			if _, exists := hl[file]; !exists {
+				err := os.RemoveAll(file)
+				if err != nil {
+					log.WarnFormat("Unable to remove old file %s: %s", file, err)
+				}
+			}
+		}
+		repo.MarkRemoved(&old.PkgInfo, basedir)
+	}
+	
 	repo.loadInstalledPackagesList()
 	return err
 }

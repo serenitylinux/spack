@@ -30,7 +30,6 @@ func HttpFetchFileProgress(url string, outFile string, stdout bool) (err error) 
 	io.Copy(pb, response.Body)
 	if stdout {
 		fmt.Println()
-		fmt.Println()
 	}
 	return
 }

@@ -16,12 +16,15 @@ func GetWidth() int{
 	cmd := exec.Command("tput", "cols")
 	cmd.Stdout = &buf
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	err := cmd.Run()
 
 	str := buf.String()
-	width, _ := strconv.Atoi(str[:len(str)-1])
-	
-	return width
+	if err == nil && len(str) > 2 {
+		width, _ := strconv.Atoi(str[:len(str)-1])
+		return width
+	} else {
+		return 60
+	}
 }
 
 func WithFileReader(filename string, action func (io.Reader)) error {
