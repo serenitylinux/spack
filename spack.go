@@ -85,6 +85,18 @@ var interactiveArg *argparse.BoolValue = nil
 func registerInteractiveArg() {
 	interactiveArg = argparse.RegisterBool("interactive", false, "Drop to shell in directory of failed build")
 }
+var nameArg *argparse.BoolValue = nil
+func registerNameArg() {
+	nameArg = argparse.RegisterBool("name", false, "Seach for packages by name only")
+}
+var descriptionArg *argparse.BoolValue = nil
+func registerDescriptionArg() {
+	descriptionArg = argparse.RegisterBool("description", false, "Seach for packages by description only")
+}
+var simpleArg *argparse.BoolValue = nil
+func registerSimpleArg() {
+	simpleArg = argparse.RegisterBool("simple", false, "Gets rid of the lines in search")
+}
 
 func ForgeWieldArgs(requirePackages bool) []string {
 	registerBaseDir()
@@ -560,63 +572,94 @@ func refresh(){
 	libspack.RefreshRepos()
 }
 
-func find(pkgs []string){
-	var length = misc.GetWidth() - 30
-	var longest int
-	ignore := false
-	if length < 0{
-		ignore = true
-	}
-	for _, repo := range libspack.GetAllRepos() {
-		for _, ctrlmap := range repo.GetAllControls() {
-			for _, ctrl := range ctrlmap{
-				for _, pkg := range pkgs{
-					if strings.Contains(ctrl.Name, pkg){
-						c, repo := getPkg(ctrl.Name)
-						if (c == nil) {
-							log.ColorAll(log.Yellow,"Unable to find package: ", pkg)
-							continue
-						} else {	
-							switch{
-								case repo.IsInstalled(c, "/"):
-									log.ColorAll(log.White,"WLD")
-								case repo.HasSpakg(c):
-									log.ColorAll(log.White,"BIN")
-								case repo.HasTemplate(c):
-									log.ColorAll(log.White,"SRC")
-							}
-							half := int(length/2)
-							gap := length - len(ctrl.UUID()) - int((half*5)/4)
-							if gap < 1{
-								gap = 1
-							}
-							//fmt.Println(gap)
-							if !ignore{
-								log.ColorAll(log.Green, " ", ctrl.UUID(), strings.Repeat(" ", gap))
+func search() {
+	name := true
+	description := true
+	simple := false
+	
+	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "search"))
+	
+	nameArg := argparse.RegisterBool("name", name, "")
+	descriptionArg := argparse.RegisterBool("description", description, "")
+	simpleArg := argparse.RegisterBool("simple", simple, "")
+	pkgs := argparse.EvalDefaultArgs()
+	
+	name = nameArg.Get()
+	description = descriptionArg.Get()
+	simple = simpleArg.Get()
+
+	
+	if len(pkgs) < 1 {
+		log.Error("Must specify package(s) for information")
+		argparse.Usage(2)
+	} else {
+		var length = misc.GetWidth()
+	
+		longest := 0
+		var found []string
+	
+		for _, pkg := range pkgs{
+			for _, repo := range libspack.GetAllRepos() {
+				for _, ctrlmap := range repo.GetAllControls() {
+					for _, ctrl := range ctrlmap{
+						if name && strings.Contains(ctrl.Name, pkg) || description && strings.Contains(ctrl.Description, pkg){
+							c, _ := getPkg(ctrl.Name)
+							if (c == nil) {
+								log.ColorAll(log.Yellow,"Unable to find package: ", pkg)
+								continue
 							} else {
-								log.ColorAll(log.Green, " ", ctrl.UUID(), " ")
-							}
-							log.ColorAll(log.Cyan,ctrl.Description)
-							log.Info()
-						}			
+								found = append(found, ctrl.Name)
+								if len(ctrl.UUID()) > longest {
+									longest = len(ctrl.UUID())
+								}
+							}			
+						}
 					}
 				}
 			}
 		}
-	}
+	
+		for _, toprint := range found {
+			c, repo := getPkg(toprint)
+			gap := longest - len(c.UUID())
+		
+			if gap < -4{
+				gap = 0
+			}
+			
+			if !simple{log.ColorAll(log.Brown,strings.Repeat("-", length), "\n")}
+			
+			switch{
+				case repo.IsInstalled(c, "/"):
+					log.ColorAll(log.White, "WLD")
+				case repo.HasSpakg(c):
+					log.ColorAll(log.White, "BIN")
+				case repo.HasTemplate(c):
+					log.ColorAll(log.White, "SRC")
+			}
+			
+			space := "   "
+			if !simple{space = " | "}
+			
+			log.ColorAll(log.Brown, space)
+			log.ColorAll(log.Green, c.UUID(), strings.Repeat(" ", gap+1))
+			log.ColorAll(log.Brown, space, " ")
+			
+			totalchars := 6 + len(c.UUID()) + gap + 5 + len(c.Description)
+			if totalchars > length{
+				diff := totalchars - length
+				fits := c.Description[:len(c.Description)-diff]
+				overflow := c.Description[len(c.Description)-diff:]
+				log.ColorAll(log.Cyan, fits, "\n")
+				log.ColorAll(log.Brown, "   ", space, strings.Repeat(" ", len(c.UUID()) + gap + 1), space, " ")
+				log.ColorAll(log.Cyan, strings.TrimSpace(overflow), "\n")
+			}else {
+				log.ColorAll(log.Cyan, c.Description, "\n")
+			}
+		
+		}
+		if !simple{log.ColorAll(log.Brown, strings.Repeat("-", length), "\n")}
 
-}
-
-func search() {
-	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "search"))
-	registerVerbose()
-	registerBaseDir()
-	pkgs := argparse.EvalDefaultArgs()
-	if len(pkgs) >= 1 {
-		find(pkgs)
-	} else {
-		log.Error("Must specify package(s) for information")
-		argparse.Usage(2)
 	}
 }
 
