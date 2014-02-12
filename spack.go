@@ -14,6 +14,7 @@ import (
 	"libspack/spakg"
 	"libspack/repo"
 	"libspack/wield"
+	"libspack/misc"
 )
 
 import . "libspack/misc"
@@ -560,13 +561,18 @@ func refresh(){
 }
 
 func find(pkgs []string){
-
+	var length = misc.GetWidth() - 30
+	var longest int
+	ignore := false
+	if length < 0{
+		ignore = true
+	}
 	for _, repo := range libspack.GetAllRepos() {
 		for _, ctrlmap := range repo.GetAllControls() {
 			for _, ctrl := range ctrlmap{
 				for _, pkg := range pkgs{
-					if pkg == ctrl.Name{
-						c, repo := getPkg(pkg)
+					if strings.Contains(ctrl.Name, pkg){
+						c, repo := getPkg(ctrl.Name)
 						if (c == nil) {
 							log.ColorAll(log.Yellow,"Unable to find package: ", pkg)
 							continue
@@ -579,7 +585,17 @@ func find(pkgs []string){
 								case repo.HasTemplate(c):
 									log.ColorAll(log.White,"SRC")
 							}
-							log.ColorAll(log.Green, " ", ctrl.UUID(), "     ")
+							half := int(length/2)
+							gap := length - len(ctrl.UUID()) - int((half*5)/4)
+							if gap < 1{
+								gap = 1
+							}
+							//fmt.Println(gap)
+							if !ignore{
+								log.ColorAll(log.Green, " ", ctrl.UUID(), strings.Repeat(" ", gap))
+							} else {
+								log.ColorAll(log.Green, " ", ctrl.UUID(), " ")
+							}
 							log.ColorAll(log.Cyan,ctrl.Description)
 							log.Info()
 						}			
