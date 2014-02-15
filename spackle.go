@@ -155,11 +155,11 @@ func MountDevice(device Device) string {
 		log.Error("Unable to mount")
 		os.Exit(-1)
 	}
-	return dir
+	return dir + "/"
 }
 
 func InstallTo(dir string, grub bool, device string) {
-	err := misc.RunCommandToStdOutErr(exec.Command("spack", "wield", "base dhcpcd iproute2", "--destdir=" + dir))
+	err := misc.RunCommandToStdOutErr(exec.Command("spack", "wield", "base", "dhcpcd", "iproute2", "--destdir=" + dir))
 	if err != nil {
 		log.Error("Error installing base packages")
 		os.Exit(-1)
@@ -169,6 +169,18 @@ func InstallTo(dir string, grub bool, device string) {
 		err := misc.RunCommandToStdOutErr(exec.Command("spack", "wield", "grub", "--destdir=" + dir))
 		if err != nil {
 			log.Error("Error installing grub")
+			os.Exit(-1)
+		}
+		
+		err = misc.RunCommandToStdOutErr(exec.Command("mount", "-t proc none", dir + "/proc"))
+		if err != nil {
+			log.Error("Unable to mount proc")
+			os.Exit(-1)
+		}
+		
+		err = misc.RunCommandToStdOutErr(exec.Command("mount", "--rbind", "/dev" , dir + "/dev"))
+		if err != nil {
+			log.Error("Unable to mount dev")
 			os.Exit(-1)
 		}
 		
