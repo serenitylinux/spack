@@ -172,7 +172,13 @@ func InstallTo(dir string, grub bool, device string) {
 			os.Exit(-1)
 		}
 		
-		err = misc.RunCommandToStdOutErr(exec.Command("mount", "-t proc none", dir + "/proc"))
+		err = misc.RunCommandToStdOutErr(exec.Command("mkdir", dir + "/proc"))
+		if err != nil {
+			log.Error("Unable to create proc")
+			os.Exit(-1)
+		}
+		
+		err = misc.RunCommandToStdOutErr(exec.Command("mount", "-t", "proc", "none", dir + "/proc"))
 		if err != nil {
 			log.Error("Unable to mount proc")
 			os.Exit(-1)
@@ -184,14 +190,14 @@ func InstallTo(dir string, grub bool, device string) {
 			os.Exit(-1)
 		}
 		
-		misc.RunCommandToStdOutErr(exec.Command("sed", "-i \"s/set -e//\"", dir + "/etc/grub.d/10_serenity"))
+		misc.RunCommandToStdOutErr(exec.Command("sed", "-i", "s#set -e##", dir + "/etc/grub.d/10_serenity"))
 		err = misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "grub-install", device))
 		if err != nil {
 			log.Error("Unable to install grub")
 			os.Exit(-1)
 		}
 		
-		err = misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "grub-mkconfig > ", "/boot/grub/grub.cfg"))
+		err = misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "bash", "-c", "echo here; grub-mkconfig > /boot/grub/grub.cfg"))
 		if err != nil {
 			log.Error("Unable to setup grub")
 			os.Exit(-1)
@@ -200,7 +206,9 @@ func InstallTo(dir string, grub bool, device string) {
 }
 
 func SetRootPass(dir, pass string) {
-	err := misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "echo -e %s\n%s | passwd"))
+	inner := "echo 'root:%s' | chpasswd"
+	inner = fmt.Sprintf(inner, pass)
+	err := misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "bash", "-c", inner))
 	if err != nil {
 		log.Error("Cannot set password")
 		os.Exit(-1)
