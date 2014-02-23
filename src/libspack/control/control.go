@@ -71,17 +71,17 @@ func fromTemplateString(template string) (*Control, error) {
 function lister() {
 	local set i
 	set=""
-	for i in $@; do
-		echo -en "$set    \"$i\""
-		set=",\n"
+	for i in "$@"; do
+		echo -en "$set\"$i\""
+		set=", "
 	done
 }
 
-srcval="$(lister $src)"
-bdepsval="$(lister $bdeps)"
-depsval="$(lister $deps)"
-archval="$(lister $arch)"
-flagsval="$(lister $flags)"
+srcval="$(lister ${src[@]})"
+bdepsval="$(lister ${bdeps[@]})"
+depsval="$(lister ${deps[@]})"
+archval="$(lister ${arch[@]})"
+flagsval="$(lister ${flags[@]})"
 
 cat << EOT
 {
@@ -90,7 +90,7 @@ cat << EOT
   "Iteration": $iteration,
   "Description": "$desc",
   "Url": "$url",
-  "Src": [ $srcval ],
+  "Src": [$srcval],
   "Bdeps": [ $bdepsval ],
   "Deps": [ $depsval ],
   "Arch": [ $archval ],
@@ -105,7 +105,6 @@ EOT`
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil { return nil, err	}
-	
 	return FromReader(bytes.NewReader(buf.Bytes()))
 }
 
