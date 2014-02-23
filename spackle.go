@@ -130,8 +130,8 @@ func SelectDevice() Device {
 	
 	var answer int
 	fmt.Scanf("%d", &answer)
-	answer--
 	if answer > 0 && answer <= len(devices) {
+		answer--
 		return devices[answer]
 	} else {
 		log.Error("Invalid Selection");
