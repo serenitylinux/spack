@@ -68,6 +68,21 @@ func fromTemplateString(template string) (*Control, error) {
 		commands := `
 %s
 
+function lister() {
+	local set i
+	set=""
+	for i in "$@"; do
+		echo -en "$set\"$i\""
+		set=", "
+	done
+}
+
+srcval="$(lister ${src[@]})"
+bdepsval="$(lister ${bdeps[@]})"
+depsval="$(lister ${deps[@]})"
+archval="$(lister ${arch[@]})"
+flagsval="$(lister ${flags[@]})"
+
 cat << EOT
 {
   "Name": "$name",
@@ -75,29 +90,11 @@ cat << EOT
   "Iteration": $iteration,
   "Description": "$desc",
   "Url": "$url",
-  "Src": [ "$src" ],
-  "Bdeps": [
-EOT
-bdepset=""
-for bdep in $bdeps; do
-    echo -en "$bdepset    \"$bdep\""
-	bdepset=",\n"
-done
-cat << EOT
-
-  ],
-  "Deps": [
-EOT
-depset=""
-for dep in $deps; do
-    echo -en "$depset    \"$dep\""
-	depset=",\n"
-done
-cat << EOT
-
-  ],
-  "Arch": [ "amd64", "i686" ],
-  "Flags": []
+  "Src": [$srcval],
+  "Bdeps": [ $bdepsval ],
+  "Deps": [ $depsval ],
+  "Arch": [ $archval ],
+  "Flags": [ $flagsval ]
 },
 EOT`
 	commands = fmt.Sprintf(commands, template)
@@ -108,7 +105,6 @@ EOT`
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil { return nil, err	}
-	
 	return FromReader(bytes.NewReader(buf.Bytes()))
 }
 
