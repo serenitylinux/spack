@@ -18,8 +18,8 @@ type Control struct {
 	Description string
 	Url string
 	Src []string
-	Bdeps []string //TODO more complex object?
-	Deps []string //TODO more complex object?
+	Bdeps []string
+	Deps []string
 	Arch []string
 	Flags []string
 	//Provides (libjpeg, cc)
