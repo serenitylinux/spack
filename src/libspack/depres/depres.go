@@ -10,6 +10,7 @@ import (
 	"libspack/log"
 	"libspack/control"
 	"libspack/repo"
+	"libspack/flagconfig"
 )
 
 func NewControlRepo(control *control.Control, repo *repo.Repo) ControlRepo {
@@ -119,7 +120,7 @@ type DepResParams struct {
 }
 
 var indent = 0
-func DepCheck(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, params DepResParams) bool {
+func DepCheck(c ControlRepo, base ControlRepo, globalflags *flagconfig.FlagList, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, params DepResParams) bool {
 	indent += 1
 	defer func () { indent -= 1 }()
 	log.Debug(c.Name(), "Need")
@@ -133,6 +134,7 @@ func DepCheck(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wiel
 	checkChildren := func (deps []string, is_dep_bdep bool, dep_params DepResParams) bool {
 		rethappy := true
 		//We need all wield deps satisfied now or have a bin version of ourselves
+		
 		for _,dep := range deps {
 			ctrl, r := libspack.GetPackageLatest(dep)
 			
@@ -150,7 +152,7 @@ func DepCheck(c ControlRepo, base ControlRepo, forge_deps *ControlRepoList, wiel
 			//Need to recheck, now that we have been marked bin
 			newparams := dep_params
 			newparams.IsBDep = is_dep_bdep
-			happy := DepCheck(crdep, base, forge_deps, wield_deps, missing, newparams)
+			happy := DepCheck(crdep, base, globalflags, forge_deps, wield_deps, missing, newparams)
 			if ! happy {
 				missing.Append(MissingInfo {
 					item: c,

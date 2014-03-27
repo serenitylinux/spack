@@ -15,6 +15,7 @@ import (
 	"libspack/repo"
 	"libspack/wield"
 	"libspack/misc"
+	"libspack/flagconfig"
 )
 
 import . "libspack/misc"
@@ -287,8 +288,14 @@ func forgewieldPackages(packages []string, isForge bool) {
 		DestDir: destdirArg.Get(),
 	}
 	
+	flags, err := flagconfig.GetAll(destdirArg.Get())
+	if err != nil {
+		log.Warn(err)
+		//We might want to do something here
+	}
+	
 	for _, cr := range pkglist {
-		happy := DepCheck(cr, cr, &forge_deps, &wield_deps, &missing, params)
+		happy := DepCheck(cr, cr, &flags, &forge_deps, &wield_deps, &missing, params)
 		log.Debug()
 		
 		if !happy {
