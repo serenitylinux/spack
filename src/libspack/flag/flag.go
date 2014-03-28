@@ -24,14 +24,14 @@ import (
 
 type op bool //true = and, false = or
 
-type flag struct {
-	name string
-	enabled bool
+type Flag struct {
+	Name string
+	Enabled bool
 }
 
 type expr struct {
 	list *el
-	flag *flag
+	flag *Flag
 }
 
 type el struct {
@@ -41,17 +41,17 @@ type el struct {
 }
 
 
-func (f *flag) parse(in *parser.Input) error {
+func (f *Flag) parse(in *parser.Input) error {
 	sign, exists := in.Next(1)
 	if !exists {
 		return errors.New("Flag: Reached end of string while looking for sign")
 	}
 	
-	f.enabled = "+" == sign
+	f.Enabled = "+" == sign
 	
-	f.name = in.ReadUntill("[]+-&|()")
+	f.Name = in.ReadUntill("[]+-&|()")
 	
-	if len(f.name) == 0 {
+	if len(f.Name) == 0 {
 		return errors.New("Flag: Nothing available after sign")
 	}
 	
@@ -75,7 +75,7 @@ func (e *expr) parse(in *parser.Input) error {
 			return errors.New("Expression: Unexpected char '" + s + "'")
 		}
 	} else {
-		new := flag { }
+		new := Flag { }
 		
 		err := new.parse(in)
 		if err != nil {
@@ -126,7 +126,7 @@ func (list *el) parse(in *parser.Input) error {
 }
 
 type FlagSet struct {
-	flag flag
+	flag Flag
 	list el
 }
 

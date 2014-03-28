@@ -8,18 +8,28 @@ import (
 	"strings"
 	"libspack"
 	"libspack/log"
+	"libspack/dep"
 	"libspack/control"
 	"libspack/repo"
+	"libspack/flag"
 	"libspack/flagconfig"
 )
 
 func NewControlRepo(control *control.Control, repo *repo.Repo) ControlRepo {
-	return ControlRepo { control, repo, false }
+	return ControlRepo { Control: control, Repo: repo, IsBDep: false }
+}
+
+type FlagDep struct {
+	Flag flag.Flag
+	From []*ControlRepo
 }
 
 type ControlRepo struct {
 	Control *control.Control
 	Repo *repo.Repo
+	ParsedFlags *flag.FlagSet
+	ParsedDeps *[]dep.Dep
+	FlagStates *[]FlagDep
 	IsBDep bool
 }
 
