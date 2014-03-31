@@ -51,10 +51,7 @@ type DepResParams struct {
 	DestDir string
 }
 
-var indent = 0
 func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.FlagList, forge_deps *pkgdep.PkgDepList, wield_deps *pkgdep.PkgDepList, missing *MissingInfoList, params DepResParams) bool {
-	indent += 1
-	defer func () { indent -= 1 }()
 	log.Debug(c.String(), "Need")
 	isbase := c.Control.UUID() == base.Control.UUID()
 	isInstalled := c.Repo.IsInstalled(c.Control, params.DestDir)
