@@ -29,14 +29,15 @@ import (
 	"strings"
 	"errors"
 	"libspack/parser"
+	"libspack/flag"
 )
 
 type Dep struct {
-	condition *FlagSpec
-	name string
+	Condition *flag.Flag
+	Name string
 	version1 *Version
 	version2 *Version
-	flags *FlagSet
+	Flags *FlagSet
 }
 
 const (
@@ -51,13 +52,13 @@ type Version struct {
 }
 
 type FlagSet struct {
-	list []FlagSpec
+	List []flag.Flag
 }
 
-type FlagSpec struct {
-	enabled bool
-	name string
-}
+/*type FlagSpec struct {
+	Enabled bool
+	Name string
+}*/
 
 func conditionPeek(in *parser.Input) bool {
 	s, _ := in.Peek(1)
@@ -81,20 +82,20 @@ func Parse(s string) (Dep, error) {
 func (d *Dep) parse(in *parser.Input) error {
 	if conditionPeek(in) {
 		in.Next(1)
-		var new FlagSpec
+		var new flag.Flag
 		
-		err := new.parse(in)
+		err := new.Parse(in)
 		if err != nil { return err }
 		
-		d.condition = &new
+		d.Condition = &new
 		
 		if !in.IsNext("]") {
 			return errors.New("Expected ']' at end of condition")
 		}
 	}
 	
-	d.name = in.ReadUntill("<>=()")
-	if len(d.name) == 0 {
+	d.Name = in.ReadUntill("<>=()")
+	if len(d.Name) == 0 {
 		return errors.New("Must specify dep package name")
 	}
 	
@@ -122,7 +123,7 @@ func (d *Dep) parse(in *parser.Input) error {
 	if err != nil {
 		return err
 	}
-	d.flags = &new
+	d.Flags = &new
 	
 	if in.HasNext(1) {
 		return errors.New("Finished parsing, trailing chars '" + in.Rest() + "'")
@@ -136,14 +137,14 @@ func (s *FlagSet) parse(in *parser.Input) error {
 		return errors.New("Expected '(' to start flag set")
 	}
 	
-	s.list = make([]FlagSpec, 0)
+	s.List = make([]flag.Flag, 0)
 	
 	for {
-		var flag FlagSpec
-		err := flag.parse(in)
+		var flag flag.Flag
+		err := flag.Parse(in)
 		if err != nil { return err }
 		
-		s.list = append(s.list, flag)
+		s.List = append(s.List, flag)
 		
 		str, _ := in.Next(1)
 		if str != "," {
@@ -173,20 +174,20 @@ func (v *Version) parse(in *parser.Input) error {
 	}
 	return nil
 }
-
+/*
 func (f *FlagSpec) parse(in *parser.Input) error {
 	sign, exists := in.Next(1)
 	if !exists {
 		return errors.New("Flag: Reached end of string while looking for sign")
 	}
 	
-	f.enabled = "+" == sign
+	f.Enabled = "+" == sign
 	
-	f.name = in.ReadUntill("]")
+	f.Name = in.ReadUntill("]")
 	
-	if len(f.name) == 0 {
+	if len(f.Name) == 0 {
 		return errors.New("Flag: Nothing available after sign")
 	}
 	
 	return nil
-}
+}*/

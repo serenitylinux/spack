@@ -41,7 +41,7 @@ type el struct {
 }
 
 
-func (f *Flag) parse(in *parser.Input) error {
+func (f *Flag) Parse(in *parser.Input) error {
 	sign, exists := in.Next(1)
 	if !exists {
 		return errors.New("Flag: Reached end of string while looking for sign")
@@ -77,7 +77,7 @@ func (e *expr) parse(in *parser.Input) error {
 	} else {
 		new := Flag { }
 		
-		err := new.parse(in)
+		err := new.Parse(in)
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func FromString(s string) (fs FlagSet, err error) {
 	s = strings.Replace(s, " ", "", -1)
 	in := parser.NewInput(s)
 	
-	err = fs.flag.parse(&in)
+	err = fs.flag.Parse(&in)
 	if err != nil { return }
 	
 	if exists := in.HasNext(1); !exists {

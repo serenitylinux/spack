@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"libspack/misc"
 	"libspack/parser"
+	"libspack/flag"
 )
 
-type FlagList map[string][]string
+type FlagList map[string][]flag.Flag
 
 func (list FlagList) addFile(path string) (error) {
 	var interr error
@@ -35,13 +36,20 @@ func (list FlagList) addFile(path string) (error) {
 				return
 			}
 			
-			list[pkgname] = make([]string, 0)
+			list[pkgname] = make([]flag.Flag, 0)
 			for {
-				flag := in.ReadUntill(",\"")
-				if len(flag) == 0 {
+				flagStr := in.ReadUntill(",\"")
+				if len(flagStr) == 0 {
 					break
 				}
-				list[pkgname] = append(list[pkgname], flag)
+				var f flag.Flag
+				flagin := parser.NewInput(flagStr)
+				err := f.Parse(&flagin)
+				if err != nil {
+					interr = err
+					return
+				}
+				list[pkgname] = append(list[pkgname], f)
 			}
 			
 			if len(list[pkgname]) == 0 {
