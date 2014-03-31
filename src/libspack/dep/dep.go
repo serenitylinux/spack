@@ -25,7 +25,8 @@ FlagList:
 
 */
 
-import (	
+import (
+	"strings"
 	"errors"
 	"libspack/parser"
 )
@@ -66,6 +67,14 @@ func conditionPeek(in *parser.Input) bool {
 func versionPeek(in *parser.Input) bool {
 	s, _ := in.Peek(1)
 	return s == ">" || s == "<" || s == "="
+}
+
+func Parse(s string) (Dep, error) {
+	s = strings.Replace(s, " ", "", -1)
+	in := parser.NewInput(s)
+	var d Dep
+	err := d.parse(&in)
+	return d, err
 }
 
 

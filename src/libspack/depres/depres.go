@@ -27,10 +27,44 @@ type FlagDep struct {
 type ControlRepo struct {
 	Control *control.Control
 	Repo *repo.Repo
-	ParsedFlags *flag.FlagSet
-	ParsedDeps *[]dep.Dep
+	parsedFlags []flag.FlagSet
+	parsedDeps []dep.Dep
 	FlagStates *[]FlagDep
 	IsBDep bool
+}
+
+func (cr *ControlRepo) ParsedFlags() []flag.FlagSet {
+	if cr.parsedFlags != nil {
+		return cr.parsedFlags
+	}
+	
+	cr.parsedFlags = make([]flag.FlagSet, 0)
+	for _, s := range cr.Control.Flags {
+		flag, err := flag.FromString(s)
+		if err != nil {
+			log.WarnFormat("Invalid flag in package %s '%s': %s", cr.Control.Name, s, err)
+			continue
+		}
+		cr.parsedFlags = append(cr.parsedFlags, flag)
+	}
+	return cr.parsedFlags
+}
+
+func (cr *ControlRepo) ParsedDeps() []dep.Dep {
+	if cr.parsedDeps != nil {
+		return cr.parsedDeps
+	}
+	
+	cr.parsedDeps = make([]dep.Dep, 0)
+	for _, s := range cr.Control.Deps {
+		dep, err := dep.Parse(s)
+		if err != nil {
+			log.WarnFormat("Invalid dep in package %s '%s': %s", cr.Control.Name, s, err)
+			continue
+		}
+		cr.parsedDeps = append(cr.parsedDeps, dep)
+	}
+	return cr.parsedDeps
 }
 
 func (cr *ControlRepo) Name() string {
