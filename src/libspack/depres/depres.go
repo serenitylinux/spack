@@ -69,7 +69,8 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 			
 			if ctrl == nil {
 				log.Error(c.String(), "Unable to find package", dep)
-				return false
+				rethappy = false
+				continue
 			}
 			
 			/*if dep.Condition != nil {
@@ -156,8 +157,7 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 	}
 	
 	//If we have already been marked as bin, we are done here
-//	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
-	if wield_deps.Contains(c) && !c.IsBDep {
+	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
 		log.Debug(c.String(), "Already Wield" )
 		
 		//Check that our flags and the registered version checks out

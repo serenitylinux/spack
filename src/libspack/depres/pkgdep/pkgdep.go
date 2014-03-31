@@ -13,8 +13,21 @@ type PkgDep struct {
 	Repo *repo.Repo
 	parsedFlags []flag.FlagSet
 	parsedDeps []dep.Dep
-//	FlagStates *[]FlagDep
+	FlagStates *[]FlagDep
 	IsBDep bool
+}
+
+type FlagDep struct {
+	Flag flag.Flag
+	From []*pkgdep.PkgDep
+}
+
+func (fd *FlagDep) RequiredBy() string{
+	str := ""
+	for _, cr := range fd.From  {
+		str += cr.Control.Name + ","
+	}
+	return str
 }
 
 func (pd *PkgDep) ParsedFlags() []flag.FlagSet {
