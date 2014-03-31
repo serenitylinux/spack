@@ -7,7 +7,10 @@ import (
 	"path/filepath"
 	"io"
 	"bytes"
+	"libspack/log"
 	"libspack/misc"
+	"libspack/flag"
+	"libspack/dep"
 )
 import json "libspack/jsonhelper"
 
@@ -18,10 +21,16 @@ type Control struct {
 	Description string
 	Url string
 	Src []string
+	Arch []string
+	
 	Bdeps []string
 	Deps []string
-	Arch []string
 	Flags []string
+	
+	parsedFlags []flag.FlagSet
+	parsedDeps []dep.Dep
+	parsedBDeps []dep.Dep
+	
 	//Provides (libjpeg, cc)
 	//Provides Hook (update mime types)
 }
@@ -123,4 +132,51 @@ func FromTemplateFile(template string) (*Control, error) {
 	})
 	
 	return fromTemplateString(str)
+}
+
+
+
+func (c *Control) ParsedFlags() []flag.FlagSet {
+	if c.parsedFlags == nil {
+		c.parsedFlags = make([]flag.FlagSet, 0)
+		for _, s := range c.Flags {
+			flag, err := flag.FromString(s)
+			if err != nil {
+				log.WarnFormat("Invalid flag in package %s '%s': %s", c.Name, s, err)
+				continue
+			}
+			c.parsedFlags = append(c.parsedFlags, flag)
+		}
+	}
+	return c.parsedFlags
+}
+
+func (c *Control) ParsedDeps() []dep.Dep {
+	if c.parsedDeps == nil {
+		c.parsedDeps = make([]dep.Dep, 0)
+		for _, s := range c.Deps {
+			dep, err := dep.Parse(s)
+			if err != nil {
+				log.WarnFormat("Invalid dep in package %s '%s': %s", c.Name, s, err)
+				continue
+			}
+			c.parsedDeps = append(c.parsedDeps, dep)
+		}
+	}
+	return c.parsedDeps
+}
+
+func (c *Control) ParsedBDeps() []dep.Dep {
+	if c.parsedBDeps == nil {
+		c.parsedBDeps = make([]dep.Dep, 0)
+		for _, s := range c.Bdeps {
+			dep, err := dep.Parse(s)
+			if err != nil {
+				log.WarnFormat("Invalid Bdep in package %s '%s': %s", c.Name, s, err)
+				continue
+			}
+			c.parsedBDeps = append(c.parsedBDeps, dep)
+		}
+	}
+	return c.parsedBDeps
 }

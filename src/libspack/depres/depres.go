@@ -7,24 +7,18 @@ package depres
 //TODO check valid set of flags on a per package basis
 
 import (
-	"fmt"
-	"strings"
 	"libspack"
 	"libspack/log"
 	"libspack/dep"
-	"libspack/control"
-	"libspack/repo"
-	"libspack/flag"
+	//"libspack/flag"
 	"libspack/flagconfig"
+	"libspack/depres/pkgdep"
 )
 
-func NewControlRepo(control *control.Control, repo *repo.Repo) ControlRepo {
-	return ControlRepo { Control: control, Repo: repo, IsBDep: false }
-}
-
+/*
 type FlagDep struct {
 	Flag flag.Flag
-	From []*ControlRepo
+	From []*pkgdep.PkgDep
 }
 
 func (fd *FlagDep) RequiredBy() string{
@@ -33,157 +27,14 @@ func (fd *FlagDep) RequiredBy() string{
 		str += cr.Control.Name + ","
 	}
 	return str
-}
-
-type ControlRepo struct {
-	Control *control.Control
-	Repo *repo.Repo
-	parsedFlags []flag.FlagSet
-	parsedDeps []dep.Dep
-	parsedBDeps []dep.Dep
-	FlagStates *[]FlagDep
-	IsBDep bool
-}
-
-func (cr *ControlRepo) ParsedFlags() []flag.FlagSet {
-	if cr.parsedFlags != nil {
-		return cr.parsedFlags
-	}
-	
-	cr.parsedFlags = make([]flag.FlagSet, 0)
-	for _, s := range cr.Control.Flags {
-		flag, err := flag.FromString(s)
-		if err != nil {
-			log.WarnFormat("Invalid flag in package %s '%s': %s", cr.Control.Name, s, err)
-			continue
-		}
-		cr.parsedFlags = append(cr.parsedFlags, flag)
-	}
-	return cr.parsedFlags
-}
-
-func (cr *ControlRepo) ParsedDeps() []dep.Dep {
-	if cr.parsedDeps != nil {
-		return cr.parsedDeps
-	}
-	
-	cr.parsedDeps = make([]dep.Dep, 0)
-	for _, s := range cr.Control.Deps {
-		dep, err := dep.Parse(s)
-		if err != nil {
-			log.WarnFormat("Invalid dep in package %s '%s': %s", cr.Control.Name, s, err)
-			continue
-		}
-		cr.parsedDeps = append(cr.parsedDeps, dep)
-	}
-	return cr.parsedDeps
-}
-
-func (cr *ControlRepo) ParsedBDeps() []dep.Dep {
-	if cr.parsedBDeps != nil {
-		return cr.parsedBDeps
-	}
-	
-	cr.parsedBDeps = make([]dep.Dep, 0)
-	for _, s := range cr.Control.Bdeps {
-		dep, err := dep.Parse(s)
-		if err != nil {
-			log.WarnFormat("Invalid Bdep in package %s '%s': %s", cr.Control.Name, s, err)
-			continue
-		}
-		cr.parsedBDeps = append(cr.parsedBDeps, dep)
-	}
-	return cr.parsedBDeps
-}
-
-func (cr *ControlRepo) Name() string {
-	ind := ""
-	if indent > 0 {
-		ind = strings.Repeat("|\t", indent-1)
-	}
-	astr := ""
-	if cr.IsBDep {
-		astr="*"
-	}
-	return fmt.Sprintf(ind + "%s:%s%s %s %s", cr.Control.UUID(), cr.Repo.Name, astr, cr.ParsedFlags(), cr.ParsedDeps())
-}
-
-type ControlRepoList []*ControlRepo
-
-func (crl *ControlRepoList) Contains(cr *ControlRepo) bool {
-	found := false
-	
-	for _, item := range *crl {
-		if item.Control.UUID() == cr.Control.UUID() {
-			found = true
-		}
-	}
-	
-	return found
-}
-
-func (crl *ControlRepoList) IsBDep(cr *ControlRepo) bool {
-	for _, item := range *crl {
-		if item.Control.UUID() == cr.Control.UUID() {
-			return item.IsBDep
-		}
-	}
-	
-	return false
-}
-
-
-func (ctrl *ControlRepoList) Append(c *ControlRepo, IsBDep bool) {
-	if ctrl.Contains(c) {
-		if !IsBDep {
-			for i, item := range *ctrl {
-				if item.Control.UUID() == c.Control.UUID() {
-					(*ctrl)[i].IsBDep = false
-					log.Debug(item.Name(), " Is no longer just a bdep")
-				}
-			}
-		}
-		return
-	}
-	*ctrl = append(*ctrl, c)
-}
-func (ctrl *ControlRepoList) Print() {
-	i := 0
-	for _, item := range *ctrl {
-		str := item.Name()
-		i += len(str)
-		if i > 80 {
-			fmt.Println()
-			i = 0
-		}
-		fmt.Print(str)
-	}
-	fmt.Println()
-}
-func (this *ControlRepoList) WithoutBDeps() ControlRepoList {
-	nl := make(ControlRepoList, 0)
-	for _, pkg := range *this {
-		if !pkg.IsBDep {
-			nl = append(nl, pkg)
-		}
-	}
-	return nl
-}
-func (crl *ControlRepoList) Of(cr *ControlRepo)  *ControlRepo {
-	for _, item := range *crl {
-		if item.Control.UUID() == cr.Control.UUID() {
-			return item
-		}
-	}
-	return nil
-}
+}*/
 
 type MissingInfo struct {
-	item ControlRepo
-	missing ControlRepo
+	item *pkgdep.PkgDep
+	missing *pkgdep.PkgDep
 }
 func (item *MissingInfo) String() string {
-	return item.item.Name() + " " + item.missing.Name()
+	return item.item.String() + " " + item.missing.String()
 }
 
 type MissingInfoList []MissingInfo
@@ -201,10 +52,10 @@ type DepResParams struct {
 }
 
 var indent = 0
-func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagList, forge_deps *ControlRepoList, wield_deps *ControlRepoList, missing *MissingInfoList, params DepResParams) bool {
+func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.FlagList, forge_deps *pkgdep.PkgDepList, wield_deps *pkgdep.PkgDepList, missing *MissingInfoList, params DepResParams) bool {
 	indent += 1
 	defer func () { indent -= 1 }()
-	log.Debug(c.Name(), "Need")
+	log.Debug(c.String(), "Need")
 	isbase := c.Control.UUID() == base.Control.UUID()
 	isInstalled := c.Repo.IsInstalled(c.Control, params.DestDir)
 	isLatest := true
@@ -220,11 +71,11 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 			ctrl, r := libspack.GetPackageLatest(dep.Name)
 			
 			if ctrl == nil {
-				log.Error(c.Name(), "Unable to find package", dep)
+				log.Error(c.String(), "Unable to find package", dep)
 				return false
 			}
 			
-			if dep.Condition != nil {
+			/*if dep.Condition != nil {
 				for _, flag := range *c.FlagStates {
 					if flag.Flag.Name == dep.Condition.Name {
 						if flag.Flag.Enabled == dep.Condition.Enabled {
@@ -233,19 +84,15 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 						}
 					}
 				}
-			}
+			}*/
 			
-			crdep := ControlRepo {
-				Control : ctrl,
-				Repo : r,
-				IsBDep : is_dep_bdep,
-			}
+			crdep := pkgdep.New(ctrl, r, is_dep_bdep)
 			
-			
+			/*
 			// Add global flags to our dep
 			flst := make([]FlagDep, 0)
 			for _, flag := range (*globalflags)[crdep.Control.Name] {
-				flst = append(flst, FlagDep { Flag: flag, From: make([]*ControlRepo, 0) })
+				flst = append(flst, FlagDep { Flag: flag, From: make([]*pkgdep.PkgDep, 0) })
 			}
 			
 			
@@ -274,7 +121,7 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 				}
 				if !found {
 					//If not set by global, set to value in c
-					fd := FlagDep { Flag: cflag, From: make([]*ControlRepo, 0) }
+					fd := FlagDep { Flag: cflag, From: make([]*pkgdep.PkgDep, 0) }
 					fd.From = append(fd.From, c)
 					flst = append(flst, fd)
 				} else {
@@ -294,15 +141,15 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 			}
 			
 			crdep.FlagStates = &flst
-			
+			*/
 		
 			//Need to recheck, now that we have been marked bin
 			newparams := dep_params
 			newparams.IsBDep = is_dep_bdep
-			happy := DepCheck(&crdep, base, globalflags, forge_deps, wield_deps, missing, newparams)
+			happy := DepCheck(crdep, base, globalflags, forge_deps, wield_deps, missing, newparams)
 			if ! happy {
 				missing.Append(MissingInfo {
-					item: *c,
+					item: c,
 					missing: crdep,
 				})
 				rethappy = false
@@ -312,11 +159,12 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 	}
 	
 	//If we have already been marked as bin, we are done here
-	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
-		log.Debug(c.Name(), "Already Wield" )
+//	if wield_deps.Contains(c) && !wield_deps.IsBDep(c) {
+	if wield_deps.Contains(c) && !c.IsBDep {
+		log.Debug(c.String(), "Already Wield" )
 		
 		//Check that our flags and the registered version checks out
-		
+		/*
 		other := wield_deps.Of(c)
 		
 		for _, cflag := range *c.FlagStates {
@@ -345,15 +193,16 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 					checkChildren(other.ParsedBDeps(), other.IsBDep, params)
 				}
 			}
-		}
+		}*/
 		
 		return true
 	}
 	
 	if !(isbase) {
 		if isInstalled {
-			log.Debug(c.Name(), "Already Installed" )
+			log.Debug(c.String(), "Already Installed" )
 			//Check that our flags and the installed version are compatable
+			/*
 			pkginstallset := c.Repo.GetInstalledByName(c.Control.name)
 			pi := pkginstallset.PkgInfo
 			
@@ -373,7 +222,7 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 						}
 					}
 				}
-			}
+			}*/
 			return true
 		}
 	}
@@ -382,12 +231,12 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 	//If we are a src package, that has not been marked bin, we need a binary version of ourselves to compile ourselves.
 	//We are in our own bdeb tree, should only happen for $base if we are having a good day
 	if forge_deps.Contains(c) {
-		log.Debug(c.Name(), "Already Forge, need bin")
+		log.Debug(c.String(), "Already Forge, need bin")
 		
 		
 		
 		//We have bin, let's see if our children are ok
-		log.Debug(c.Name(), "Mark bin")
+		log.Debug(c.String(), "Mark bin")
 		wield_deps.Append(c, params.IsBDep)
 		
 		
@@ -396,7 +245,7 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 		
 		//We don't have bin
 		if !c.Repo.HasSpakg(c.Control) {
-			log.Error(c.Name(), "Must have a binary version (from cirular dependency)")
+			log.Error(c.String(), "Must have a binary version (from cirular dependency)")
 			return false
 		}
 		
@@ -412,15 +261,15 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 		}
 		//We are installed and in the latest version/iteration
 		if isInstalled && isLatest && !params.IsReinstall {
-			log.Debug(c.Name(), "Already in the latest version")
+			log.Debug(c.String(), "Already in the latest version")
 			return true
 		}
 		
 		//We need to be installed or updated
-		log.Debug(c.Name(), "Binary")
+		log.Debug(c.String(), "Binary")
 		
 		//We have bin, let's see if our children are ok
-		log.Debug(c.Name(), "Mark bin")
+		log.Debug(c.String(), "Mark bin")
 		wield_deps.Append(c, params.IsBDep)
 		
 		paramsNew := params
@@ -429,19 +278,19 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 		return checkChildren(c.ParsedDeps(), paramsNew.IsBDep, paramsNew)
 	} else {
 		//We are a package that only available via src or are the base package to forge
-		log.Debug(c.Name(), "Source")
+		log.Debug(c.String(), "Source")
 		
 		if !c.Repo.HasTemplate(c.Control) {
-			log.Error(c.Name(), "No template available")
+			log.Error(c.String(), "No template available")
 			return false
 		}
 		
-		log.Debug(c.Name(), "Mark Src")
+		log.Debug(c.String(), "Mark Src")
 		forge_deps.Append(c, params.IsBDep)
 		
 		happy := true
 		if !params.NoBDeps {
-			log.Debug(c.Name(), "BDeps ", c.Control.Bdeps)
+			log.Debug(c.String(), "BDeps ", c.Control.Bdeps)
 			if !checkChildren(c.ParsedDeps(), true, params) {
 				happy = false
 			}
@@ -450,7 +299,7 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 		if !(params.IsForge && isbase) {
 			//We have a installable version after the prior
 			wield_deps.Append(c, params.IsBDep)
-			log.Debug(c.Name(), "Mark Bin")
+			log.Debug(c.String(), "Mark Bin")
 		}
 		
 		//If we are part of a forge op and we are the base package, then we can skip this step
@@ -459,13 +308,13 @@ func DepCheck(c *ControlRepo, base *ControlRepo, globalflags *flagconfig.FlagLis
 		if !(params.IsForge && isbase) {
 			newparams := params
 			newparams.DestDir = "/"
-			log.Debug(c.Name(), "Deps ", c.Control.Deps, params.IsBDep)
+			log.Debug(c.String(), "Deps ", c.Control.Deps, params.IsBDep)
 			if !checkChildren(c.ParsedDeps(), params.IsBDep, newparams) {
 				happy = false
 			}
 		}
 		
-		log.Debug(c.Name(), "Done")
+		log.Debug(c.String(), "Done")
 		return happy
 	}
 }

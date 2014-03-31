@@ -6,6 +6,8 @@ import (
 	"time"
 	"hash/crc32"
 	"libspack/control"
+	"libspack/flag"
+	"libspack/log"
 )
 
 import json "libspack/jsonhelper"
@@ -16,6 +18,7 @@ type PkgInfo struct {
 	Iteration int
 	BuildDate time.Time
 	Flags []string
+	parsedFlags []flag.FlagSet
 }
 
 type PkgInfoList []PkgInfo
@@ -42,6 +45,21 @@ func FromControl(c *control.Control) *PkgInfo {
 
 func (p *PkgInfo) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, p)
+}
+
+func (p *PkgInfo) ParsedFlags() []flag.FlagSet {
+	if p.parsedFlags == nil {
+		p.parsedFlags = make([]flag.FlagSet, 0)
+		for _, s := range p.Flags {
+			flag, err := flag.FromString(s)
+			if err != nil {
+				log.WarnFormat("Invalid flag in package %s '%s': %s", p.Name, s, err)
+				continue
+			}
+			p.parsedFlags = append(p.parsedFlags, flag)
+		}
+	}
+	return p.parsedFlags
 }
 
 func FromFile(filename string) (*PkgInfo, error) {
