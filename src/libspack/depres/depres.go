@@ -15,42 +15,135 @@ import (
 	"libspack/depres/pkgdep"
 )
 
-/*
-type FlagDep struct {
-	Flag flag.Flag
-	From []*pkgdep.PkgDep
-}
-
-func (fd *FlagDep) RequiredBy() string{
-	str := ""
-	for _, cr := range fd.From  {
-		str += cr.Control.Name + ","
-	}
-	return str
-}*/
-
-type MissingInfo struct {
-	item *pkgdep.PkgDep
-	missing *pkgdep.PkgDep
-}
-func (item *MissingInfo) String() string {
-	return item.item.String() + " " + item.missing.String()
-}
-
-type MissingInfoList []MissingInfo
-
-func (mil *MissingInfoList) Append(mi MissingInfo) {
-	*mil = append(*mil, mi)
-}
-
 type DepResParams struct {
 	IsForge bool
-	IsBDep bool
 	IsReinstall bool
-	NoBDeps bool
+	IgnoreBDeps bool
 	DestDir string
 }
 
+func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool {
+	//We do not need to be rechecked
+	//We are not being reinstalled
+	//We are not being built
+	if !node.Dirty && !params.IsReinstall && !params.IsForge {
+		return node.Satisfies(params.DestDir) //We have an installable/installed version
+	}
+	
+	node.Dirty = false //We will be making sure we are clean in the next step
+	if node.Satisfies(params.DestDir) { //We can be installed, let's make sure our deps can be installed
+		params.IsForge = false
+		
+		rethappy := true
+		
+		var deps []dep.Dep
+		if params.IsForge {
+			deps = node.Control.ParsedBDeps()
+		} else {
+			deps = node.Control.ParsedDeps()
+		}
+		
+		newparams := params
+		params.IsForge = false
+		for _, dep := range deps {
+			depnode := tree.Find(dep.Name)
+			if depnode == nil {
+				//Create new pkgdep node
+				ctrl, repo := libspack.GetPackageLatest(dep.Name)
+				if ctrl == nil {
+					log.Error(node.String(), "Unable to find package", dep)
+					rethappy = false
+					continue
+				}
+				
+				depnode = pkgdep.New(ctrl, repo)
+				
+				tree.AllNodes.Append(depnode)
+				
+				globalflags, exists := flagconfig.GetAll(params.DestDir)[ctrl.Name]
+				if exists && !depnode.MakeParentProud(nil, globalflags) { 
+					rethappy = false
+					continue
+				}
+			}
+			
+			//Will set to dirty if changed
+			if !depnode.MakeParentProud(node, dep.Flags.List) {
+				rethappy = false
+				continue
+			}
+			
+			//update references from self to depnode and vice versa
+			depnode.Parents.Append(node)
+			node.Children.Append(depnode)
+			
+			if !DepTree(depnode, tree, newparams) {
+				rethappy = false
+			}
+		}
+		return rethappy
+	}
+	//We can never satisfy our parents...
+	return false
+}
+
+func FindToBuild(tree *pkgdep.PkgDep, params DepResParams) (*pkgdep.PkgDepList, bool) {
+	//TODO
+	
+	orderedlist := make(pkgdep.PkgDepList, 0)
+	visitedlist := make(pkgdep.PkgDepList, 0)
+	
+	happy := findToBuild(tree, &orderedlist, &visitedlist, params)
+	visitedlist.Reverse()
+	
+	return &visitedlist, happy
+}
+
+func findToBuild(tree *pkgdep.PkgDep, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, params DepResParams) bool {
+	//list of packages to build
+	list := make(pkgdep.PkgDepList, 0)
+	
+	for _, node := range tree.AllNodes {
+		//TODO Does the next function call need to care about params.DestDir?
+		if !node.SpakgExists() {
+			list.Append(node)
+		}
+	}
+	
+	happy := true
+	
+	//Add self to visited list
+	if !visitedtreelist.Contains(tree) {
+		visitedtreelist.Append(tree)
+		
+		params.IsForge = true
+		for _, node := range list {
+			if !visitedtreelist.Contains(node) {
+				newroot := *node //Copy node
+				node.BuildTree = &newroot
+			
+				if !DepTree(node.BuildTree, node.BuildTree, params) {
+					happy = false
+					continue
+				}
+				
+				if !findToBuild(node.BuildTree, orderedtreelist, visitedtreelist, params) {
+					happy = false
+					continue
+				}
+			}
+		}
+	
+		//Add self to ordered list
+		if !orderedtreelist.Contains(tree) {
+			orderedtreelist.Append(tree)
+		}
+	}
+	return happy
+}
+
+
+/*
 func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.FlagList, forge_deps *pkgdep.PkgDepList, wield_deps *pkgdep.PkgDepList, missing *MissingInfoList, params DepResParams) bool {
 	log.Debug(c.String(), "Need")
 	isbase := c.Control.UUID() == base.Control.UUID()
@@ -84,7 +177,7 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 				}
 			}*/
 			
-			crdep := pkgdep.New(ctrl, r, is_dep_bdep)
+			/*crdep := pkgdep.New(ctrl, r, is_dep_bdep)
 			
 			/*
 			// Add global flags to our dep
@@ -140,7 +233,7 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 			
 			crdep.FlagStates = &flst
 			*/
-		
+		/*
 			//Need to recheck, now that we have been marked bin
 			newparams := dep_params
 			newparams.IsBDep = is_dep_bdep
@@ -191,7 +284,7 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 				}
 			}
 		}*/
-		
+		/*
 		return true
 	}
 	
@@ -220,7 +313,7 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 					}
 				}
 			}*/
-			return true
+			/*return true
 		}
 	}
 	
@@ -314,4 +407,4 @@ func DepCheck(c *pkgdep.PkgDep, base *pkgdep.PkgDep, globalflags *flagconfig.Fla
 		log.Debug(c.String(), "Done")
 		return happy
 	}
-}
+}*/

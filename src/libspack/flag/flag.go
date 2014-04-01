@@ -17,6 +17,7 @@ flag = '[+,-]s*'
 */
 
 import (
+	"fmt"
 	"errors"
 	"strings"
 	"libspack/parser"
@@ -27,6 +28,14 @@ type op bool //true = and, false = or
 type Flag struct {
 	Name string
 	Enabled bool
+}
+func (f *Flag) String() string {
+	enabled := "+"
+	if !f.Enabled {
+		enabled = "-"
+	}
+	
+	return fmt.Sprintf("%s%s", enabled, f.Name)
 }
 
 type expr struct {

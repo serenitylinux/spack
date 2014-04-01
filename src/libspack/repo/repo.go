@@ -184,12 +184,11 @@ func (repo *Repo) GetTemplateByControl(c *control.Control) (string, bool) {
 	return byUUID, true
 }
 
-func (repo *Repo) GetSpakgOutput(c *control.Control) string {
+func (repo *Repo) GetSpakgOutput(p *pkginfo.PkgInfo) string {
 	if !PathExists(SpakgDir + repo.Name) {
 		os.MkdirAll(SpakgDir + repo.Name, 0755)
 	}
 	repo.spakgDir()
-	p := pkginfo.FromControl(c)
 	return repo.spakgDir() + fmt.Sprintf("%s.spakg", p.UUID())
 }
 
@@ -198,11 +197,10 @@ func pkgInfoFromControl(c *control.Control) *pkginfo.PkgInfo {
 	return &p
 }
 
-func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
-	out := repo.GetSpakgOutput(c)
+func (repo *Repo) FetchIfNotCachedSpakg(p *pkginfo.PkgInfo) error {
+	out := repo.GetSpakgOutput(p)
 	if !PathExists(out) {
-		p := pkginfo.FromControl(c)
-		if(repo.HasRemoteSpakg(c)) {
+		if(repo.HasRemoteSpakg(p)) {
 			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", p.UUID()))
 			log.InfoFormat("Fetching %s", src)
 			err := httphelper.HttpFetchFileProgress(src, out, true)
@@ -217,16 +215,16 @@ func (repo *Repo) FetchIfNotCachedSpakg(c *control.Control) error {
 	return nil
 }
 
-func (repo *Repo) HasRemoteSpakg(c *control.Control) bool {
-	_, exists := (*repo.fetchable)[pkginfo.FromControl(c).UUID()]
+func (repo *Repo) HasRemoteSpakg(p *pkginfo.PkgInfo) bool {
+	_, exists := (*repo.fetchable)[p.UUID()]
 	return exists
 }
-func (repo *Repo) HasLocalSpakg(c *control.Control) bool {
-	return PathExists(repo.GetSpakgOutput(c))
+func (repo *Repo) HasLocalSpakg(p *pkginfo.PkgInfo) bool {
+	return PathExists(repo.GetSpakgOutput(p))
 }
 
-func (repo *Repo) HasSpakg(c *control.Control) bool {
-	return repo.HasLocalSpakg(c) || repo.HasRemoteSpakg(c)
+func (repo *Repo) HasSpakg(p *pkginfo.PkgInfo) bool {
+	return repo.HasLocalSpakg(p) || repo.HasRemoteSpakg(p)
 }
 
 func (repo *Repo) HasTemplate(c *control.Control) bool {

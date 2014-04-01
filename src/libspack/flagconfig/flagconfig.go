@@ -6,6 +6,7 @@ import (
 	"io"
 	"bufio"
 	"path/filepath"
+	"libspack/log"
 	"libspack/misc"
 	"libspack/parser"
 	"libspack/flag"
@@ -73,14 +74,21 @@ func (list FlagList) addFile(path string) (error) {
 	return err
 }
 
-func GetAll(root string) (FlagList, error) {
+var cached = make(map[string]FlagList)
+
+func GetAll(root string) (FlagList) {
+	if list, exists := cached[root]; exists {
+		return list
+	}
+
 	pre := root + "/etc/spack/pkg/flags"
 	fl := make(FlagList, 0)
 	
 	if misc.PathExists(pre + ".conf") {
 		err := fl.addFile(pre + ".conf")
 		if err != nil {
-			return nil, err
+			log.Error(err)
+			return nil
 		}
 	}
 	
@@ -89,9 +97,11 @@ func GetAll(root string) (FlagList, error) {
 			return fl.addFile(path)
 		})
 		if err != nil {
-			return nil, err
+			log.Error(err)
+			return nil
 		}
 	}
 	
-	return fl, nil
+	cached[root] = fl
+	return fl
 }
