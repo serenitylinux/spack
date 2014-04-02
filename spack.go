@@ -10,7 +10,6 @@ import (
 	"libspack/argparse"
 	"libspack/log"
 	"libspack/control"
-	"libspack/pkginfo"
 	"libspack/spakg"
 	"libspack/repo"
 	"libspack/wield"
@@ -263,28 +262,98 @@ func wield_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps
 
 */
 
-func forgewieldPackages(packages []string, isForge bool) {
-	//A set of overlapping "trees" to represent the packages we will be caring about
-	installgraph := make(pkgdep.PkgDepList, 0)
-	
-	//Create a list of all packages that we want to work with
-	pkglist := make(pkgdep.PkgDepList, 0)	
-	happy := true
-	for _, pkg := range packages {
-		c, repo := getPkg(pkg)
-		if c == nil {
-			log.ErrorFormat("Cannot find package %s", pkg)
-			happy = false
-			continue
+func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
+	for _, pkg := range *packages {
+		//Find template
+		template, exists := pkg.Repo.GetTemplateByControl(pkg.Control)
+		if !exists {
+			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", pkg.Control.Name))
 		}
 		
-		cr := pkgdep.New(c,repo)
-		cr.AllNodes = &installgraph
-		pkglist.Append(cr)
+		log.InfoFormat("Installing bdeps for %s", pkg.PkgInfo().UUID())
+		depgraph := pkg.AllNodes.NotInstalled(params.DestDir)
+		wieldGraph(depgraph, params)
+		
+		
+		//Forge pkg
+		log.InfoFormat("Forging %s", pkg.PkgInfo().UUID())
+		spakgFile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo())
+		forgerr := libforge.Forge(template, spakgFile, false, interactiveArg != nil && interactiveArg.Get())
+		
+		
+		//copy pkg
+		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
+			forgeOutDir := forgeoutdirArg.Get()
+			err := CopyFile(pkg.Repo.GetSpakgOutput(pkg.PkgInfo()), forgeOutDir + pkg.PkgInfo().UUID() + ".spakg")
+			if err != nil {
+				log.Warn(err)
+			}
+		}
+		
+		log.InfoFormat("Removing bdeps for %s", pkg.PkgInfo().UUID())
+		for _, pkg := range *depgraph {
+			err := pkg.Repo.Uninstall(pkg.PkgInfo(), params.DestDir)
+			log.Error(err)
+		}
+		
+		if forgerr != nil {
+			return forgerr
+		}
 	}
-	if !happy {
-			os.Exit(1)
+	return nil
+}
+
+//TODO add rollback
+func wieldGraph(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
+	type pkgset struct {
+		spkg *spakg.Spakg
+		repo *repo.Repo
+		file string 	
 	}
+	spkgs := make([]pkgset, 0)
+	
+	//Fetch Packages
+	for _, pkg := range *packages {
+		err := pkg.Repo.FetchIfNotCachedSpakg(pkg.PkgInfo())
+		if err != nil { return err }
+		
+		pkgfile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo())
+		spkg, err := spakg.FromFile(pkgfile, nil)
+		if err != nil { return err }
+		
+		spkgs = append(spkgs, pkgset{ spkg, pkg.Repo, pkgfile} )
+	}
+	log.Info()
+	
+	//Preinstall
+	for _, pkg := range spkgs {
+		wield.PreInstall(pkg.spkg, params.DestDir)
+	}
+	log.Info()
+	
+	//Install
+	for _ ,pkg := range spkgs {
+		err := wield.ExtractCheckCopy(pkg.file, params.DestDir)
+		
+		if err != nil {
+			return err
+		}
+		
+		pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
+	}
+	log.Info()
+	wield.Ldconfig(params.DestDir)
+	
+	//PostInstall
+	for _, pkg := range spkgs {
+		wield.PostInstall(pkg.spkg, params.DestDir)
+	}
+	log.Info()
+	
+	return nil
+}
+
+func forgewieldPackages(packages []string, isForge bool) {
 	
 	params := depres.DepResParams {
 		IsForge: isForge,
@@ -293,9 +362,35 @@ func forgewieldPackages(packages []string, isForge bool) {
 		DestDir: destdirArg.Get(),
 	}
 	
+	//A set of overlapping "trees" to represent the packages we will be caring about
+	installgraph := make(pkgdep.PkgDepList, 0)
+	
+	//Create a list of all packages that we want to work with
+	pkglist := make(pkgdep.PkgDepList, 0)	
+	happy := true
+	for _, pkg := range packages {
+		//Create pkgdep inside of installgraph with proper flags
+		pkgdep := installgraph.Add(pkg, params.DestDir)
+		
+		if pkgdep == nil {
+			log.ErrorFormat("Cannot find package %s", pkg)
+			happy = false
+			continue
+		}
+		
+		pkglist.Append(pkgdep)
+		
+		//Setup pkgdep to be a root node in installgraph
+		pkgdep.AllNodes = &installgraph
+	}
+	if !happy {
+			os.Exit(1)
+	}
+	
 	for _, pd := range pkglist {
 		//Fill in the tree for pd
 		//This step also partially fills in the installgraph
+		log.DebugFormat("Building tree for %s", pd.Control.UUID())
 		if !depres.DepTree(pd, pd, params) {
 			happy = false
 			continue
@@ -315,13 +410,27 @@ func forgewieldPackages(packages []string, isForge bool) {
 		os.Exit(-1)
 	}
 	
+	forgeparams := params
+	forgeparams.DestDir = "/"
+	forgeparams.IsForge = true
+	
 	//Next we need to check if certain packages must be built
-	tobuild, happy := depres.FindToBuild(&installgraph, params)
+	tobuild, happy := depres.FindToBuild(&installgraph, forgeparams)
 	//tobuild is a list of build graphs (root nodes)
+	
+	if !happy {
+		//TODO verbosify
+		log.Error("Unable to generate build graphs")
+		os.Exit(-1)
+	}
 	
 	if len(*tobuild) > 0 {
 		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
 		tobuild.Print()
+		for _, pkg := range *tobuild {
+			log.ColorAll(log.White, fmt.Sprintf("Packages to Wield during forge %s:", pkg.PkgInfo().UUID()))
+			pkg.AllNodes.NotInstalled(params.DestDir).Print()
+		}
 		fmt.Println()
 	}
 	if len(installgraph) > 0 {
@@ -340,79 +449,25 @@ func forgewieldPackages(packages []string, isForge bool) {
 		log.Info("Forging required packages: ")
 		log.InfoBar()
 		
-		for _, pkg := range *tobuild {
-			/*TODO err := forge_ind(pkg.Control, pkg.Repo, params, wield_deps)
-			if err != nil {
-				log.Error(err)
-				os.Exit(-1)
-			}
-			
-			if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-				forgeOutDir := forgeoutdirArg.Get()
-				err := CopyFile(pkg.Repo.GetSpakgOutput(pkg.Control), forgeOutDir + pkginfo.FromControl(pkg.Control).UUID() + ".spakg")
-				if err != nil {
-					log.Warn(err)
-				}
-			}*/	
+		err := forgeList(tobuild, forgeparams)
+		
+		if err != nil {
+			log.Error(err)
+			os.Exit(-1)
+		} else {
+			libspack.PrintSuccess()
 		}
 	}
 	
-	if len(*tobuild) > 0 {
+	if len(installgraph) > 0 {
 		log.Info("Wielding required packages: ")
 		log.InfoBar()
-/*		TODO insterr := func () error {
-			type pkgset struct {
-				spkg *spakg.Spakg
-				repo *repo.Repo
-				file string 	
-			}
-			spkgs := make([]pkgset, 0)
-
-			//Fetch Packages
-			for _, pkg := range wield_deps {
-				err := pkg.Repo.FetchIfNotCachedSpakg(pkg.Control)
-				if err != nil { return err }
-				
-				pkgfile := pkg.Repo.GetSpakgOutput(pkg.Control)
-				spkg, err := spakg.FromFile(pkgfile, nil)
-				if err != nil { return err }
-				
-				spkgs = append(spkgs, pkgset{ spkg, pkg.Repo, pkgfile} )
-			}
-			log.Info()
-			
-			//Preinstall
-			for _, pkg := range spkgs {
-				wield.PreInstall(pkg.spkg, params.DestDir)
-			}
-			log.Info()
-			
-			//Install
-			for _ ,pkg := range spkgs {
-				err := wield.ExtractCheckCopy(pkg.file, params.DestDir)
-				
-				if err != nil {
-					return err
-				}
-				
-				pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
-			}
-			log.Info()
-			wield.Ldconfig(params.DestDir)
-			
-			//PostInstall
-			for _, pkg := range spkgs {
-				wield.PostInstall(pkg.spkg, params.DestDir)
-			}
-			log.Info()
-			
-			return nil
-		}()
-		if insterr != nil {
-			log.Error(insterr)
+		err := wieldGraph(&installgraph, params)
+		if err != nil {
+			log.Error(err)
 		} else {
 			libspack.PrintSuccess()
-		}*/
+		}
 	}
 }
 
@@ -488,23 +543,25 @@ func remove(pkgs []string){
 	}
 	
 	for _, pkg := range pkgs {
-		c, repo := getPkg(pkg)
-		if (c == nil) {
+		control, repo := getPkg(pkg)
+		if (control == nil) {
 			fmt.Println("Unable to find package: " + pkg)
 			continue
 		}
 		
-		if !repo.IsAnyInstalled(c, "/") {
+		if !repo.IsAnyInstalled(control, "/") {
 			fmt.Println(pkg + " is not installed, cannot remove")
 			continue
 		}
 		
-		list := repo.UninstallList(c)
+		pkgset := repo.GetInstalledByName(pkg, "/")
+		
+		list := repo.UninstallList(control) //TODO pass in pkginfo
 		if len(list) == 0 {
-			log.InfoFormat("%s has no deps", c.Name)
+			log.InfoFormat("%s has no deps", control.Name)
 		} else {
 			fmt.Println("Packages to remove: ")
-			fmt.Print(c.UUID())
+			fmt.Print(control.UUID())
 			for _, set := range list {
 				fmt.Print(" ", set.Control.UUID())
 			}
@@ -519,7 +576,7 @@ func remove(pkgs []string){
 					continue
 				}
 				
-				err = repo.Uninstall(&rdep.Control, destdirArg.Get())
+				err = repo.Uninstall(&rdep.PkgInfo, destdirArg.Get())
 				if err != nil {
 					log.Error("Unable to remove " + rdep.Control.Name)
 					log.Warn(err)
@@ -529,7 +586,7 @@ func remove(pkgs []string){
 				}
 			}
 			if err == nil {
-				err = repo.Uninstall(c, destdirArg.Get())
+				err = repo.Uninstall(&pkgset.PkgInfo, destdirArg.Get())
 				if err != nil {
 					log.Warn(err)
 					continue

@@ -7,11 +7,9 @@ package depres
 //TODO check valid set of flags on a per package basis
 
 import (
-	"libspack"
+	"strings"
 	"libspack/log"
 	"libspack/dep"
-	//"libspack/flag"
-	"libspack/flagconfig"
 	"libspack/depres/pkgdep"
 )
 
@@ -22,21 +20,33 @@ type DepResParams struct {
 	DestDir string
 }
 
+var indent int = 0
 func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool {
+	indent++
+	defer func() { indent-- }()
+	
+	debug := func (s string) {
+		log.DebugFormat("%s %s %s", strings.Repeat("\t", indent), node.Control.UUID(), s)
+	}
+	debug("check")
+	
 	//We are already installed
 	//And not a reinstall
 	//And not being built
 	if !params.IsReinstall && !params.IsForge && node.IsInstalled(params.DestDir) {
+		debug("already installed")
 		return true
 	}
 	
 	//We do not need to be rechecked
 	if !node.Dirty {
+		debug("clean")
 		return true
 	}
 	
 	//We are being built and do not care about bdeps, I think we are done here
 	if params.IsForge && params.IgnoreBDeps {
+		debug("Ignore bdeps")
 		return true
 	}
 	
@@ -54,35 +64,23 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 	params.IsReinstall = false
 	
 	for _, dep := range deps {
+		debug("Require: " + dep.Name)
+		
 		depnode := tree.Find(dep.Name)
 		if depnode == nil {
-			//Create new pkgdep node
-			ctrl, repo := libspack.GetPackageLatest(dep.Name)
-			if ctrl == nil {
-				log.Error(node.String(), "Unable to find package", dep)
-				rethappy = false
-				continue
-			}
-			
-			depnode = pkgdep.New(ctrl, repo)
-			tree.AllNodes.Append(depnode)
-			
-			//Add global flags to new depnode
-			globalflags, exists := flagconfig.GetAll(params.DestDir)[ctrl.Name]
-			if exists && !depnode.MakeParentProud(nil, globalflags) { 
-				rethappy = false
-				continue
-			}
+			depnode = tree.AllNodes.Add(dep.Name, params.DestDir)
 		}
 		
 		if depnode.ForgeOnly {
+			debug("too far down the rabbit hole: "+ dep.Name)
 			//TODO log.Error(
 			rethappy = false
 			continue
 		}
 		
 		//Will set to dirty if changed
-		if !depnode.MakeParentProud(node, dep.Flags.List) {
+		if dep.Flags != nil && !depnode.MakeParentProud(node, dep.Flags.List) {
+			debug("Changed "+ dep.Name)
 			rethappy = false
 			continue
 		}
@@ -92,9 +90,11 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 		
 		//Continue down the rabbit hole
 		if !DepTree(depnode, tree, params) {
+			debug("Not Happy "+ dep.Name)
 			rethappy = false
 		}
 	}
+	debug("done")
 	return rethappy
 }
 

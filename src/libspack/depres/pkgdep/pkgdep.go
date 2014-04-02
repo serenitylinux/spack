@@ -2,11 +2,14 @@ package pkgdep
 
 import (
 	"fmt"
+	"libspack"
+	"libspack/log"
 	"libspack/misc"
 	"libspack/repo"
 	"libspack/flag"
 	"libspack/control"
 	"libspack/pkginfo"
+	"libspack/flagconfig"
 )
 
 type FlagList []flag.Flag
@@ -42,7 +45,6 @@ type PkgDep struct {
 	
 	Parents PkgDepList
 	
-	BuildTree *PkgDep
 	AllNodes *PkgDepList
 }
 
@@ -51,7 +53,7 @@ func New(c *control.Control, r *repo.Repo) *PkgDep {
 	return &new
 }
 func (pd *PkgDep) String() string {
-	return fmt.Sprintf("%s::%s [%s]", pd.Repo.Name, pd.Control.UUID(), pd.FlagStates)
+	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control.UUID(), pd.FlagStates)
 }
 func (pd *PkgDep) Equals(opd *PkgDep) bool {
 	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.Equals(opd.FlagStates)
@@ -68,7 +70,7 @@ func (pd *PkgDep) SatisfiesParents() bool {
 	return true
 }
 
-func (pd *PkgDep) pkgInfo() *pkginfo.PkgInfo {
+func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
 	p := pkginfo.FromControl(pd.Control)
 	for _, flag := range pd.FlagStates {
 		p.Flags = append(p.Flags, flag.String())
@@ -77,11 +79,11 @@ func (pd *PkgDep) pkgInfo() *pkginfo.PkgInfo {
 }
 
 func (pd *PkgDep) SpakgExists() bool {
-	return pd.Repo.HasSpakg(pd.pkgInfo())
+	return pd.Repo.HasSpakg(pd.PkgInfo())
 }
 
 func (pd *PkgDep) IsInstalled(destdir string) bool {
-	return pd.Repo.IsInstalled(pd.pkgInfo(), destdir)
+	return pd.Repo.IsInstalled(pd.PkgInfo(), destdir)
 }
 
 func (pd *PkgDep) Find(name string) *PkgDep {
@@ -117,11 +119,11 @@ func (pdl *PkgDepList) Prepend(c *PkgDep) {
 func (pdl *PkgDepList) Print() {
 	i := 0
 	for _, item := range *pdl {
-		str := item.String()
+		str := item.String() + " "
 		i += len(str)
-		if i > misc.GetWidth() {
+		if i > misc.GetWidth()-10 {
 			fmt.Println()
-			i = 0
+			i = len(str)
 		}
 		fmt.Print(str)
 	}
@@ -133,4 +135,35 @@ func (pdl *PkgDepList) Reverse() {
 	for i, j := 0, len(*pdl)-1; i < j; i, j = i+1, j-1 {
 		(*pdl)[i], (*pdl)[j] = (*pdl)[j], (*pdl)[i]
 	}
+}
+func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
+			//Create new pkgdep node
+			ctrl, repo := libspack.GetPackageLatest(dep)
+			if ctrl == nil {
+				log.Error("Unable to find package ", dep)
+				return nil
+			}
+			
+			depnode := New(ctrl, repo)
+			pdl.Append(depnode)
+			
+			//Add global flags to new depnode
+			globalflags, exists := flagconfig.GetAll(destdir)[ctrl.Name]
+			if exists && !depnode.MakeParentProud(nil, globalflags) { 
+				log.Error(dep, " unable to satisfy parents") //TODO more info
+				return nil
+			}
+			
+			return depnode
+}
+func (pdl *PkgDepList) NotInstalled(destdir string) *PkgDepList {
+	newl := make(PkgDepList, 0)
+	
+	for _, pkg := range *pdl {
+		if pkg.Repo.IsInstalled(pkg.PkgInfo(), destdir) {
+			newl.Append(pkg)
+		}
+	}
+	
+	return &newl
 }

@@ -380,8 +380,8 @@ func (repo *Repo) MarkRemoved(p *pkginfo.PkgInfo, basedir string) {
 	os.Remove(repo.installSetFile(*p, basedir))
 }
 
-func (repo *Repo) Uninstall(c *control.Control, destdir string) error {
-	inst := repo.GetInstalled(pkginfo.FromControl(c), destdir)
+func (repo *Repo) Uninstall(p *pkginfo.PkgInfo, destdir string) error {
+	inst := repo.GetInstalled(p, destdir)
 	basedir := "/"
 	if (inst != nil) {
 		log.InfoFormat("Removing %s", inst.PkgInfo.UUID())
