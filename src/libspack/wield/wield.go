@@ -37,7 +37,7 @@ func Ldconfig(destdir string) error {
 	return RunCommand(exec.Command("ldconfig", "-r", destdir), log.DebugWriter(), os.Stderr)
 }
 
-func runPart(part string, spkg *spakg.Spakg, destdir string) error {
+func hasPart(part string, spkg *spakg.Spakg) bool {
 	cmd := `
 		%[1]s
 		
@@ -46,12 +46,11 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
 	err := RunCommand(exec.Command("bash", "-c", cmd), log.DebugWriter(), os.Stderr)
 	
-	//We don't have a pre or postinstall function
-	if err != nil {
-		return nil
-	}
-	
-	cmd = `
+	return err == nil
+}
+
+func runPart(part string, spkg *spakg.Spakg, destdir string) error {
+	cmd := `
 		%[1]s
 		
 		if ! [ -d /dev/ ]; then
@@ -76,19 +75,21 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 }
 
 func PreInstall(pkg *spakg.Spakg, destdir string) error {
-	HeaderFormat("PreInstall %s", pkg.Control.Name)
-	err := runPart("pre_install", pkg, destdir)
-	if err != nil { return err }
-	PrintSuccess()
-	
+	if hasPart("pre_install", pkg) {
+		HeaderFormat("PreInstall %s", pkg.Control.Name)
+		err := runPart("pre_install", pkg, destdir)
+		if err != nil { return err }
+		PrintSuccess()
+	}
 	return nil
 }
 func PostInstall(pkg *spakg.Spakg, destdir string) error {
-	HeaderFormat("PostInstall %s", pkg.Control.Name)
-	err := runPart("post_install", pkg, destdir)
-	if err != nil { return err }
-	PrintSuccess()
-	
+	if hasPart("post_install", pkg) {
+		HeaderFormat("PostInstall %s", pkg.Control.Name)
+		err := runPart("post_install", pkg, destdir)
+		if err != nil { return err }
+		PrintSuccess()
+	}
 	return nil
 }
 
