@@ -156,11 +156,11 @@ func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
 			
 			return depnode
 }
-func (pdl *PkgDepList) NotInstalled(destdir string) *PkgDepList {
+func (pdl *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	newl := make(PkgDepList, 0)
 	
 	for _, pkg := range *pdl {
-		if pkg.Repo.IsInstalled(pkg.PkgInfo(), destdir) {
+		if !pkg.ForgeOnly && !pkg.Repo.IsInstalled(pkg.PkgInfo(), destdir) {
 			newl.Append(pkg)
 		}
 	}

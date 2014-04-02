@@ -99,6 +99,8 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 }
 
 func FindToBuild(graph *pkgdep.PkgDepList, params DepResParams) (*pkgdep.PkgDepList, bool) {
+	log.Debug("Finding packages to build:")
+	
 	orderedlist := make(pkgdep.PkgDepList, 0)
 	visitedlist := make(pkgdep.PkgDepList, 0)
 	
@@ -109,12 +111,20 @@ func FindToBuild(graph *pkgdep.PkgDepList, params DepResParams) (*pkgdep.PkgDepL
 }
 
 func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, params DepResParams) bool {
+	indent++
+	defer func() { indent-- }()
+	
+	debug := func (s string) {
+		log.DebugFormat("%s %s", strings.Repeat("\t", indent), s)
+	}
+	
 	//list of packages to build
 	tobuild := make(pkgdep.PkgDepList, 0)
 	
 	for _, node := range *graph {
+		debug("Check " + node.PkgInfo().UUID())
 		//TODO Does the next function call need to care about params.DestDir?
-		if !node.SpakgExists() {
+		if !node.SpakgExists() || node.ForgeOnly {
 			tobuild.Append(node)
 		}
 	}
