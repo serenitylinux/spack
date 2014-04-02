@@ -21,7 +21,7 @@ type DepResParams struct {
 }
 
 var indent int = 0
-func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool {
+func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams) bool {
 	indent++
 	defer func() { indent-- }()
 	
@@ -51,7 +51,7 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 	}
 	
 	node.Dirty = false //We will be making sure we are clean in the next step
-	rethappy := true
+	rethappy := true   //Clap your hands!
 	
 	var deps []dep.Dep
 	if params.IsForge {
@@ -66,9 +66,9 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 	for _, dep := range deps {
 		debug("Require: " + dep.Name)
 		
-		depnode := tree.Find(dep.Name)
+		depnode := graph.Find(dep.Name)
 		if depnode == nil {
-			depnode = tree.AllNodes.Add(dep.Name, params.DestDir)
+			depnode = graph.Add(dep.Name, params.DestDir)
 		}
 		
 		if depnode.ForgeOnly {
@@ -89,7 +89,7 @@ func DepTree(node *pkgdep.PkgDep, tree *pkgdep.PkgDep, params DepResParams) bool
 		depnode.Parents.Append(node)
 		
 		//Continue down the rabbit hole
-		if !DepTree(depnode, tree, params) {
+		if !DepTree(depnode, graph, params) {
 			debug("Not Happy "+ dep.Name)
 			rethappy = false
 		}
@@ -124,22 +124,22 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 	for _, node := range *graph {
 		debug("Check " + node.PkgInfo().UUID())
 		//TODO Does the next function call need to care about params.DestDir?
-		if !node.SpakgExists() || node.ForgeOnly {
+		if !node.SpakgExists() && !node.IsInstalled(params.DestDir) || node.ForgeOnly{
 			tobuild.Append(node)
 		}
 	}
 	
-	happy := true
+	happy := true //If you are happy and you know it clap your hands!!
 	params.IsForge = true
 	for _, node := range tobuild {
 		//We have not already been "built"
 		if !visitedtreelist.Contains(node) {
 			//Create a new graph representing the build deps of node
 			newroot := pkgdep.New(node.Control, node.Repo)
-			newroot.FlagStates = node.FlagStates
+			newroot.FlagStates = node.FlagStates //This *should* be a deep copy
 			
 			newrootgraph := make(pkgdep.PkgDepList, 0)
-			newroot.AllNodes = &newrootgraph
+			newroot.Graph = &newrootgraph
 			
 			//mark newroot read only
 			newroot.ForgeOnly = true
@@ -147,7 +147,7 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 			//Add ourselves to existing builds
 			visitedtreelist.Append(newroot)
 			
-			if !DepTree(newroot, newroot, params) {
+			if !DepTree(newroot, newroot.Graph, params) {
 				happy = false
 				continue
 			}

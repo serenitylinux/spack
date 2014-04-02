@@ -45,7 +45,7 @@ type PkgDep struct {
 	
 	Parents PkgDepList
 	
-	AllNodes *PkgDepList
+	Graph *PkgDepList
 }
 
 func New(c *control.Control, r *repo.Repo) *PkgDep {
@@ -87,12 +87,7 @@ func (pd *PkgDep) IsInstalled(destdir string) bool {
 }
 
 func (pd *PkgDep) Find(name string) *PkgDep {
-	for _, pkg := range *pd.AllNodes {
-		if pkg.Control.Name == name {
-			return pkg
-		}
-	}
-	return nil
+	return pd.Graph.Find(name)
 }
 
 type PkgDepList []*PkgDep
@@ -137,24 +132,24 @@ func (pdl *PkgDepList) Reverse() {
 	}
 }
 func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
-			//Create new pkgdep node
-			ctrl, repo := libspack.GetPackageLatest(dep)
-			if ctrl == nil {
-				log.Error("Unable to find package ", dep)
-				return nil
-			}
-			
-			depnode := New(ctrl, repo)
-			pdl.Append(depnode)
-			
-			//Add global flags to new depnode
-			globalflags, exists := flagconfig.GetAll(destdir)[ctrl.Name]
-			if exists && !depnode.MakeParentProud(nil, globalflags) { 
-				log.Error(dep, " unable to satisfy parents") //TODO more info
-				return nil
-			}
-			
-			return depnode
+	//Create new pkgdep node
+	ctrl, repo := libspack.GetPackageLatest(dep)
+	if ctrl == nil {
+		log.Error("Unable to find package ", dep)
+		return nil
+	}
+	
+	depnode := New(ctrl, repo)
+	pdl.Append(depnode)
+	
+	//Add global flags to new depnode
+	globalflags, exists := flagconfig.GetAll(destdir)[ctrl.Name]
+	if exists && !depnode.MakeParentProud(nil, globalflags) { 
+		log.Error(dep, " unable to satisfy parents") //TODO more info
+		return nil
+	}
+	
+	return depnode
 }
 func (pdl *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	newl := make(PkgDepList, 0)
@@ -166,4 +161,12 @@ func (pdl *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	}
 	
 	return &newl
+}
+func (pdl *PkgDepList) Find(name string) *PkgDep {
+	for _, pkg := range *pdl {
+		if pkg.Control.Name == name {
+			return pkg
+		}
+	}
+	return nil
 }

@@ -156,7 +156,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		}
 		
 		log.InfoFormat("Installing bdeps for %s", pkg.PkgInfo().UUID())
-		depgraph := pkg.AllNodes.ToInstall(params.DestDir)
+		depgraph := pkg.Graph.ToInstall(params.DestDir)
 		wieldGraph(depgraph, params)
 		
 		
@@ -267,12 +267,9 @@ func forgewieldPackages(packages []string, isForge bool) {
 		
 		pkgdep.ForgeOnly = params.IsForge
 		pkglist.Append(pkgdep)
-		
-		//Setup pkgdep to be a root node in installgraph
-		pkgdep.AllNodes = &installgraph
 	}
 	if !happy {
-			os.Exit(1)
+		os.Exit(1)
 	}
 	
 	if !params.IsForge {
@@ -280,7 +277,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			//Fill in the tree for pd
 			//This step also partially fills in the installgraph
 			log.DebugFormat("Building tree for %s", pd.Control.UUID())
-			if !depres.DepTree(pd, pd, params) {
+			if !depres.DepTree(pd, &installgraph, params) {
 				happy = false
 				continue
 			}
@@ -321,7 +318,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		for _, pkg := range *tobuild {
 			log.ColorAll(log.White, fmt.Sprintf("Packages to Wield during forge %s:", pkg.PkgInfo().UUID()))
 			fmt.Println()
-			pkg.AllNodes.ToInstall(params.DestDir).Print()
+			pkg.Graph.ToInstall(params.DestDir).Print()
 		}
 		fmt.Println()
 	}
