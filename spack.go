@@ -15,11 +15,11 @@ import (
 	"libspack/repo"
 	"libspack/wield"
 	"libspack/misc"
-	"libspack/flagconfig"
+	"libspack/depres"
+	"libspack/depres/pkgdep"
 )
 
 import . "libspack/misc"
-import . "libspack/depres"
 
 func Usage(retval int) {
 	fmt.Println("Usage: ", os.Args[0], "command [--help]")
@@ -148,7 +148,7 @@ func getPkg(pkg string) ( *control.Control, *repo.Repo) {
 	} 
 }
 
-
+/*
 
 func fetch_or_forge_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps ControlRepoList) (string, error) {
 	spakgFile := r.GetSpakgOutput(c)
@@ -261,75 +261,87 @@ func wield_ind(c *control.Control, r *repo.Repo, params DepResParams, wield_deps
 	return err
 }
 
+*/
 
 func forgewieldPackages(packages []string, isForge bool) {
-	forge_deps := make(ControlRepoList,0)
-	wield_deps := make(ControlRepoList,0)
-	missing    := make(MissingInfoList,0)
+	//A set of overlapping "trees" to represent the packages we will be caring about
+	installgraph := make(pkgdep.PkgDepList, 0)
 	
-	pkglist := make(ControlRepoList, 0)
-	
+	//Create a list of all packages that we want to work with
+	pkglist := make(pkgdep.PkgDepList, 0)	
+	happy := true
 	for _, pkg := range packages {
 		c, repo := getPkg(pkg)
 		if c == nil {
-			log.InfoFormat("Cannot find package %s", pkg)
-			os.Exit(1)
+			log.ErrorFormat("Cannot find package %s", pkg)
+			happy = false
+			continue
 		}
 		
-		cr := NewControlRepo(c,repo)
-		pkglist.Append(cr, false)
+		cr := pkgdep.New(c,repo)
+		cr.AllNodes = &installgraph
+		pkglist.Append(cr)
+	}
+	if !happy {
+			os.Exit(1)
 	}
 	
-	params := DepResParams {
+	params := depres.DepResParams {
 		IsForge: isForge,
-		IsBDep: false,
 		IsReinstall: reinstallArg != nil && reinstallArg.Get(),
-		NoBDeps: noBDepsArg.Get(),
+		IgnoreBDeps: noBDepsArg != nil && noBDepsArg.Get(),
 		DestDir: destdirArg.Get(),
 	}
 	
-	flags, err := flagconfig.GetAll(destdirArg.Get())
-	if err != nil {
-		log.Warn(err)
-		//We might want to do something here
-	}
-	
-	for _, cr := range pkglist {
-		happy := DepCheck(cr, cr, &flags, &forge_deps, &wield_deps, &missing, params)
-		log.Debug()
-		
-		if !happy {
-			log.Info("Missing:")
-			for _, item := range missing {
-				log.Info("\t", item.String())
-			}
-			os.Exit(-1)
+	for _, pd := range pkglist {
+		//Fill in the tree for pd
+		//This step also partially fills in the installgraph
+		if !depres.DepTree(pd, pd, params) {
+			happy = false
+			continue
 		}
+		log.Debug()
+	}
+	if !happy {
+		log.Error("Invalid State")
+		for _, pkg := range installgraph {
+			if !pkg.SatisfiesParents() {
+				log.Info("\t" + pkg.String())
+				for _, parent := range pkg.Parents {
+					log.Info("\t\t" + parent.String())
+				}
+			}
+		}
+		os.Exit(-1)
 	}
 	
-	if len(forge_deps) > 0 {
+	//Next we need to check if certain packages must be built
+	tobuild, happy := depres.FindToBuild(&installgraph, params)
+	//tobuild is a list of build graphs (root nodes)
+	
+	if len(*tobuild) > 0 {
 		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
-		forge_deps.Print()
+		tobuild.Print()
 		fmt.Println()
 	}
-	if len(wield_deps) > 0 {
+	if len(installgraph) > 0 {
 		log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
-		wield_deps.Print()
+		installgraph.Print()
 		fmt.Println()
 	}
 	
-	if len(wield_deps) + len(forge_deps) > 1 {
+	if len(installgraph) + len(*tobuild) > 1 {
 		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue?", true) {
 			return
 		}
 	}
 	
-	if len(forge_deps) > 0 {
+	if len(*tobuild) > 0 {
 		log.Info("Forging required packages: ")
 		log.InfoBar()
 		
-		for _, pkg := range forge_deps {
-			err := forge_ind(pkg.Control, pkg.Repo, params, wield_deps)
+		for _, pkg := range *tobuild {
+			/*TODO err := forge_ind(pkg.Control, pkg.Repo, params, wield_deps)
 			if err != nil {
 				log.Error(err)
 				os.Exit(-1)
@@ -341,15 +353,14 @@ func forgewieldPackages(packages []string, isForge bool) {
 				if err != nil {
 					log.Warn(err)
 				}
-			}
+			}*/	
 		}
 	}
 	
-	wield_deps = wield_deps.WithoutBDeps()
-	if len(wield_deps) > 0 {
+	if len(*tobuild) > 0 {
 		log.Info("Wielding required packages: ")
 		log.InfoBar()
-		insterr := func () error {
+/*		TODO insterr := func () error {
 			type pkgset struct {
 				spkg *spakg.Spakg
 				repo *repo.Repo
@@ -401,7 +412,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			log.Error(insterr)
 		} else {
 			libspack.PrintSuccess()
-		}
+		}*/
 	}
 }
 
@@ -419,7 +430,7 @@ func list() {
 		list := repo.GetAllControls()
 		for _, pkglist := range list {
 			for _, pkg := range pkglist {
-				if (!installed || repo.IsInstalled(&pkg, "/")) {
+				if (!installed || repo.IsAnyInstalled(&pkg, "/")) {
 					fmt.Println(pkg.UUID())
 				}
 			}
@@ -483,7 +494,7 @@ func remove(pkgs []string){
 			continue
 		}
 		
-		if !repo.IsInstalled(c, "/") {
+		if !repo.IsAnyInstalled(c, "/") {
 			fmt.Println(pkg + " is not installed, cannot remove")
 			continue
 		}
@@ -503,7 +514,7 @@ func remove(pkgs []string){
 			var err error
 			for _, rdep := range list {
 				//Edge case
-				if !repo.IsInstalled(&rdep.Control, "/") {
+				if !repo.IsAnyInstalled(&rdep.Control, "/") {
 					fmt.Println(pkg + " is not installed, cannot remove")
 					continue
 				}
@@ -538,14 +549,11 @@ func upgrade() {
 		argparse.Usage(2)
 	}
 	
-	list := make(ControlRepoList, 0)
-	crl := &list
 	nameList := make([]string, 0)
 	for _, repo := range libspack.GetAllRepos() {
 		for _, pkg := range repo.GetAllInstalled() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
-				crl.Append(ControlRepo{ Control: c, Repo: repo, IsBDep: false }, false)
 				nameList = append(nameList, c.Name)
 				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
@@ -553,7 +561,7 @@ func upgrade() {
 	}
 	
 	
-	if len(list) > 0 {
+	if len(nameList) > 0 {
 		fmt.Println("The following packages will be upgraded: ")
 		forgewieldPackages(nameList, false)
 	} else {
@@ -637,9 +645,9 @@ func search() {
 			if !simple{log.ColorAll(log.Brown,strings.Repeat("-", length), "\n")}
 			
 			switch{
-				case repo.IsInstalled(c, "/"):
+				case repo.IsAnyInstalled(c, "/"):
 					log.ColorAll(log.White, "WLD")
-				case repo.HasSpakg(c):
+				case repo.HasAnySpakg(c):
 					log.ColorAll(log.White, "BIN")
 				case repo.HasTemplate(c):
 					log.ColorAll(log.White, "SRC")

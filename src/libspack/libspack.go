@@ -113,19 +113,6 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	}
 	return nil, nil
 }
-func IsInstalled(pkgname string, basedir string) bool {
-	for _, repo := range repos {
-		cl, exists := repo.GetControls(pkgname)
-		if exists {
-			for _,c := range cl {
-				if repo.IsInstalled(&c, basedir) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
 
 func Header(str string) {
 	log.InfoInLine(str + ": "); log.Debug()

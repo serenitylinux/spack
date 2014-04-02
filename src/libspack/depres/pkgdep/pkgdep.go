@@ -17,6 +17,20 @@ func (l *FlagList) String() string {
 	}
 	return str
 }
+func (l *FlagList) Equals(ol FlagList) bool {
+	for _, flag := range *l {
+		found := false
+		for _, oflag := range ol {
+			if oflag.Name == flag.Name {
+				found = oflag.Enabled == flag.Enabled
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
 
 type PkgDep struct {
 	Control *control.Control
@@ -24,46 +38,54 @@ type PkgDep struct {
 	FlagStates FlagList
 	Dirty bool
 	Happy bool
+	ForgeOnly bool
 	
-	Children PkgDepList
 	Parents PkgDepList
 	
 	BuildTree *PkgDep
-	AllNodes PkgDepList
+	AllNodes *PkgDepList
 }
 
 func New(c *control.Control, r *repo.Repo) *PkgDep {
-	new := PkgDep { Control: c, Repo: r, Dirty: true }
+	new := PkgDep { Control: c, Repo: r, Dirty: true, ForgeOnly: false }
 	return &new
 }
 func (pd *PkgDep) String() string {
 	return fmt.Sprintf("%s::%s [%s]", pd.Repo.Name, pd.Control.UUID(), pd.FlagStates)
 }
 func (pd *PkgDep) Equals(opd *PkgDep) bool {
-	return pd.Control.UUID() == opd.Control.UUID()
+	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.Equals(opd.FlagStates)
 }
 func (pd *PkgDep) MakeParentProud(opd *PkgDep, set []flag.Flag) bool {
 	//TODO
 	
 	pd.Dirty = true
-	return false
+	return true
 }
-func (pd *PkgDep) Satisfies(root string) bool {
+func (pd *PkgDep) SatisfiesParents() bool {
 	//TODO
 	
-	return false
+	return true
 }
-func (pd *PkgDep) SpakgExists() bool {
+
+func (pd *PkgDep) pkgInfo() *pkginfo.PkgInfo {
 	p := pkginfo.FromControl(pd.Control)
 	for _, flag := range pd.FlagStates {
 		p.Flags = append(p.Flags, flag.String())
 	}
-	return pd.Repo.HasSpakg(p)
+	return p
 }
 
+func (pd *PkgDep) SpakgExists() bool {
+	return pd.Repo.HasSpakg(pd.pkgInfo())
+}
+
+func (pd *PkgDep) IsInstalled(destdir string) bool {
+	return pd.Repo.IsInstalled(pd.pkgInfo(), destdir)
+}
 
 func (pd *PkgDep) Find(name string) *PkgDep {
-	for _, pkg := range pd.AllNodes {
+	for _, pkg := range *pd.AllNodes {
 		if pkg.Control.Name == name {
 			return pkg
 		}

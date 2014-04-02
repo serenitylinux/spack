@@ -227,6 +227,11 @@ func (repo *Repo) HasSpakg(p *pkginfo.PkgInfo) bool {
 	return repo.HasLocalSpakg(p) || repo.HasRemoteSpakg(p)
 }
 
+func (repo *Repo) HasAnySpakg(c *control.Control) bool {
+	//TODO
+	return false
+}
+
 func (repo *Repo) HasTemplate(c *control.Control) bool {
 	_, exists := repo.GetTemplateByControl(c)
 	return exists
@@ -267,14 +272,26 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 	return err
 }
 
-func (repo *Repo) IsInstalled(c *control.Control, basedir string) bool {
+func (repo *Repo) IsInstalled(p *pkginfo.PkgInfo, basedir string) bool {
 	if filepath.Clean(basedir) == "/" {
-		_, exists := (*repo.installed)[c.UUID()]
+		_, exists := (*repo.installed)[p.UUID()]
 		return exists
 	} else {
 		//We should really load the pkginstallsetfiles in the basedir and iterate through like if basedir = /
-		return PathExists(repo.installSetFile(*pkginfo.FromControl(c), basedir))
+		return PathExists(repo.installSetFile(*p, basedir))
 	}
+}
+func (repo *Repo) IsAnyInstalled(c *control.Control, basedir string) bool {
+	if filepath.Clean(basedir) == "/" {
+		for _, pkg := range (*repo.installed) {
+			if pkg.Control.UUID() == c.UUID() {
+				return true
+			}
+		}
+	} else {
+		panic("Looking at installed packages in a root should be implemented at some point")
+	}
+	return false
 }
 
 func (repo *Repo) GetAllInstalled() []pkginstallset.PkgInstallSet{
@@ -656,7 +673,7 @@ func installedPackageList(dir string) (*PkgInstallSetMap, error) {
 			return
 		}
 		
-		list[ps.Control.UUID()] = *ps
+		list[ps.PkgInfo.UUID()] = *ps
 	}
 	
 	err := readAll(dir, regexp.MustCompile(".*.pkgset"), readFunc)
