@@ -258,7 +258,6 @@ func forgewieldPackages(packages []string, isForge bool) {
 	for _, pkg := range packages {
 		//Create pkgdep inside of installgraph with proper flags
 		pkgdep := installgraph.Add(pkg, params.DestDir)
-		pkgdep.ForgeOnly = params.IsForge
 		
 		if pkgdep == nil {
 			log.ErrorFormat("Cannot find package %s", pkg)
@@ -266,6 +265,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			continue
 		}
 		
+		pkgdep.ForgeOnly = params.IsForge
 		pkglist.Append(pkgdep)
 		
 		//Setup pkgdep to be a root node in installgraph
