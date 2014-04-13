@@ -56,7 +56,7 @@ type PkgDep struct {
 
 func New(c *control.Control, r *repo.Repo) *PkgDep {
 	new := PkgDep { Control: c, Repo: r, Dirty: true, ForgeOnly: false }
-	Parents = make(PkgDepParentList, 0)
+	new.Parents = make(PkgDepParentList, 0)
 	
 	return &new
 }
@@ -172,11 +172,15 @@ func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
 		depnode.FlagStates = globalflags;
 	}
 	
-	//TODO BIG: Find current rdeps and add them to the graph
+	//Find current rdeps and add them to the graph
+/*	rdeps := repo.UninstallList(ctrl)
+	for _, rdep := range rdeps {
+		//TODO 
+	}*/
 	
 	if !depnode.SatisfiesParents() { 
 		log.Error(dep, " unable to satisfy parents") //TODO more info
-		return nil
+//		return nil
 	}
 	
 	return depnode
