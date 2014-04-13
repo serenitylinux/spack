@@ -79,14 +79,14 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 		}
 		
 		//Will set to dirty if changed
-		if dep.Flags != nil && !depnode.MakeParentProud(node, dep.Flags.List) {
+		if dep.Flags != nil && !depnode.MakeParentProud(node, dep, params.IsForge) {
 			debug("Changed "+ dep.Name)
 			rethappy = false
 			continue
 		}
 		
 		//update references from self to depnode and vice versa
-		depnode.Parents.Append(node)
+		//depnode.Parents.Append(node)
 		
 		//Continue down the rabbit hole
 		if !DepTree(depnode, graph, params) {

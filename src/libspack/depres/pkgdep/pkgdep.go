@@ -4,68 +4,89 @@ import (
 	"fmt"
 	"libspack"
 	"libspack/log"
+	"libspack/dep"
 	"libspack/misc"
 	"libspack/repo"
-	"libspack/flag"
 	"libspack/control"
 	"libspack/pkginfo"
 	"libspack/flagconfig"
 )
-
-type FlagList []flag.Flag
-func (l *FlagList) String() string {
-	str := ""
-	for _, flag := range *l {
-		str += flag.String() + " "
-	}
-	return str
+/*****************************************
+Struct that represents how a parent depends on a child
+******************************************/
+type PkgDepParent struct {
+	Parent *PkgDep
+	dep dep.Dep
+	isbdep bool;
 }
-func (l *FlagList) Equals(ol FlagList) bool {
-	for _, flag := range *l {
-		found := false
-		for _, oflag := range ol {
-			if oflag.Name == flag.Name {
-				found = oflag.Enabled == flag.Enabled
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
+func (p * PkgDepParent) IsProudOf(pd *PkgDep) bool {
+	return p.dep.Flags.IsSubSet(pd.FlagStates)
 }
 
+type PkgDepParentList []PkgDepParent
+
+func (l *PkgDepParentList) Contains(p *PkgDep, isbdep bool) bool {
+	for _, n := range *l {
+		if p.Equals(n.Parent) && isbdep == n.isbdep {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *PkgDepParentList) Append(p *PkgDep, deps dep.Dep, isbdep bool) {
+	*l = append(*l, PkgDepParent { p, deps, isbdep });
+}
+
+/******************************************
+Represents an installable package and it's rdeps
+*******************************************/
 type PkgDep struct {
 	Control *control.Control
 	Repo *repo.Repo
-	FlagStates FlagList
+	FlagStates dep.FlagSet
 	Dirty bool
 	Happy bool
 	ForgeOnly bool
 	
-	Parents PkgDepList
+	Parents PkgDepParentList
 	
 	Graph *PkgDepList
 }
 
 func New(c *control.Control, r *repo.Repo) *PkgDep {
 	new := PkgDep { Control: c, Repo: r, Dirty: true, ForgeOnly: false }
+	Parents = make(PkgDepParentList, 0)
+	
 	return &new
 }
 func (pd *PkgDep) String() string {
 	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control.UUID(), pd.FlagStates)
 }
 func (pd *PkgDep) Equals(opd *PkgDep) bool {
-	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.Equals(opd.FlagStates)
+	//TODO IsSubSet may not work in all cases
+	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.IsSubSet(opd.FlagStates)
 }
-func (pd *PkgDep) MakeParentProud(opd *PkgDep, set []flag.Flag) bool {
-	//TODO
-	
-	pd.Dirty = true
-	return true
+func (pd *PkgDep) MakeParentProud(opd *PkgDep, deps dep.Dep, isbdep bool) bool {
+	if !pd.Parents.Contains(opd, isbdep) {
+		//We need to add parent's requirements
+		for _, pflag := range *deps.Flags {
+			if _, exists := pd.FlagStates.Contains(pflag.Name); !exists {
+				pd.FlagStates = append(pd.FlagStates, pflag)
+			}
+		}
+		
+		pd.Parents.Append(opd, deps, isbdep)
+		pd.Dirty = true
+	}
+	return pd.SatisfiesParents()
 }
 func (pd *PkgDep) SatisfiesParents() bool {
-	//TODO
+	for _, p := range pd.Parents {
+		if !p.IsProudOf(pd) {
+			return false
+		}
+	}
 	
 	return true
 }
@@ -90,6 +111,9 @@ func (pd *PkgDep) Find(name string) *PkgDep {
 	return pd.Graph.Find(name)
 }
 
+/******************************************
+List of Pkg dependencies
+*******************************************/
 type PkgDepList []*PkgDep
 
 func (pdl *PkgDepList) Contains(pd *PkgDep) bool {
@@ -144,7 +168,13 @@ func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
 	
 	//Add global flags to new depnode
 	globalflags, exists := flagconfig.GetAll(destdir)[ctrl.Name]
-	if exists && !depnode.MakeParentProud(nil, globalflags) { 
+	if exists {
+		depnode.FlagStates = globalflags;
+	}
+	
+	//TODO BIG: Find current rdeps and add them to the graph
+	
+	if !depnode.SatisfiesParents() { 
 		log.Error(dep, " unable to satisfy parents") //TODO more info
 		return nil
 	}

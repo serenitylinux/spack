@@ -51,14 +51,7 @@ type Version struct {
 	ver string
 }
 
-type FlagSet struct {
-	List []flag.Flag
-}
-
-/*type FlagSpec struct {
-	Enabled bool
-	Name string
-}*/
+type FlagSet []flag.Flag
 
 func conditionPeek(in *parser.Input) bool {
 	s, _ := in.Peek(1)
@@ -118,7 +111,7 @@ func (d *Dep) parse(in *parser.Input) error {
 		return nil
 	}
 	
-	var new FlagSet
+	new := make(FlagSet, 0)
 	err := new.parse(in)
 	if err != nil {
 		return err
@@ -137,14 +130,12 @@ func (s *FlagSet) parse(in *parser.Input) error {
 		return errors.New("Expected '(' to start flag set")
 	}
 	
-	s.List = make([]flag.Flag, 0)
-	
 	for {
 		var flag flag.Flag
 		err := flag.Parse(in)
 		if err != nil { return err }
 		
-		s.List = append(s.List, flag)
+		*s = append(*s, flag)
 		
 		str, _ := in.Next(1)
 		if str != "," {
@@ -174,20 +165,35 @@ func (v *Version) parse(in *parser.Input) error {
 	}
 	return nil
 }
-/*
-func (f *FlagSpec) parse(in *parser.Input) error {
-	sign, exists := in.Next(1)
-	if !exists {
-		return errors.New("Flag: Reached end of string while looking for sign")
+
+
+func (l *FlagSet) String() string {
+	str := ""
+	for _, flag := range *l {
+		str += flag.String() + " "
 	}
-	
-	f.Enabled = "+" == sign
-	
-	f.Name = in.ReadUntill("]")
-	
-	if len(f.Name) == 0 {
-		return errors.New("Flag: Nothing available after sign")
+	return str
+}
+func (l *FlagSet) IsSubSet(ol FlagSet) bool {
+	for _, flag := range *l {
+		found := false
+		for _, oflag := range ol {
+			if oflag.Name == flag.Name {
+				found = oflag.Enabled == flag.Enabled
+			}
+		}
+		if !found {
+			return false
+		}
 	}
-	
-	return nil
-}*/
+	return true
+}
+
+func (l *FlagSet) Contains(f string) (*flag.Flag, bool) {
+	for _, flag := range *l {
+		if flag.Name == f {
+			return &flag, true
+		}
+	}
+	return nil, false
+}

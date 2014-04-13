@@ -291,7 +291,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			if !pkg.SatisfiesParents() {
 				log.Info("\t" + pkg.String())
 				for _, parent := range pkg.Parents {
-					log.Info("\t\t" + parent.String())
+					log.Info("\t\t" + parent.Parent.String())
 				}
 			}
 		}
