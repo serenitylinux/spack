@@ -359,6 +359,10 @@ func forgewieldPackages(packages []string, isForge bool) {
 			libspack.PrintSuccess()
 		}
 	}
+	
+	if len(*tobuild) + len(*toinstall) == 0 {
+		log.Info("Nothing to do")
+	}
 }
 
 func list() {
