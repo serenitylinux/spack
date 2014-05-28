@@ -150,6 +150,13 @@ func (c *Control) ParsedFlags() []flag.FlagSet {
 	}
 	return c.parsedFlags
 }
+func (c *Control) DefaultFlags() []flag.Flag {
+	res := make([]flag.Flag, 0)
+	for _, fs := range c.ParsedFlags() {
+		res = append(res, fs.Flag)
+	}
+	return res
+}
 
 func (c *Control) ParsedDeps() dep.DepList {
 	if c.parsedDeps == nil {

@@ -162,8 +162,9 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		
 		//Forge pkg
 		log.InfoFormat("Forging %s", pkg.PkgInfo().UUID())
-		spakgFile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo())
-		forgerr := libforge.Forge(template, spakgFile, false, interactiveArg != nil && interactiveArg.Get())
+		info := pkg.PkgInfo();
+		spakgFile := pkg.Repo.GetSpakgOutput(info)
+		forgerr := libforge.Forge(template, spakgFile, info.ComputedFlagStates(), false, interactiveArg != nil && interactiveArg.Get())
 		
 		
 		//copy pkg

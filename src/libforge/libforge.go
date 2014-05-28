@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"libspack/log"
+	"libspack/flag"
 	"libspack/spakg"
 	"libspack/pkginfo"
 	"libspack/control"
@@ -92,7 +93,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 }
 
 
-func runPart(part, fileName, action, src_dir string) error {
+func runPart(part, fileName, action, src_dir string, states []flag.Flag) error {
 	forge_helper := `
 		function none {
 			return 0
@@ -101,6 +102,8 @@ func runPart(part, fileName, action, src_dir string) error {
 		function default {
 			%[3]s
 		}
+		
+		%[6]s
 		
 		source %[2]s
 		
@@ -121,7 +124,12 @@ func runPart(part, fileName, action, src_dir string) error {
 			%[1]s
 		fi`
 	
-	forge_helper = fmt.Sprintf(forge_helper, part, fileName, action, filepath.Dir(fileName) + "/default", src_dir)
+	var flagstuff string
+	for _, fl := range states {
+		flagstuff += fmt.Sprintf("flag_%s=%t \n", fl.Name, fl.Enabled)
+	}
+	
+	forge_helper = fmt.Sprintf(forge_helper, part, fileName, action, filepath.Dir(fileName) + "/default", src_dir, flagstuff)
 
 	Header("Running " + part)
 	
@@ -135,7 +143,7 @@ func runPart(part, fileName, action, src_dir string) error {
 	return nil
 }
 
-func runParts(template, src_dir, dest_dir string, test bool) error {
+func runParts(template, src_dir, dest_dir string, test bool, states []flag.Flag) error {
 	type action struct {
 		part string
 		args string
@@ -155,7 +163,7 @@ func runParts(template, src_dir, dest_dir string, test bool) error {
 	
 	for _, part := range parts {
 		if part.do {
-			err := runPart(part.part, template, part.args, src_dir)
+			err := runPart(part.part, template, part.args, src_dir, states)
 			if err != nil { return err }
 		}
 	}
@@ -302,7 +310,7 @@ func BuildPackage(template string, c *control.Control, destdir, basedir, outfile
 	return nil
 }
 
-func Forge(template, outfile string, test bool, interactive bool) error {
+func Forge(template, outfile string, states []flag.Flag, test bool, interactive bool) error {
 	c, err := control.FromTemplateFile(template)
 	if err != nil { return err }
 	
@@ -332,7 +340,7 @@ func Forge(template, outfile string, test bool, interactive bool) error {
 	err = FetchPkgSrc(c.Src, basedir, src_dir)
 	if err != nil { return OnError(err) }
 	
-	err = runParts(template, src_dir, dest_dir, test)
+	err = runParts(template, src_dir, dest_dir, test, states)
 	if err != nil { return OnError(err) }
 	
 	err = StripPackage(dest_dir)

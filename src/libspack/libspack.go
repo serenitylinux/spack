@@ -1,7 +1,6 @@
 package libspack
 
 import (
-//	"os"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"libspack/control"
 	"libspack/pkginfo"
 )
-//import . "github.com/ahmetalpbalkan/go-linq"
 
 const reposDir = "/etc/spack/repos/"
 

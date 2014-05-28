@@ -81,8 +81,8 @@ func main() {
 	log.InfoFormat("Forging %s in the heart of a star.", c.Name)
 	log.Warn("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
 	log.Info()
-	
-	err = libforge.Forge(template, output, test, interactive)
+	//TODO custom flags/honor globals
+	err = libforge.Forge(template, output, c.DefaultFlags(), test, interactive)
 	if err != nil {
 		log.Error(err)
 	}
