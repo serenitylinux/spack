@@ -176,22 +176,19 @@ func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
 	
 	dep_info := repo.GetInstalledByName(dep, destdir)
 	if dep_info != nil {
-		rdeps := repo.UninstallList(dep_info.PkgInfo)
+		rdeps := libspack.UninstallList(dep_info.PkgInfo)
 		for _, rdep := range rdeps {
-			//TODO  This part may or may not work...
-		
-			ctrl, repo := libspack.GetPackageLatest(rdep.Control.Name)
-			if ctrl == nil {
-				log.Error("Unable to find package ", rdep.Control.Name)
-				return nil
-			}
-		
-			current_info := repo.GetInstalledByName(rdep.Control.Name, destdir)
+			current_info, repo := libspack.GetPackageInstalledByName(rdep.Control.Name, destdir)
 			parentnode := New(current_info.Control, repo)
 			
-			dep_reasons := dep_info.Reasons(ctrl.Name)
-			if dep_reasons != nil {
-				depnode.MakeParentProud(parentnode, *dep_reasons, false)
+			all_flags := current_info.PkgInfo.ComputedFlagStates()
+			all_deps := current_info.Control.ParsedDeps()
+			deps := all_deps.EnabledFromFlags(all_flags)
+			for _, d := range deps {
+				if d.Name == dep {
+					depnode.MakeParentProud(parentnode, d, false)
+					break;
+				}
 			}
 		}
 	}

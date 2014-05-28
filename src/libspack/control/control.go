@@ -28,8 +28,8 @@ type Control struct {
 	Flags []string
 	
 	parsedFlags []flag.FlagSet
-	parsedDeps []dep.Dep
-	parsedBDeps []dep.Dep
+	parsedDeps dep.DepList
+	parsedBDeps dep.DepList
 	
 	//Provides (libjpeg, cc)
 	//Provides Hook (update mime types)
@@ -151,9 +151,9 @@ func (c *Control) ParsedFlags() []flag.FlagSet {
 	return c.parsedFlags
 }
 
-func (c *Control) ParsedDeps() []dep.Dep {
+func (c *Control) ParsedDeps() dep.DepList {
 	if c.parsedDeps == nil {
-		c.parsedDeps = make([]dep.Dep, 0)
+		c.parsedDeps = make(dep.DepList, 0)
 		for _, s := range c.Deps {
 			dep, err := dep.Parse(s)
 			if err != nil {
@@ -166,9 +166,9 @@ func (c *Control) ParsedDeps() []dep.Dep {
 	return c.parsedDeps
 }
 
-func (c *Control) ParsedBDeps() []dep.Dep {
+func (c *Control) ParsedBDeps() dep.DepList {
 	if c.parsedBDeps == nil {
-		c.parsedBDeps = make([]dep.Dep, 0)
+		c.parsedBDeps = make(dep.DepList, 0)
 		for _, s := range c.Bdeps {
 			dep, err := dep.Parse(s)
 			if err != nil {

@@ -19,6 +19,8 @@ type PkgInfo struct {
 	BuildDate time.Time
 	Flags []string
 	parsedFlags []flag.FlagSet
+	FlagStates []string
+	parsedFlagStates []flag.Flag
 }
 
 type PkgInfoList []PkgInfo
@@ -32,14 +34,14 @@ func (p *PkgInfo) UUID() string {
 
 func (p *PkgInfo) flagHash() uint32 {
 	str := p.Name
-	for _, flag := range p.Flags {
-		str += flag
+	for _, flag := range p.ComputedFlagStates() {
+		str += flag.String()
 	}
 	return crc32.ChecksumIEEE([]byte(str))
 }
 
 func FromControl(c *control.Control) *PkgInfo {
-	p := PkgInfo{ Name: c.Name, Version: c.Version, Flags: make([]string,0), Iteration: c.Iteration }
+	p := PkgInfo{ Name: c.Name, Version: c.Version, Flags: c.Flags, Iteration: c.Iteration }
 	return &p
 }
 
@@ -60,6 +62,51 @@ func (p *PkgInfo) ParsedFlags() []flag.FlagSet {
 		}
 	}
 	return p.parsedFlags
+}
+
+func (p *PkgInfo) ParsedFlagStates() []flag.Flag {
+	if p.parsedFlagStates == nil {
+		p.parsedFlagStates = make([]flag.Flag, 0)
+		for _, s := range p.FlagStates {
+			flag, err := flag.FlagFromString(s)
+			if err != nil {
+				log.WarnFormat("Invalid flag in package %s '%s': %s", p.Name, s, err)
+				continue
+			}
+			p.parsedFlagStates = append(p.parsedFlagStates, *flag)
+		}
+	}
+	return p.parsedFlagStates
+}
+func (p *PkgInfo) SetFlagState(f *flag.Flag) {
+	p.parsedFlagStates = nil
+	
+	for i, v := range p.FlagStates {
+		if v[1:] == f.Name { //equals ignore sign
+			p.FlagStates[i] = f.String()
+			return
+		}
+	}
+	//Does not contain f already
+	p.FlagStates = append(p.FlagStates, f.String())
+}
+
+//Default + Configured
+func (p *PkgInfo) ComputedFlagStates() []flag.Flag {
+	res := make([]flag.Flag, 0)
+	for _, f := range p.ParsedFlags() {
+		res = append(res, f.Flag)
+	}
+	
+	for _, parsedf := range p.ParsedFlagStates() {
+		for i, currf := range res {
+			if currf.Name == parsedf.Name {
+				res[i] = parsedf
+				break
+			}
+		}
+	}
+	return res
 }
 
 func FromFile(filename string) (*PkgInfo, error) {

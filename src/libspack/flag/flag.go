@@ -17,7 +17,6 @@ flag = '[+,-]s*'
 */
 
 import (
-	"fmt"
 	"errors"
 	"strings"
 	"libspack/parser"
@@ -29,13 +28,15 @@ type Flag struct {
 	Name string
 	Enabled bool
 }
-func (f *Flag) String() string {
-	enabled := "+"
+func (f *Flag) Sign() string {
+	sign := "+"
 	if !f.Enabled {
-		enabled = "-"
+		sign = "-"
 	}
-	
-	return fmt.Sprintf("%s%s", enabled, f.Name)
+	return sign
+}
+func (f *Flag) String() string {
+	return f.Sign() + f.Name
 }
 
 type expr struct {
@@ -65,6 +66,17 @@ func (f *Flag) Parse(in *parser.Input) error {
 	}
 	
 	return nil
+}
+func FlagFromString(s string) (*Flag, error) {
+	s = strings.Replace(s, " ", "", -1)
+	in := parser.NewInput(s)
+	
+	f := &Flag{};
+	err := f.Parse(&in)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 func (e *expr) parse(in *parser.Input) error {
@@ -135,7 +147,7 @@ func (list *el) parse(in *parser.Input) error {
 }
 
 type FlagSet struct {
-	flag Flag
+	Flag Flag
 	list el
 }
 
@@ -143,7 +155,7 @@ func FromString(s string) (fs FlagSet, err error) {
 	s = strings.Replace(s, " ", "", -1)
 	in := parser.NewInput(s)
 	
-	err = fs.flag.Parse(&in)
+	err = fs.Flag.Parse(&in)
 	if err != nil { return }
 	
 	if exists := in.HasNext(1); !exists {

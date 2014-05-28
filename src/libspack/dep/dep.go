@@ -20,7 +20,7 @@ Version:
 <=version (multiple possible)
 ==version (singular)
 
-FlagList:
+FlagSet:
 (FlagSpec,FlagSpec, ...)
 
 */
@@ -196,4 +196,18 @@ func (l *FlagSet) Contains(f string) (*flag.Flag, bool) {
 		}
 	}
 	return nil, false
+}
+
+type DepList []Dep
+func (list *DepList) EnabledFromFlags(fs []flag.Flag) DepList {
+	res := make(DepList, 0)
+	for _, dep := range *list {
+		for _, flag := range fs {
+			if *dep.Condition == flag {
+				res = append(res, dep)
+				break;
+			}
+		}
+	}
+	return res
 }

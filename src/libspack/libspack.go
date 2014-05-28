@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"libspack/log"
 	"libspack/repo"
+	"libspack/repo/pkginstallset"
 	"libspack/control"
+	"libspack/pkginfo"
 )
 //import . "github.com/ahmetalpbalkan/go-linq"
 
@@ -112,6 +114,22 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 		}
 	}
 	return nil, nil
+}
+func GetPackageInstalledByName(pkgname string, destdir string) (*pkginstallset.PkgInstallSet, *repo.Repo) {
+	for _, repo := range repos {
+		c := repo.GetInstalledByName(pkgname, destdir)
+		if c != nil {
+			return c, repo
+		}
+	}
+	return nil, nil
+}
+func UninstallList(p *pkginfo.PkgInfo) []pkginstallset.PkgInstallSet {
+	res := make([]pkginstallset.PkgInstallSet, 0)
+	for _, repo := range repos {
+		res = append(res, repo.UninstallList(p)...)
+	}
+	return res
 }
 
 func Header(str string) {

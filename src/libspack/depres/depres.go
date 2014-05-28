@@ -53,12 +53,15 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	node.Dirty = false //We will be making sure we are clean in the next step
 	rethappy := true   //Clap your hands!
 	
-	var deps []dep.Dep
+	var deps dep.DepList
 	if params.IsForge {
 		deps = node.Control.ParsedBDeps()
 	} else {
 		deps = node.Control.ParsedDeps()
 	}
+	
+	deps = deps.EnabledFromFlags(node.FlagStates)
+	
 	isbdep := params.IsForge //Make a copy of isForge for later
 	params.IsForge = false
 	params.IsReinstall = false
