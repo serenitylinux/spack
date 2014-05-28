@@ -248,7 +248,7 @@ func (repo *Repo) InstallSpakg(spkg *spakg.Spakg, basedir string) error {
 func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList, basedir string) error {
 	old := repo.GetInstalledByName(c.Name, basedir)
 	
-	ps := pkginstallset.PkgInstallSet { c, p, hl }
+	ps := pkginstallset.New(&c,&p,hl);
 	err := os.MkdirAll(basedir + repo.installedPkgsDir(), 0755)
 	if err != nil {
 		return err
@@ -265,7 +265,7 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 				}
 			}
 		}
-		repo.MarkRemoved(&old.PkgInfo, basedir)
+		repo.MarkRemoved(old.PkgInfo, basedir)
 	}
 	
 	repo.loadInstalledPackagesList()
@@ -346,12 +346,13 @@ func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *pkginstallse
 	return nil
 }
 
-func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSet {
+// TODO actually check if that dep is enabled or not in the pkginfo
+func (repo *Repo) UninstallList(p *pkginfo.PkgInfo) []pkginstallset.PkgInstallSet {
 	pkgs := make([]pkginstallset.PkgInstallSet,0)
 	
-	var inner func (*control.Control)
+	var inner func (*pkginfo.PkgInfo)
 	
-	inner = func (cur *control.Control) {
+	inner = func (cur *pkginfo.PkgInfo) {
 		for _, pkg := range pkgs {
 			if pkg.Control.Name == cur.Name {
 				return
@@ -362,13 +363,13 @@ func (repo *Repo) UninstallList(c *control.Control) []pkginstallset.PkgInstallSe
 			for _, dep := range set.Control.Deps {
 				if dep == cur.Name {
 					pkgs = append(pkgs, set)
-					inner(&set.Control)
+					inner(set.PkgInfo)
 				}
 			}
 		}
 	}
 	
-	inner(c)
+	inner(p)
 	
 	return pkgs
 }

@@ -8,9 +8,13 @@ import (
 import json "libspack/jsonhelper"
 
 type PkgInstallSet struct {
-	Control control.Control
-	PkgInfo pkginfo.PkgInfo
+	Control *control.Control
+	PkgInfo *pkginfo.PkgInfo
 	Hashes  hash.HashList
+}
+
+func New(c *control.Control, p *pkginfo.PkgInfo, hash hash.HashList) *PkgInstallSet {
+	return &PkgInstallSet{ c, p, hash };
 }
 func (p *PkgInstallSet) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, p)

@@ -59,7 +59,7 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	} else {
 		deps = node.Control.ParsedDeps()
 	}
-	
+	isbdep := params.IsForge //Make a copy of isForge for later
 	params.IsForge = false
 	params.IsReinstall = false
 	
@@ -79,14 +79,11 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 		}
 		
 		//Will set to dirty if changed
-		if dep.Flags != nil && !depnode.MakeParentProud(node, dep, params.IsForge) {
+		if dep.Flags != nil && !depnode.MakeParentProud(node, dep, isbdep) {
 			debug("Changed "+ dep.Name)
 			rethappy = false
 			continue
 		}
-		
-		//update references from self to depnode and vice versa
-		//depnode.Parents.Append(node)
 		
 		//Continue down the rabbit hole
 		if !DepTree(depnode, graph, params) {

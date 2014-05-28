@@ -446,7 +446,7 @@ func remove(pkgs []string){
 		
 		pkgset := repo.GetInstalledByName(pkg, "/")
 		
-		list := repo.UninstallList(control) //TODO pass in pkginfo
+		list := repo.UninstallList(pkgset.PkgInfo) //TODO pass in pkginfo
 		if len(list) == 0 {
 			log.InfoFormat("%s has no deps", control.Name)
 		} else {
@@ -461,12 +461,12 @@ func remove(pkgs []string){
 			var err error
 			for _, rdep := range list {
 				//Edge case
-				if !repo.IsAnyInstalled(&rdep.Control, "/") {
+				if !repo.IsAnyInstalled(rdep.Control, "/") {
 					fmt.Println(pkg + " is not installed, cannot remove")
 					continue
 				}
 				
-				err = repo.Uninstall(&rdep.PkgInfo, destdirArg.Get())
+				err = repo.Uninstall(rdep.PkgInfo, destdirArg.Get())
 				if err != nil {
 					log.Error("Unable to remove " + rdep.Control.Name)
 					log.Warn(err)
@@ -476,7 +476,7 @@ func remove(pkgs []string){
 				}
 			}
 			if err == nil {
-				err = repo.Uninstall(&pkgset.PkgInfo, destdirArg.Get())
+				err = repo.Uninstall(pkgset.PkgInfo, destdirArg.Get())
 				if err != nil {
 					log.Warn(err)
 					continue

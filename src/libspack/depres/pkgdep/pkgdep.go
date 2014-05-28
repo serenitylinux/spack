@@ -67,16 +67,16 @@ func (pd *PkgDep) Equals(opd *PkgDep) bool {
 	//TODO IsSubSet may not work in all cases
 	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.IsSubSet(opd.FlagStates)
 }
-func (pd *PkgDep) MakeParentProud(opd *PkgDep, deps dep.Dep, isbdep bool) bool {
+func (pd *PkgDep) MakeParentProud(opd *PkgDep, dep dep.Dep, isbdep bool) bool {
 	if !pd.Parents.Contains(opd, isbdep) {
 		//We need to add parent's requirements
-		for _, pflag := range *deps.Flags {
+		for _, pflag := range *dep.Flags {
 			if _, exists := pd.FlagStates.Contains(pflag.Name); !exists {
 				pd.FlagStates = append(pd.FlagStates, pflag)
 			}
 		}
 		
-		pd.Parents.Append(opd, deps, isbdep)
+		pd.Parents.Append(opd, dep, isbdep)
 		pd.Dirty = true
 	}
 	return pd.SatisfiesParents()
@@ -173,10 +173,28 @@ func (pdl *PkgDepList) Add(dep string, destdir string) *PkgDep {
 	}
 	
 	//Find current rdeps and add them to the graph
-/*	rdeps := repo.UninstallList(ctrl)
-	for _, rdep := range rdeps {
-		//TODO 
-	}*/
+	
+	dep_info := repo.GetInstalledByName(dep, destdir)
+	if dep_info != nil {
+		rdeps := repo.UninstallList(dep_info.PkgInfo)
+		for _, rdep := range rdeps {
+			//TODO  This part may or may not work...
+		
+			ctrl, repo := libspack.GetPackageLatest(rdep.Control.Name)
+			if ctrl == nil {
+				log.Error("Unable to find package ", rdep.Control.Name)
+				return nil
+			}
+		
+			current_info := repo.GetInstalledByName(rdep.Control.Name, destdir)
+			parentnode := New(current_info.Control, repo)
+			
+			dep_reasons := dep_info.Reasons(ctrl.Name)
+			if dep_reasons != nil {
+				depnode.MakeParentProud(parentnode, *dep_reasons, false)
+			}
+		}
+	}
 	
 	if !depnode.SatisfiesParents() { 
 		log.Error(dep, " unable to satisfy parents") //TODO more info
