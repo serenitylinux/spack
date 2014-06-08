@@ -312,7 +312,7 @@ func (repo *Repo) GetInstalledByName(name string, basedir string) *pkginstallset
 		var err error
 		list, err = installedPackageList(basedir + repo.installedPkgsDir())
 		if err != nil {
-			log.WarnFormat("Unable to load packages: %s", err)
+			//log.WarnFormat("Unable to load packages: %s", err)
 			return nil
 		}
 	}

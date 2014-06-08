@@ -202,6 +202,12 @@ type DepList []Dep
 func (list *DepList) EnabledFromFlags(fs []flag.Flag) DepList {
 	res := make(DepList, 0)
 	for _, dep := range *list {
+		//We have no include condition
+		if dep.Condition == nil {
+			res = append(res, dep)
+			continue
+		}
+		
 		for _, flag := range fs {
 			if *dep.Condition == flag {
 				res = append(res, dep)
