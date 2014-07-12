@@ -1,4 +1,4 @@
-package jsonhelper
+package json
 
 import (
 	"io"

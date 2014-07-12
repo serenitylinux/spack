@@ -11,8 +11,8 @@ import (
 	"libspack/control"
 	"libspack/hash"
 	"libspack/misc"
+	"libspack/helpers/json"
 )
-import json "libspack/jsonhelper"
 
 const (
 	ControlName = "pkg.control"

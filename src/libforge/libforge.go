@@ -18,8 +18,8 @@ import (
 	"libspack/spakg"
 	"libspack/pkginfo"
 	"libspack/control"
-	"libspack/gitrepo"
-	"libspack/httphelper"
+	"libspack/helpers/git"
+	"libspack/helpers/http"
 )
 
 import . "libspack"
@@ -64,7 +64,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 				err := os.Mkdir(dir, 0755)
 				if err != nil { return err }
 				
-				err = gitrepo.Clone(url, dir)
+				err = git.Clone(url, dir)
 				if err != nil { return err }
 				
 			case ftpRegex.MatchString(url):
@@ -78,7 +78,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 			case httpRegex.MatchString(url):
 				log.DebugFormat("Fetching '%s' with http", url)
 				
-				err := httphelper.HttpFetchFileProgress(url, file, log.CanDebug())
+				err := http.HttpFetchFileProgress(url, file, log.CanDebug())
 				if err != nil { return err }
 				
 				err = extractPkgSrc(file, srcdir)

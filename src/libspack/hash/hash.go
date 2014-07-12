@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 	"crypto/md5"
+	"libspack/helpers/json"
 )
 
-import json "libspack/jsonhelper"
 import . "libspack/misc"
 
 func Md5sum(filename string) (sum string, err error) {

@@ -4,8 +4,8 @@ import (
 	"libspack/hash"
 	"libspack/pkginfo"
 	"libspack/control"
+	"libspack/helpers/json"
 )
-import json "libspack/jsonhelper"
 
 type PkgInstallSet struct {
 	Control *control.Control

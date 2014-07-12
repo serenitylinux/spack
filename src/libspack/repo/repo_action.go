@@ -10,7 +10,7 @@ import (
 	"libspack/spakg"
 	"libspack/pkginfo"
 	"libspack/control"
-	"libspack/httphelper"
+	"libspack/helpers/http"
 )
 import . "libspack/misc"
 
@@ -20,7 +20,7 @@ func (repo *Repo) FetchIfNotCachedSpakg(p *pkginfo.PkgInfo) error {
 		if(repo.HasRemoteSpakg(p)) {
 			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", p.UUID()))
 			log.InfoFormat("Fetching %s", src)
-			err := httphelper.HttpFetchFileProgress(src, out, true)
+			err := http.HttpFetchFileProgress(src, out, true)
 			if err != nil {
 				os.Remove(out)
 			}

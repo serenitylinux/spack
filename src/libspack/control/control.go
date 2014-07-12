@@ -11,8 +11,8 @@ import (
 	"libspack/misc"
 	"libspack/flag"
 	"libspack/dep"
+	"libspack/helpers/json"
 )
-import json "libspack/jsonhelper"
 
 type Control struct {
 	Name string

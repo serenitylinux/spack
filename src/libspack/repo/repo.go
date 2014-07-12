@@ -43,8 +43,8 @@ package repo
 import (
 	"libspack/pkginfo"
 	"libspack/control"
+	"libspack/helpers/json"
 )
-import json "libspack/jsonhelper"
 
 //Sorted by pkgversion
 type ControlMap map[string] control.ControlList

@@ -7,14 +7,14 @@ import (
 	"net/url"
 	"io/ioutil"
 	"libspack/log"
-	"libspack/gitrepo"
 	"libspack/control"
 	"libspack/pkginfo"
-	"libspack/httphelper"
+	"libspack/helpers/git"
+	"libspack/helpers/http"
+	"libspack/helpers/json"
 )
 
 import . "libspack/misc"
-import json "libspack/jsonhelper"
 
 /*
 Repo Dir Management
@@ -61,14 +61,14 @@ func cloneRepo(remote string, dir string, name string) {
 	switch {
 		case GitRegex.MatchString(remote):
 			os.MkdirAll(dir, 0755)
-			err := gitrepo.CloneOrUpdate(remote, dir)
+			err := git.CloneOrUpdate(remote, dir)
 			if err != nil {
 				log.WarnFormat("Update repository %s %s failed: %s", name, remote, err)
 			}
 		case HttpRegex.MatchString(remote):
 			os.MkdirAll(dir, 0755)
 			listFile := "packages.list"
-			err := httphelper.HttpFetchFileProgress(remote + listFile, dir + listFile, false)
+			err := http.HttpFetchFileProgress(remote + listFile, dir + listFile, false)
 			if err != nil {
 				log.Warn(err, remote + listFile)
 				return
@@ -85,7 +85,7 @@ func cloneRepo(remote string, dir string, name string) {
 				if !PathExists(dir + item) {
 					log.DebugFormat("Fetching %s", item)
 					src := remote + "/info/" + url.QueryEscape(item)
-					err = httphelper.HttpFetchFileProgress(src, dir + item, false)
+					err = http.HttpFetchFileProgress(src, dir + item, false)
 					if err != nil {
 						log.Warn("Unable to fetch %s: %s", err)
 					}

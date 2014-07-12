@@ -1,4 +1,4 @@
-package gitrepo
+package git
 
 import (
 	"os"

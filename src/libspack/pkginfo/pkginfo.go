@@ -8,9 +8,9 @@ import (
 	"libspack/control"
 	"libspack/flag"
 	"libspack/log"
+	"libspack/helpers/json"
 )
 
-import json "libspack/jsonhelper"
 
 type PkgInfo struct {
 	Name string
