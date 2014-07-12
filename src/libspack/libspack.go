@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"libspack/log"
 	"libspack/repo"
-	"libspack/repo/pkginstallset"
 	"libspack/control"
 	"libspack/pkginfo"
 )
@@ -113,7 +112,7 @@ func GetPackageLatest(pkgname string) (*control.Control, *repo.Repo){
 	}
 	return nil, nil
 }
-func GetPackageInstalledByName(pkgname string, destdir string) (*pkginstallset.PkgInstallSet, *repo.Repo) {
+func GetPackageInstalledByName(pkgname string, destdir string) (*repo.PkgInstallSet, *repo.Repo) {
 	for _, repo := range repos {
 		c := repo.GetInstalledByName(pkgname, destdir)
 		if c != nil {
@@ -122,8 +121,8 @@ func GetPackageInstalledByName(pkgname string, destdir string) (*pkginstallset.P
 	}
 	return nil, nil
 }
-func UninstallList(p *pkginfo.PkgInfo) []pkginstallset.PkgInstallSet {
-	res := make([]pkginstallset.PkgInstallSet, 0)
+func UninstallList(p *pkginfo.PkgInfo) []repo.PkgInstallSet {
+	res := make([]repo.PkgInstallSet, 0)
 	for _, repo := range repos {
 		res = append(res, repo.UninstallList(p)...)
 	}
