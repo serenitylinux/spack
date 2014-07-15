@@ -27,7 +27,7 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	defer func() { indent-- }()
 	
 	debug := func (s string) {
-		log.DebugFormat("%s %s %s", strings.Repeat("\t", indent), node.Control.UUID(), s)
+		log.DebugFormat("%s %s %s", strings.Repeat("\t", indent), node.Control().UUID(), s)
 	}
 	debug("check")
 	
@@ -57,14 +57,16 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	
 	var deps dep.DepList
 	if params.IsForge {
-		deps = node.Control.ParsedBDeps()
+		deps = node.Control().ParsedBDeps()
 	} else {
-		deps = node.Control.ParsedDeps()
+		deps = node.Control().ParsedDeps()
 	}
 	
-	deps = deps.EnabledFromFlags(node.FlagStates)
+	setflags := node.ComputedFlags()
+	//TODO check nil setflags
+	deps = deps.EnabledFromFlags(*setflags)
 	
-	isbdep := params.IsForge //Make a copy of isForge for later
+//	isbdep := params.IsForge //Make a copy of isForge for later
 	params.IsForge = false
 	params.IsReinstall = false
 	
@@ -85,7 +87,7 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 		}
 		
 		//Will set to dirty if changed and add parent constraint
-		if !depnode.AddConstraint(node, dep, isbdep) {
+		if !depnode.AddParent(node, dep) {
 			//We can't add this parent constraint
 			debug("Cannot change " + dep.Name + " to ")
 			rethappy = false
@@ -137,10 +139,10 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 	params.IsForge = true
 	for _, node := range tobuild {
 		//We have not already been "built"
-		if !visitedtreelist.Contains(node) {
+		if !visitedtreelist.Contains(node.Name) {
 			//Create a new graph representing the build deps of node
-			newroot := pkgdep.New(node.Control, node.Repo)
-			newroot.FlagStates = node.FlagStates //This *should* be a deep copy
+			newroot := pkgdep.New(node.Name, node.Repo)
+			newroot.Constraints = node.Constraints //This *should* be a deep copy
 			
 			newrootgraph := make(pkgdep.PkgDepList, 0)
 			newroot.Graph = &newrootgraph
@@ -178,7 +180,7 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 						
 				existing in order signifies that the package is ok to go
 			*/
-			if !orderedtreelist.Contains(node) {
+			if !orderedtreelist.Contains(node.Name) {
 				happy = false
 			}
 		}

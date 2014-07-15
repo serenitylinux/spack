@@ -150,9 +150,9 @@ func getPkg(pkg string) ( *control.Control, *repo.Repo) {
 func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 	for _, pkg := range *packages {
 		//Find template
-		template, exists := pkg.Repo.GetTemplateByControl(pkg.Control)
+		template, exists := pkg.Repo.GetTemplateByControl(pkg.Control())
 		if !exists {
-			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", pkg.Control.Name))
+			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", pkg.Name))
 		}
 		
 		log.InfoFormat("Installing bdeps for %s", pkg.PkgInfo().UUID())
@@ -277,7 +277,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		for _, pd := range pkglist {
 			//Fill in the tree for pd
 			//This step also partially fills in the installgraph
-			log.DebugFormat("Building tree for %s", pd.Control.UUID())
+			log.DebugFormat("Building tree for %s", pd.Name)
 			if !depres.DepTree(pd, &installgraph, params) {
 				happy = false
 				continue
@@ -289,10 +289,10 @@ func forgewieldPackages(packages []string, isForge bool) {
 	if !happy {
 		log.Error("Invalid State")
 		for _, pkg := range installgraph {
-			if !pkg.SatisfiesParents() {
+			if !pkg.Exists() {
 				log.Info("\t" + pkg.String())
-				for _, parent := range pkg.Parents {
-					log.Info("\t\t" + parent.Parent.String())
+				for _, parent := range pkg.Constraints {
+					log.Info("\t\t" + parent.String())
 				}
 			}
 		}

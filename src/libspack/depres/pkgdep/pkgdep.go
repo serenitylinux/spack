@@ -3,6 +3,7 @@ package pkgdep
 import (
 	"fmt"
 	"libspack/dep"
+	"libspack/flag"
 	"libspack/repo"
 	"libspack/control"
 	"libspack/pkginfo"
@@ -32,7 +33,7 @@ func New(name string, r *repo.Repo) *PkgDep {
 	return &new_pd
 }
 func (pd *PkgDep) String() string {
-	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control().UUID(), pd.Constraints.ComputedFlags(pd))
+	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control().UUID(), pd.ComputedFlags())
 }
 
 //note: old parents should be removed, so we should never need to modify an existing constraint
@@ -48,7 +49,7 @@ func (pd *PkgDep) RemoveParent(parent *PkgDep) bool {
 }
 
 func (pd *PkgDep) Exists() bool {
-	return pd.Control() != nil && pd.Constraints.ComputedFlags(pd) != nil
+	return pd.Control() != nil && pd.ComputedFlags() != nil
 }
 
 func (pd *PkgDep) Control() *control.Control {
@@ -57,7 +58,7 @@ func (pd *PkgDep) Control() *control.Control {
 
 func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
 	p := pkginfo.FromControl(pd.Control())
-	flags := pd.Constraints.ComputedFlags(pd)
+	flags := pd.ComputedFlags()
 	
 	if flags == nil { 
 		return nil
@@ -67,6 +68,10 @@ func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
 		p.Flags = append(p.Flags, flag.String())
 	}
 	return p
+}
+
+func (pd *PkgDep) ComputedFlags() *flag.FlagList {
+	return pd.Constraints.ComputedFlags(pd)
 }
 
 func (pd *PkgDep) SpakgExists() bool {

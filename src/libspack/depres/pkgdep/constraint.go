@@ -10,6 +10,13 @@ type Constraint struct {
 	dep dep.Dep
 	reason *string
 }
+func (c *Constraint) String() string {
+	if c.Parent == nil {
+		return *c.reason
+	} else {
+		return c.Parent.String()
+	}
+}
 
 type ConstraintList []Constraint
 
