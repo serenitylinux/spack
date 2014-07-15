@@ -150,8 +150,8 @@ func (c *Control) ParsedFlags() []flag.FlagSet {
 	}
 	return c.parsedFlags
 }
-func (c *Control) DefaultFlags() []flag.Flag {
-	res := make([]flag.Flag, 0)
+func (c *Control) DefaultFlags() flag.FlagList {
+	res := make(flag.FlagList, 0)
 	for _, fs := range c.ParsedFlags() {
 		res = append(res, fs.Flag)
 	}

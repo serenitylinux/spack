@@ -20,7 +20,7 @@ type PkgInfo struct {
 	Flags []string
 	parsedFlags []flag.FlagSet
 	FlagStates []string
-	parsedFlagStates []flag.Flag
+	parsedFlagStates flag.FlagList
 }
 
 type PkgInfoList []PkgInfo
@@ -64,9 +64,9 @@ func (p *PkgInfo) ParsedFlags() []flag.FlagSet {
 	return p.parsedFlags
 }
 
-func (p *PkgInfo) ParsedFlagStates() []flag.Flag {
+func (p *PkgInfo) ParsedFlagStates() flag.FlagList {
 	if p.parsedFlagStates == nil {
-		p.parsedFlagStates = make([]flag.Flag, 0)
+		p.parsedFlagStates = make(flag.FlagList, 0)
 		for _, s := range p.FlagStates {
 			flag, err := flag.FlagFromString(s)
 			if err != nil {
@@ -92,8 +92,8 @@ func (p *PkgInfo) SetFlagState(f *flag.Flag) {
 }
 
 //Default + Configured
-func (p *PkgInfo) ComputedFlagStates() []flag.Flag {
-	res := make([]flag.Flag, 0)
+func (p *PkgInfo) ComputedFlagStates() flag.FlagList {
+	res := make(flag.FlagList, 0)
 	for _, f := range p.ParsedFlags() {
 		res = append(res, f.Flag)
 	}

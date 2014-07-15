@@ -26,6 +26,7 @@ FlagSet:
 */
 
 import (
+	"fmt"
 	"strings"
 	"errors"
 	"libspack/parser"
@@ -35,23 +36,32 @@ import (
 type Dep struct {
 	Condition *flag.Flag
 	Name string
-	version1 *Version
-	version2 *Version
-	Flags *FlagSet
+	Version1 *Version
+	Version2 *Version
+	Flags *flag.FlagList
 }
 
 const (
 	GT = 1
-	LT
-	EQ
+	LT = 2
+	EQ = 3
 )
 
 type Version struct {
 	typ int
 	ver string
 }
-
-type FlagSet []flag.Flag
+func (v *Version) Accepts(verstr string) bool {
+	switch v.typ {
+		case GT:
+			return verstr > v.ver
+		case LT:
+			return verstr < v.ver
+		case EQ:
+			return verstr == v.ver
+	}
+	panic(errors.New(fmt.Sprintf("Invalid version value: %d", v.typ)))
+}
 
 func conditionPeek(in *parser.Input) bool {
 	s, _ := in.Peek(1)
@@ -70,7 +80,6 @@ func Parse(s string) (Dep, error) {
 	err := d.parse(&in)
 	return d, err
 }
-
 
 func (d *Dep) parse(in *parser.Input) error {
 	if conditionPeek(in) {
@@ -96,14 +105,14 @@ func (d *Dep) parse(in *parser.Input) error {
 		var new Version
 		err := new.parse(in)
 		if err != nil { return err }
-		d.version1 = &new
+		d.Version1 = &new
 	}
 	
-	if versionPeek(in) && d.version1.typ != EQ {
+	if versionPeek(in) && d.Version1.typ != EQ {
 		var new Version
 		err := new.parse(in)
 		if err != nil { return err }
-		d.version2 = &new
+		d.Version2 = &new
 	}
 	
 	//no requirements
@@ -111,8 +120,8 @@ func (d *Dep) parse(in *parser.Input) error {
 		return nil
 	}
 	
-	new := make(FlagSet, 0)
-	err := new.parse(in)
+	new := make(flag.FlagList, 0)
+	err := parseFlagSet(&new, in)
 	if err != nil {
 		return err
 	}
@@ -125,7 +134,7 @@ func (d *Dep) parse(in *parser.Input) error {
 	return nil
 }
 
-func (s *FlagSet) parse(in *parser.Input) error {	
+func parseFlagSet(s *flag.FlagList, in *parser.Input) error {	
 	if !in.IsNext("(") {
 		return errors.New("Expected '(' to start flag set")
 	}
@@ -167,39 +176,8 @@ func (v *Version) parse(in *parser.Input) error {
 }
 
 
-func (l *FlagSet) String() string {
-	str := ""
-	for _, flag := range *l {
-		str += flag.String() + " "
-	}
-	return str
-}
-func (l *FlagSet) IsSubSet(ol FlagSet) bool {
-	for _, flag := range *l {
-		found := false
-		for _, oflag := range ol {
-			if oflag.Name == flag.Name {
-				found = oflag.Enabled == flag.Enabled
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
-func (l *FlagSet) Contains(f string) (*flag.Flag, bool) {
-	for _, flag := range *l {
-		if flag.Name == f {
-			return &flag, true
-		}
-	}
-	return nil, false
-}
-
 type DepList []Dep
-func (list *DepList) EnabledFromFlags(fs []flag.Flag) DepList {
+func (list *DepList) EnabledFromFlags(fs flag.FlagList) DepList {
 	res := make(DepList, 0)
 	for _, dep := range *list {
 		//We have no include condition

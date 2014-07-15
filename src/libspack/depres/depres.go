@@ -20,6 +20,7 @@ type DepResParams struct {
 	DestDir string
 }
 
+//TODO log.Error(all the things)
 var indent int = 0
 func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams) bool {
 	indent++
@@ -30,11 +31,12 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	}
 	debug("check")
 	
-	//We are already installed
-	//And not a reinstall
+	//We are already installed exact (checks version and flags as well)
+	//And not a reinstall //!params.IsReinstall && 
 	//And not being built
-	if !params.IsReinstall && !params.IsForge && node.IsInstalled(params.DestDir) {
+	if !params.IsForge && node.IsInstalled(params.DestDir) {
 		debug("already installed")
+		//TODO Might need to do more here
 		return true
 	}
 	
@@ -66,29 +68,31 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	params.IsForge = false
 	params.IsReinstall = false
 	
+	//We are new or have been changed
 	for _, dep := range deps {
 		debug("Require: " + dep.Name)
 		
 		depnode := graph.Find(dep.Name)
+		//We are not part of the graph yet
 		if depnode == nil {
 			depnode = graph.Add(dep.Name, params.DestDir)
 		}
 		
 		if depnode.ForgeOnly {
 			debug("too far down the rabbit hole: "+ dep.Name)
-			//TODO log.Error(
 			rethappy = false
 			continue
 		}
 		
-		//Will set to dirty if changed
-		if dep.Flags != nil && !depnode.MakeParentProud(node, dep, isbdep) {
-			debug("Changed "+ dep.Name)
+		//Will set to dirty if changed and add parent constraint
+		if !depnode.AddConstraint(node, dep, isbdep) {
+			//We can't add this parent constraint
+			debug("Cannot change " + dep.Name + " to ")
 			rethappy = false
 			continue
 		}
 		
-		//Continue down the rabbit hole
+		//Continue down the rabbit hole ...
 		if !DepTree(depnode, graph, params) {
 			debug("Not Happy "+ dep.Name)
 			rethappy = false

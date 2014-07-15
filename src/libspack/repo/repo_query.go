@@ -34,6 +34,20 @@ func (repo *Repo) GetLatestControl(pkgname string) (*control.Control, bool) {
 	return res, res != nil
 }
 
+func (repo *Repo) GetPackageByVersionChecker(pkgname string, checker func (string) bool) (*control.Control) {
+	c, exists := repo.GetControls(pkgname)
+	var res *control.Control = nil
+	
+	if exists {
+		for _, ctrl := range c {
+			if (res == nil || res.UUID() < ctrl.UUID()) && checker(ctrl.Version) {
+				res = &ctrl
+			}
+		}
+	}
+	return res
+}
+
 func (repo *Repo) GetAllTemplates() TemplateFileMap {
 	return *repo.templateFiles
 }

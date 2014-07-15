@@ -12,58 +12,58 @@ import (
 Represents an installable package and it's rdeps
 *******************************************/
 type PkgDep struct {
-	Control *control.Control
+	Name string
+//	Control *control.Control //is tied to a version  should be computed
 	Repo *repo.Repo
-	FlagStates dep.FlagSet
+//	FlagStates dep.FlagSet //should be computed
 	Dirty bool
 	Happy bool
 	ForgeOnly bool
 	
-	Parents PkgDepParentList
+	Constraints ConstraintList
 	
 	Graph *PkgDepList
 }
 
-func New(c *control.Control, r *repo.Repo) *PkgDep {
-	new := PkgDep { Control: c, Repo: r, Dirty: true, ForgeOnly: false }
-	new.Parents = make(PkgDepParentList, 0)
+func New(name string, r *repo.Repo) *PkgDep {
+	new_pd := PkgDep { Name: name, Repo: r, Dirty: true, ForgeOnly: false }
+	new_pd.Constraints = make(ConstraintList, 0)
 	
-	return &new
+	return &new_pd
 }
 func (pd *PkgDep) String() string {
-	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control.UUID(), pd.FlagStates)
+	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control().UUID(), pd.Constraints.ComputedFlags(pd))
 }
-func (pd *PkgDep) Equals(opd *PkgDep) bool {
-	//TODO IsSubSet may not work in all cases
-	return pd.Control.UUID() == opd.Control.UUID() && pd.FlagStates.IsSubSet(opd.FlagStates)
-}
-func (pd *PkgDep) MakeParentProud(opd *PkgDep, dep dep.Dep, isbdep bool) bool {
-	if !pd.Parents.Contains(opd, isbdep) {
-		//We need to add parent's requirements
-		for _, pflag := range *dep.Flags {
-			if _, exists := pd.FlagStates.Contains(pflag.Name); !exists {
-				pd.FlagStates = append(pd.FlagStates, pflag)
-			}
-		}
-		
-		pd.Parents.Append(opd, dep, isbdep)
+
+//note: old parents should be removed, so we should never need to modify an existing constraint
+func (pd *PkgDep) AddParent(parent *PkgDep, reason dep.Dep) bool {
+	if !pd.Constraints.Contains(parent) {
+		pd.Constraints.AppendParent(parent, reason)
 		pd.Dirty = true
 	}
-	return pd.SatisfiesParents()
+	return pd.Exists()
 }
-func (pd *PkgDep) SatisfiesParents() bool {
-	for _, p := range pd.Parents {
-		if !p.IsProudOf(pd) {
-			return false
-		}
-	}
-	
-	return true
+func (pd *PkgDep) RemoveParent(parent *PkgDep) bool {
+	return pd.Constraints.RemoveByParent(parent)
+}
+
+func (pd *PkgDep) Exists() bool {
+	return pd.Control() != nil && pd.Constraints.ComputedFlags(pd) != nil
+}
+
+func (pd *PkgDep) Control() *control.Control {
+	return pd.Repo.GetPackageByVersionChecker(pd.Name, pd.Constraints.ComputedVersionChecker())
 }
 
 func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
-	p := pkginfo.FromControl(pd.Control)
-	for _, flag := range pd.FlagStates {
+	p := pkginfo.FromControl(pd.Control())
+	flags := pd.Constraints.ComputedFlags(pd)
+	
+	if flags == nil { 
+		return nil
+	}
+	
+	for _, flag := range *flags {
 		p.Flags = append(p.Flags, flag.String())
 	}
 	return p
@@ -77,6 +77,6 @@ func (pd *PkgDep) IsInstalled(destdir string) bool {
 	return pd.Repo.IsInstalled(pd.PkgInfo(), destdir)
 }
 
-func (pd *PkgDep) Find(name string) *PkgDep {
+func (pd *PkgDep) FindInGraph(name string) *PkgDep {
 	return pd.Graph.Find(name)
 }
