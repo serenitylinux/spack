@@ -29,7 +29,7 @@ func (p *PkgInfo) String() string {
 	return json.Stringify(p)
 }
 func (p *PkgInfo) UUID() string {
-	return fmt.Sprintf("%s-%s%%%d::%x", p.Name, p.Version, p.Iteration, p.flagHash())
+	return fmt.Sprintf("%s-%s_%d_%x", p.Name, p.Version, p.Iteration, p.flagHash())
 }
 
 func (p *PkgInfo) flagHash() uint32 {

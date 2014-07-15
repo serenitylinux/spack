@@ -42,7 +42,7 @@ func (c *Control) String() string {
 }
 
 func (c *Control) UUID() string {
-	return fmt.Sprintf("%s-%s%%%d", c.Name, c.Version, c.Iteration)
+	return fmt.Sprintf("%s-%s_%d", c.Name, c.Version, c.Iteration)
 }
 
 func (c ControlList) String() string {
