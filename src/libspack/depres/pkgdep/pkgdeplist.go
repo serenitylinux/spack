@@ -82,7 +82,7 @@ func (list *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	newl := make(PkgDepList, 0)
 	
 	for _, pkg := range *list {
-		if !pkg.ForgeOnly && !pkg.Repo.IsInstalled(pkg.PkgInfo(), destdir) {
+		if !pkg.ForgeOnly && !pkg.IsInstalled(destdir) {
 			newl.Append(pkg)
 		}
 	}

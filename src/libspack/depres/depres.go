@@ -32,13 +32,14 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	debug("check")
 	
 	//We are already installed exact (checks version and flags as well)
-	//And not a reinstall //!params.IsReinstall && 
+	//And not a reinstall
 	//And not being built
-	if !params.IsForge && node.IsInstalled(params.DestDir) {
+	if !params.IsForge && node.IsInstalled(params.DestDir) && !params.IsReinstall {
 		debug("already installed")
 		//TODO Might need to do more here
 		return true
 	}
+	node.IsReinstall = params.IsReinstall;
 	
 	//We do not need to be rechecked
 	if !node.Dirty {

@@ -18,7 +18,7 @@ type PkgDep struct {
 	Repo *repo.Repo
 //	FlagStates dep.FlagSet //should be computed
 	Dirty bool
-	Happy bool
+	IsReinstall bool
 	ForgeOnly bool
 	
 	Constraints ConstraintList
@@ -79,7 +79,7 @@ func (pd *PkgDep) SpakgExists() bool {
 }
 
 func (pd *PkgDep) IsInstalled(destdir string) bool {
-	return pd.Repo.IsInstalled(pd.PkgInfo(), destdir)
+	return !pd.IsReinstall && pd.Repo.IsInstalled(pd.PkgInfo(), destdir)
 }
 
 func (pd *PkgDep) FindInGraph(name string) *PkgDep {
