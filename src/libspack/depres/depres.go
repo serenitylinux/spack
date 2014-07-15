@@ -133,7 +133,6 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 		//TODO Does the next function call need to care about params.DestDir?
 		if !node.SpakgExists() && !node.IsInstalled(params.DestDir) || node.ForgeOnly {
 			debug("Build " + node.PkgInfo().UUID())
-			log.Error(!node.SpakgExists(), !node.IsInstalled(params.DestDir), node.ForgeOnly)
 			tobuild.Append(node)
 		} else {
 			debug("Have " + node.PkgInfo().UUID())
