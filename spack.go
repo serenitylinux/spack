@@ -317,9 +317,12 @@ func forgewieldPackages(packages []string, isForge bool) {
 		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
 		tobuild.Print()
 		for _, pkg := range *tobuild {
-			log.ColorAll(log.White, fmt.Sprintf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
-			fmt.Println()
-			pkg.Graph.ToInstall(params.DestDir).Print()
+			toinstallforpkg := pkg.Graph.ToInstall(params.DestDir)
+			if len(*toinstallforpkg) != 0 {
+				log.ColorAll(log.White, fmt.Sprintf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
+				fmt.Println()
+				toinstallforpkg.Print()
+			}
 		}
 		fmt.Println()
 	}
