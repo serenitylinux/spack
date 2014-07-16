@@ -8,8 +8,11 @@ type FlagList []Flag
 
 func (l FlagList) String() string {
 	str := ""
-	for _, flag := range l {
-		str += flag.String() + " "
+	for i, flag := range l {
+		str += flag.String()
+		if i != len(l)-1 {
+			str += " "
+		}
 	}
 	return str
 }
