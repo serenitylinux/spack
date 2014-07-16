@@ -59,7 +59,7 @@ func (f *Flag) Parse(in *parser.Input) error {
 	
 	f.Enabled = "+" == sign
 	
-	f.Name = in.ReadUntill("[]+-&|()")
+	f.Name = in.ReadUntill("[]+-&|(),")
 	
 	if len(f.Name) == 0 {
 		return errors.New("Flag: Nothing available after sign")
