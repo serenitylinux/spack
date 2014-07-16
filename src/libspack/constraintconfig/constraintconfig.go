@@ -60,7 +60,7 @@ func GetAll(root string) (ConstraintList) {
 		return list
 	}
 
-	pre := root + "/etc/spack/pkg/flags"
+	pre := root + "/etc/spack/pkg"
 	fl := make(ConstraintList, 0)
 	
 	if misc.PathExists(pre + ".conf") {
@@ -73,7 +73,10 @@ func GetAll(root string) (ConstraintList) {
 	
 	if misc.PathExists(pre) {
 		err := filepath.Walk(pre, func (path string, f os.FileInfo, err error) error { 
-			return fl.addFile(path)
+			if !f.IsDir() {
+				return fl.addFile(path)
+			}
+			return nil;
 		})
 		if err != nil {
 			log.Error(err)
