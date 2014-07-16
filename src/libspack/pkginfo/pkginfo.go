@@ -31,6 +31,9 @@ func (p *PkgInfo) String() string {
 func (p *PkgInfo) UUID() string {
 	return fmt.Sprintf("%s-%s_%d_%x", p.Name, p.Version, p.Iteration, p.flagHash())
 }
+func (p *PkgInfo) PrettyString() string {
+	return fmt.Sprintf("%s %s_%d (%s)", p.Name, p.Version, p.Iteration, p.ComputedFlagStates())
+}
 
 func (p *PkgInfo) flagHash() uint32 {
 	str := p.Name

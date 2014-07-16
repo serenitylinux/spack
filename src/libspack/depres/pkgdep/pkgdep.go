@@ -33,7 +33,7 @@ func New(name string, r *repo.Repo) *PkgDep {
 	return &new_pd
 }
 func (pd *PkgDep) String() string {
-	return fmt.Sprintf("%s::%s%s", pd.Repo.Name, pd.Control().UUID(), pd.ComputedFlags())
+	return fmt.Sprintf("%s::%s(%s)", pd.Repo.Name, pd.Control().UUID(), pd.ComputedFlags())
 }
 
 //note: old parents should be removed, so we should never need to modify an existing constraint
@@ -65,7 +65,7 @@ func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
 	}
 	
 	for _, flag := range *flags {
-		p.Flags = append(p.Flags, flag.String())
+		p.SetFlagState(&flag)
 	}
 	return p
 }

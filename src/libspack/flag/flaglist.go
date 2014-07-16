@@ -6,9 +6,9 @@ import (
 
 type FlagList []Flag
 
-func (l *FlagList) String() string {
+func (l FlagList) String() string {
 	str := ""
-	for _, flag := range *l {
+	for _, flag := range l {
 		str += flag.String() + " "
 	}
 	return str
