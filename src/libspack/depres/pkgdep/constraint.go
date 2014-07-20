@@ -48,7 +48,7 @@ func (l *ConstraintList) ComputedFlags(p *PkgDep) (*flag.FlagList) {
 		if c.dep.Flags != nil {
 			for _, f := range *c.dep.Flags {
 				if currflag, exists := newlist.Contains(f.Name); exists {
-					if currflag.Enabled == f.Enabled {
+					if currflag.Enabled != f.Enabled {
 						//TODO ERRORORORORORO
 						//We have a conflict!
 						return nil
