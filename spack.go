@@ -616,13 +616,13 @@ func search() {
 			actionlen := 5
 			if repo.IsAnyInstalled(&c, "/") {
 				action += "i"
-			}
+			} else { action += " " }
 			if repo.HasAnySpakg(&c) {
 				action += "b"
-			}
+			} else { action += " " }
 			if repo.HasTemplate(&c) {
 				action += "s"
-			}
+			} else { action += " " }
 			action += strings.Repeat(" ", actionlen - len(action))
 			log.ColorAll(log.White, action)
 			
