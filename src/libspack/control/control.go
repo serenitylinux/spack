@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"io"
 	"bytes"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/misc"
 	"libspack/flag"
 	"libspack/dep"
@@ -142,7 +142,7 @@ func (c *Control) ParsedFlags() []flag.FlagSet {
 		for _, s := range c.Flags {
 			flag, err := flag.FromString(s)
 			if err != nil {
-				log.WarnFormat("Invalid flag in package %s '%s': %s", c.Name, s, err)
+				log.Warn.Format("Invalid flag in package %s '%s': %s", c.Name, s, err)
 				continue
 			}
 			c.parsedFlags = append(c.parsedFlags, flag)
@@ -164,7 +164,7 @@ func (c *Control) ParsedDeps() dep.DepList {
 		for _, s := range c.Deps {
 			dep, err := dep.Parse(s)
 			if err != nil {
-				log.WarnFormat("Invalid dep in package %s '%s': %s", c.Name, s, err)
+				log.Warn.Format("Invalid dep in package %s '%s': %s", c.Name, s, err)
 				continue
 			}
 			c.parsedDeps = append(c.parsedDeps, dep)
@@ -179,7 +179,7 @@ func (c *Control) ParsedBDeps() dep.DepList {
 		for _, s := range c.Bdeps {
 			dep, err := dep.Parse(s)
 			if err != nil {
-				log.WarnFormat("Invalid Bdep in package %s '%s': %s", c.Name, s, err)
+				log.Warn.Format("Invalid Bdep in package %s '%s': %s", c.Name, s, err)
 				continue
 			}
 			c.parsedBDeps = append(c.parsedBDeps, dep)

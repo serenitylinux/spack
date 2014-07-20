@@ -8,7 +8,7 @@ package depres
 
 import (
 	"strings"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/dep"
 	"libspack/depres/pkgdep"
 )
@@ -20,14 +20,14 @@ type DepResParams struct {
 	DestDir string
 }
 
-//TODO log.Error(all the things)
+//TODO log.Error.Println(all the things)
 var indent int = 0
 func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams) bool {
 	indent++
 	defer func() { indent-- }()
 	
 	debug := func (s string) {
-		log.DebugFormat("%s %s %s", strings.Repeat("\t", indent), node.Control().UUID(), s)
+		log.Debug.Format("%s %s %s", strings.Repeat("\t", indent), node.Control().UUID(), s)
 	}
 	debug("check")
 	
@@ -91,7 +91,7 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 		if !depnode.AddParent(node, dep) {
 			//We can't add this parent constraint
 			debug("Cannot change " + dep.Name + " to " + dep.String())
-			log.ErrorPrintln("Conflicting package constraints on " + dep.Name + ":")
+			log.Error.Write([]byte("Conflicting package constraints on " + dep.Name + ":"))
 			depnode.Constraints.PrintError()
 			rethappy = false
 			continue
@@ -108,7 +108,7 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 }
 
 func FindToBuild(graph *pkgdep.PkgDepList, params DepResParams) (*pkgdep.PkgDepList, bool) {
-	log.Debug("Finding packages to build:")
+	log.Debug.Println("Finding packages to build:")
 	
 	orderedlist := make(pkgdep.PkgDepList, 0)
 	visitedlist := make(pkgdep.PkgDepList, 0)
@@ -124,7 +124,7 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 	defer func() { indent-- }()
 	
 	debug := func (s string) {
-		log.DebugFormat("%s %s", strings.Repeat("\t", indent), s)
+		log.Debug.Format("%s %s", strings.Repeat("\t", indent), s)
 	}
 	
 	//list of packages to build

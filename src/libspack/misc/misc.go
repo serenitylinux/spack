@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"strings"
 	"bufio"
 	"bytes"
 	"regexp"
 	"strconv"
+	"lumberjack/color"
 )
 
 func GetWidth() int{
@@ -25,6 +27,11 @@ func GetWidth() int{
 	} else {
 		return 60
 	}
+}
+
+var Bar = strings.Repeat("=", GetWidth()) + "\n"
+func LogBar(l io.Writer, c color.Code) {
+	l.Write([]byte(c.String(Bar)))
 }
 
 func WithFileReader(filename string, action func (io.Reader)) error {

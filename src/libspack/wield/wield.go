@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"libspack/spakg"
-	"libspack/log"
+	"lumberjack/log"
 )
 import . "libspack/misc"
 import . "libspack/hash"
@@ -34,7 +34,7 @@ func Wield(file string, destdir string) error {
 }
 
 func Ldconfig(destdir string) error {
-	return RunCommand(exec.Command("ldconfig", "-r", destdir), log.DebugWriter(), os.Stderr)
+	return RunCommand(exec.Command("ldconfig", "-r", destdir), log.Debug, os.Stderr)
 }
 
 func hasPart(part string, spkg *spakg.Spakg) bool {
@@ -44,7 +44,7 @@ func hasPart(part string, spkg *spakg.Spakg) bool {
 		declare -f %[2]s > /dev/null
 `
 	cmd = fmt.Sprintf(cmd, spkg.Pkginstall, part)
-	err := RunCommand(exec.Command("bash", "-c", cmd), log.DebugWriter(), os.Stderr)
+	err := RunCommand(exec.Command("bash", "-c", cmd), log.Debug, os.Stderr)
 	
 	return err == nil
 }
@@ -71,7 +71,7 @@ func runPart(part string, spkg *spakg.Spakg, destdir string) error {
 			bash = exec.Command("systemd-nspawn", bash.Args...)
 		}
 	}
-	return RunCommand(bash, log.DebugWriter(), os.Stderr)
+	return RunCommand(bash, log.Debug, os.Stderr)
 }
 
 func PreInstall(pkg *spakg.Spakg, destdir string) error {
@@ -105,7 +105,7 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 	
 	HeaderFormat("Unpacking %s", pkg.Control.Name)
 	cmd := exec.Command("tar", "-xvpf", tmpDir + "/fs.tar", "-C", fsDir)
-	err = RunCommand(cmd, log.DebugWriter(), os.Stderr)
+	err = RunCommand(cmd, log.Debug, os.Stderr)
 	if err != nil { return err }
 	
 	PrintSuccess()
@@ -129,7 +129,7 @@ func ExtractCheckCopy(pkgfile string, destdir string) error {
 			if origSum != sum {
 				return errors.New(fmt.Sprintf("Sum of %s does not match. Expected %s, calculated %s", path, origSum, sum))
 			}
-			log.DebugFormat("%s\t: %s", sum, path)
+			log.Debug.Format("%s\t: %s", sum, path)
 		}
 		return nil
 	}

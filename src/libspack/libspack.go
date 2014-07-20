@@ -5,7 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"io/ioutil"
-	"libspack/log"
+	"lumberjack/log"
+	"lumberjack/color"
+	"libspack/misc"
 	"libspack/repo"
 	"libspack/control"
 	"libspack/pkginfo"
@@ -42,10 +44,10 @@ func LoadRepos() error {
 }
 
 func RefreshRepos() {
-	log.Info()
+	log.Info.Println()
 	for _, repo := range repos {
-		log.Info("Refreshing ",repo.Name)
-		log.InfoBarColor(log.Brown)
+		log.Info.Println("Refreshing ",repo.Name)
+		misc.LogBar(log.Info, color.Brown)
 		repo.RefreshRemote()
 		PrintSuccess()
 	}
@@ -69,7 +71,7 @@ func GetPackageVersionIteration(pkgname, version, iteration string) (*control.Co
 	pkgs, repo := GetPackageAllVersions(pkgname)
 	itri, e := strconv.Atoi(iteration)
 	if e != nil {
-		log.Warn(e)
+		log.Warn.Println(e)
 		return nil, nil
 	}
 	var ctrl * control.Control
@@ -130,16 +132,16 @@ func UninstallList(p *pkginfo.PkgInfo) []repo.PkgInstallSet {
 }
 
 func Header(str string) {
-	log.InfoInLine(str + ": "); log.Debug()
-	log.DebugBarColor(log.Brown)
+	log.Info.Print(str + ": "); log.Debug.Println()
+	misc.LogBar(log.Debug, color.Brown)
 }
 func HeaderFormat(str string, extra ...interface{}) {
 	Header(fmt.Sprintf(str, extra...))
 }
 
 func PrintSuccess() {
-	log.InfoColor(log.Green, "Success")
-	log.Debug()
+	log.Info.Println(color.Green.String("Success"))
+	log.Debug.Println()
 }
 
 func AskYesNo(question string, def bool) bool {

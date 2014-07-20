@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"io/ioutil"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/misc"
 )
 
@@ -38,7 +38,7 @@ func AskYesNo(question string, def bool) bool {
 }
 
 func AskQuestion(question string) string {
-	log.Info(question)
+	log.Info.Println(question)
 	var answer string
 	fmt.Scanf("%s", &answer)
 	
@@ -46,14 +46,14 @@ func AskQuestion(question string) string {
 	if len(answer) > 4 {
 		return answer
 	} else {
-		log.Error("Password must be longer than 4 chars")
+		log.Error.Println("Password must be longer than 4 chars")
 		return AskQuestion(question)
 	}
 }
 
 func RequireRoot() {
 	if os.Geteuid() != 0 {
-		log.Error("Must be root")
+		log.Error.Println("Must be root")
 		os.Exit(-1)
 	}
 }
@@ -61,7 +61,7 @@ func RequireRoot() {
 func RequireProg(progname string) {
 	_, err := exec.LookPath(progname)
 	if err != nil {
-		log.ErrorFormat("Required program not found: %s", err)
+		log.Error.Format("Required program not found: %s", err)
 		os.Exit(-1)
 	}
 }
@@ -80,7 +80,7 @@ func Blkid() []Device {
 	
 	str, err := misc.RunCommandToString(exec.Command("blkid"))
 	if err != nil {
-		log.ErrorFormat("Unable to detect block devices: %s", err)
+		log.Error.Format("Unable to detect block devices: %s", err)
 		os.Exit(-1)
 	}
 	
@@ -116,16 +116,16 @@ func Blkid() []Device {
 
 func SelectDevice() Device {
 
-	log.Info("Please select a partition to install to:")
+	log.Info.Println("Please select a partition to install to:")
 	devices := Blkid()
 	
 	if len(devices) == 0 {
-		log.Error("Unable to find any suitable partitions")
+		log.Error.Println("Unable to find any suitable partitions")
 		os.Exit(-1)
 	}
 	
 	for i, device := range devices {
-		log.DebugFormat("%d: %s (%s) %s", i+1, device.file, device.label, device.fstype)
+		log.Debug.Format("%d: %s (%s) %s", i+1, device.file, device.label, device.fstype)
 	}
 	
 	var answer int
@@ -134,7 +134,7 @@ func SelectDevice() Device {
 		answer--
 		return devices[answer]
 	} else {
-		log.Error("Invalid Selection");
+		log.Error.Println("Invalid Selection");
 		return SelectDevice()
 	}
 }
@@ -142,7 +142,7 @@ func SelectDevice() Device {
 func FormatDevice(device Device) {
 	err := misc.RunCommandToStdOutErr(exec.Command("mkfs.ext4", device.file))
 	if err != nil {
-		log.Error("Unable to create fs")
+		log.Error.Println("Unable to create fs")
 		os.Exit(-1)
 	}
 }
@@ -152,7 +152,7 @@ func MountDevice(device Device) string {
 	os.MkdirAll(dir, 755)
 	err := misc.RunCommandToStdOutErr(exec.Command("mount", device.file, dir))
 	if err != nil {
-		log.Error("Unable to mount")
+		log.Error.Println("Unable to mount")
 		os.Exit(-1)
 	}
 	return dir + "/"
@@ -161,45 +161,45 @@ func MountDevice(device Device) string {
 func InstallTo(dir string, grub bool, device string) {
 	err := misc.RunCommandToStdOutErr(exec.Command("spack", "wield", "base", "dhcpcd", "iproute2", "--destdir=" + dir))
 	if err != nil {
-		log.Error("Error installing base packages")
+		log.Error.Println("Error installing base packages")
 		os.Exit(-1)
 	}
 	
 	if grub {
 		err := misc.RunCommandToStdOutErr(exec.Command("spack", "wield", "grub", "--destdir=" + dir))
 		if err != nil {
-			log.Error("Error installing grub")
+			log.Error.Println("Error installing grub")
 			os.Exit(-1)
 		}
 		
 		err = misc.RunCommandToStdOutErr(exec.Command("mkdir", dir + "/proc"))
 		if err != nil {
-			log.Error("Unable to create proc")
+			log.Error.Println("Unable to create proc")
 			os.Exit(-1)
 		}
 		
 		err = misc.RunCommandToStdOutErr(exec.Command("mount", "-t", "proc", "none", dir + "/proc"))
 		if err != nil {
-			log.Error("Unable to mount proc")
+			log.Error.Println("Unable to mount proc")
 			os.Exit(-1)
 		}
 		
 		err = misc.RunCommandToStdOutErr(exec.Command("mount", "--rbind", "/dev" , dir + "/dev"))
 		if err != nil {
-			log.Error("Unable to mount dev")
+			log.Error.Println("Unable to mount dev")
 			os.Exit(-1)
 		}
 		
 		misc.RunCommandToStdOutErr(exec.Command("sed", "-i", "s#set -e##", dir + "/etc/grub.d/10_serenity"))
 		err = misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "grub-install", device))
 		if err != nil {
-			log.Error("Unable to install grub")
+			log.Error.Println("Unable to install grub")
 			os.Exit(-1)
 		}
 		
 		err = misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "bash", "-c", "echo here; grub-mkconfig > /boot/grub/grub.cfg"))
 		if err != nil {
-			log.Error("Unable to setup grub")
+			log.Error.Println("Unable to setup grub")
 			os.Exit(-1)
 		}
 	}
@@ -210,7 +210,7 @@ func SetRootPass(dir, pass string) {
 	inner = fmt.Sprintf(inner, pass)
 	err := misc.RunCommandToStdOutErr(exec.Command("chroot", dir, "bash", "-c", inner))
 	if err != nil {
-		log.Error("Cannot set password")
+		log.Error.Println("Cannot set password")
 		os.Exit(-1)
 	}
 }
@@ -226,8 +226,8 @@ func main() {
 	RequireProg("mount")
 	RequireProg("mkfs.ext4")
 	
-	log.Info("Welcome to the Serenity Linux Installer")
-	log.InfoBar()
+	log.Info.Println("Welcome to the Serenity Linux Installer")
+	misc.LogBar(log.Info, log.Info.Color)
 	
 	device := SelectDevice()
 	doFormat := AskYesNo(fmt.Sprintf("Do you wish to format %s with ext4?", device.file), true)

@@ -6,7 +6,7 @@ import (
 	"io"
 	"bufio"
 	"path/filepath"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/misc"
 	"libspack/dep"
 )
@@ -66,7 +66,7 @@ func GetAll(root string) (ConstraintList) {
 	if misc.PathExists(pre + ".conf") {
 		err := fl.addFile(pre + ".conf")
 		if err != nil {
-			log.Error(err)
+			log.Error.Println(err)
 			return nil
 		}
 	}
@@ -79,7 +79,7 @@ func GetAll(root string) (ConstraintList) {
 			return nil;
 		})
 		if err != nil {
-			log.Error(err)
+			log.Error.Println(err)
 			return nil
 		}
 	}

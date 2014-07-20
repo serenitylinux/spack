@@ -6,7 +6,8 @@ import (
 	"errors"
 	"path/filepath"
 	"libspack/argparse"
-	"libspack/log"
+	"lumberjack/log"
+	"lumberjack/color"
 	"libspack/spakg"
 	"libspack/wield"
 )
@@ -26,7 +27,7 @@ func args() []string {
 	packages := argparse.EvalDefaultArgs()
 	
 	if len(packages) < 1 {
-		log.Error("Must specify package(s)!")
+		log.Error.Println("Must specify package(s)!")
 		argparse.Usage(2)
 	}
 	
@@ -36,7 +37,7 @@ func args() []string {
 	var err error
 	destdir, err = filepath.Abs(destArg.Get())
 	if err != nil {
-		log.Error(err)
+		log.Error.Println(err)
 		os.Exit(-1)
 	}
 	
@@ -73,19 +74,18 @@ func main() {
 		if err != nil {
 			break
 		}
-		
-		log.ColorAll(log.Green, fmt.Sprintf("Wielding %s with the force of a ", spkg.Control.UUID())); log.ColorAll(log.Red, "GOD")
+		fmt.Println(color.Green.Stringf("Wielding %s with the force of a %s", spkg.Control.UUID()), color.Red.String("GOD"))
 		
 		err = wield.Wield(pkg, destdir)
 		if err != nil {
 			break
 		}
 		
-		log.Info()
-		log.ColorAll(log.Green, "Your heart is pure and accepts the gift of " , spkg.Control.UUID())
+		log.Info.Println()
+		fmt.Println(color.Green.Stringf("Your heart is pure and accepts the gift of %s", spkg.Control.UUID()))
 	}
 	if err != nil {
-		log.Error(err)
+		log.Error.Println(err)
 		os.Exit(-1)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 	"libspack"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/spakg"
 	"libspack/argparse"
 	"libspack/pkginfo"
@@ -18,14 +18,14 @@ import . "libspack/misc"
 
 func ExitOnError(err error) {
 	if err != nil {
-		log.Error(err)
+		log.Error.Println(err)
 		os.Exit(-1)
 	}
 }
 
 func ExitOnErrorMessage(err error, message string) {
 	if err != nil {
-		log.Error(message + ":", err)
+		log.Error.Println(message + ":", err)
 		os.Exit(-1)
 	}
 }
@@ -60,11 +60,11 @@ func arguments() []string {
 	ExitOnError(err)
 	
 	
-	if log.CanDebug() {
+	if log.Debug.IsEnabled() {
 		outarg = "--verbose"
 	}
 	
-	if !log.CanDebug() && !log.CanInfo() {
+	if !log.Debug.IsEnabled() && !log.Info.IsEnabled() {
 		outarg = "--quiet"
 	}
 
@@ -88,14 +88,14 @@ func extractSpakg(file string, infodir string) error {
 }
 
 func processRepo(repo *repo.Repo) {
-	log.Debug("Repo: ", repo.Name)
+	log.Debug.Println("Repo: ", repo.Name)
 			
 	var err error	
 	pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, repo.Name)
 	if !PathExists(pkgdir) {
 		err = os.MkdirAll(pkgdir, 0755)	
 		if err != nil {
-			log.ErrorFormat("Unable to create %s: %s", pkgdir, err)
+			log.Error.Format("Unable to create %s: %s", pkgdir, err)
 			os.Exit(-1)
 		}
 	}
@@ -104,7 +104,7 @@ func processRepo(repo *repo.Repo) {
 	err = os.MkdirAll(infodir, 0755)
 	if !PathExists(infodir) {
 		if err != nil {
-			log.ErrorFormat("Unable to create %s: %s", infodir, err)
+			log.Error.Format("Unable to create %s: %s", infodir, err)
 			os.Exit(-1)
 		}
 	}
@@ -114,7 +114,7 @@ func processRepo(repo *repo.Repo) {
 			continue
 		}
 		
-		log.Info("Forging: ", name)
+		log.Info.Println("Forging: ", name)
 		for _, ctrl := range ctrls {
 			//Temporarily only support building the latestW
 			foo, _ := repo.GetLatestControl(ctrl.Name)
@@ -158,7 +158,7 @@ func processRepo(repo *repo.Repo) {
 			}
 			
 			if !depCheck(&ctrl) {
-				log.WarnFormat("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
+				log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
 				continue
 			}
 			
@@ -175,13 +175,13 @@ func processRepo(repo *repo.Repo) {
 				cmd.Stdin = os.Stdin
 				err = cmd.Run()
 				if err != nil {
-					log.WarnFormat("Unable to forge %s: %s", p.UUID(), err)
+					log.Warn.Format("Unable to forge %s: %s", p.UUID(), err)
 					continue
 				}
 				
 				err := extractSpakg(outfile, infodir)
 				if err != nil {
-					log.WarnFormat("Unable to load forged %s: %s", p.UUID(), err)
+					log.Warn.Format("Unable to load forged %s: %s", p.UUID(), err)
 				}
 			}
 		}
@@ -202,7 +202,7 @@ func main() {
 			for _, repoName := range repoNames {
 				repo, exists := repolist[repoName]
 				if !exists {
-					log.Warn("Cannot find " + repoName)
+					log.Warn.Println("Cannot find " + repoName)
 					continue
 				}
 			

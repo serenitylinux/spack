@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"strings"
 	"os"
+	"fmt"
 	"errors"
+	"strings"
 	"libforge"
 	"libspack"
 	"libspack/argparse"
-	"libspack/log"
 	"libspack/control"
 	"libspack/spakg"
 	"libspack/repo"
@@ -16,6 +15,8 @@ import (
 	"libspack/misc"
 	"libspack/depres"
 	"libspack/depres/pkgdep"
+	"lumberjack/log"
+	"lumberjack/color"
 )
 
 import . "libspack/misc"
@@ -155,13 +156,13 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", pkg.Name))
 		}
 		
-		log.InfoFormat("Installing bdeps for %s", pkg.PkgInfo().UUID())
+		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
 		depgraph := pkg.Graph.ToInstall(params.DestDir)
 		wieldGraph(depgraph, params)
 		
 		
 		//Forge pkg
-		log.InfoFormat("Forging %s", pkg.PkgInfo().UUID())
+		log.Info.Format("Forging %s", pkg.PkgInfo().UUID())
 		info := pkg.PkgInfo();
 		spakgFile := pkg.Repo.GetSpakgOutput(info)
 		forgerr := libforge.Forge(template, spakgFile, info.ComputedFlagStates(), false, interactiveArg != nil && interactiveArg.Get())
@@ -172,15 +173,15 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			forgeOutDir := forgeoutdirArg.Get()
 			err := CopyFile(pkg.Repo.GetSpakgOutput(pkg.PkgInfo()), forgeOutDir + pkg.PkgInfo().UUID() + ".spakg")
 			if err != nil {
-				log.Warn(err)
+				log.Warn.Println(err)
 			}
 		}
 		
-		log.InfoFormat("Removing bdeps for %s", pkg.PkgInfo().UUID())
+		log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
 		for _, pkg := range *depgraph {
 			err := pkg.Repo.Uninstall(pkg.PkgInfo(), params.DestDir)
 			if err != nil {
-				log.Error(err)
+				log.Error.Println(err)
 			}
 		}
 		
@@ -211,13 +212,13 @@ func wieldGraph(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		
 		spkgs = append(spkgs, pkgset{ spkg, pkg.Repo, pkgfile} )
 	}
-	log.Info()
+	log.Info.Println()
 	
 	//Preinstall
 	for _, pkg := range spkgs {
 		wield.PreInstall(pkg.spkg, params.DestDir)
 	}
-	log.Info()
+	log.Info.Println()
 	
 	//Install
 	for _ ,pkg := range spkgs {
@@ -229,14 +230,14 @@ func wieldGraph(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		
 		pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
 	}
-	log.Info()
+	log.Info.Println()
 	wield.Ldconfig(params.DestDir)
 	
 	//PostInstall
 	for _, pkg := range spkgs {
 		wield.PostInstall(pkg.spkg, params.DestDir)
 	}
-	log.Info()
+	log.Info.Println()
 	
 	return nil
 }
@@ -261,7 +262,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		pkgdep := installgraph.Add(pkg, params.DestDir)
 		
 		if pkgdep == nil {
-			log.ErrorFormat("Cannot find package %s", pkg)
+			log.Error.Format("Cannot find package %s", pkg)
 			happy = false
 			continue
 		}
@@ -277,22 +278,22 @@ func forgewieldPackages(packages []string, isForge bool) {
 		for _, pd := range pkglist {
 			//Fill in the tree for pd
 			//This step also partially fills in the installgraph
-			log.DebugFormat("Building tree for %s", pd.Name)
+			log.Debug.Format("Building tree for %s", pd.Name)
 			if !depres.DepTree(pd, &installgraph, params) {
 				happy = false
 				continue
 			}
-			log.Debug()
+			log.Debug.Println()
 		}
 	}
 	
 	if !happy {
-		log.Error("Invalid State")
+		log.Error.Println("Invalid State")
 		for _, pkg := range installgraph {
 			if !pkg.Exists() {
-				log.Info("\t" + pkg.String())
+				log.Info.Println("\t" + pkg.String())
 				for _, parent := range pkg.Constraints {
-					log.Info("\t\t" + parent.String())
+					log.Info.Println("\t\t" + parent.String())
 				}
 			}
 		}
@@ -309,17 +310,17 @@ func forgewieldPackages(packages []string, isForge bool) {
 	
 	if !happy {
 		//TODO verbosify
-		log.Error("Unable to generate build graphs")
+		log.Error.Println("Unable to generate build graphs")
 		os.Exit(-1)
 	}
 	
 	if len(*tobuild) > 0 {
-		log.ColorAll(log.White, "Packages to Forge:"); fmt.Println()
+		fmt.Println(color.White.String("Packages to Forge:"))
 		tobuild.Print()
 		for _, pkg := range *tobuild {
 			toinstallforpkg := pkg.Graph.ToInstall(params.DestDir)
 			if len(*toinstallforpkg) != 0 {
-				log.ColorAll(log.White, fmt.Sprintf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
+				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
 				fmt.Println()
 				toinstallforpkg.Print()
 			}
@@ -328,7 +329,8 @@ func forgewieldPackages(packages []string, isForge bool) {
 	}
 	toinstall := installgraph.ToInstall(params.DestDir)
 	if len(*toinstall) > 0 {
-		log.ColorAll(log.White, "Packages to Wield:"); fmt.Println()
+		fmt.Println(color.White.String("Packages to Wield:"))
+		fmt.Println()
 		toinstall.Print()
 		fmt.Println()
 	}
@@ -340,13 +342,13 @@ func forgewieldPackages(packages []string, isForge bool) {
 	}
 	
 	if len(*tobuild) > 0 {
-		log.Info("Forging required packages: ")
-		log.InfoBar()
+		log.Info.Println("Forging required packages: ")
+		LogBar(log.Info, log.Info.Color)
 		
 		err := forgeList(tobuild, forgeparams)
 		
 		if err != nil {
-			log.Error("Unable to forge: ", err)
+			log.Error.Println("Unable to forge: ", err)
 			os.Exit(-1)
 		} else {
 			libspack.PrintSuccess()
@@ -354,18 +356,18 @@ func forgewieldPackages(packages []string, isForge bool) {
 	}
 	
 	if len(*toinstall) > 0 {
-		log.Info("Wielding required packages: ")
-		log.InfoBar()
+		log.Info.Println("Wielding required packages: ")
+		LogBar(log.Info, log.Info.Color)
 		err := wieldGraph(toinstall, params)
 		if err != nil {
-			log.Error(err)
+			log.Error.Println(err)
 		} else {
 			libspack.PrintSuccess()
 		}
 	}
 	
 	if len(*tobuild) + len(*toinstall) == 0 {
-		log.Info("Nothing to do")
+		log.Info.Println("Nothing to do")
 	}
 }
 
@@ -430,7 +432,7 @@ func purge() {
 	if len(pkgs) >= 1 {
 		remove(pkgs)
 	} else {
-		log.Error("Must specify package(s) for information")
+		log.Error.Println("Must specify package(s) for information")
 		argparse.Usage(2)
 	}
 }
@@ -456,7 +458,7 @@ func remove(pkgs []string){
 		
 		list := repo.UninstallList(pkgset.PkgInfo) //TODO pass in pkginfo
 		if len(list) == 0 {
-			log.InfoFormat("%s has no deps", control.Name)
+			log.Info.Format("%s has no deps", control.Name)
 		} else {
 			fmt.Println("Packages to remove: ")
 			fmt.Print(control.UUID())
@@ -476,8 +478,8 @@ func remove(pkgs []string){
 				
 				err = repo.Uninstall(rdep.PkgInfo, destdirArg.Get())
 				if err != nil {
-					log.Error("Unable to remove " + rdep.Control.Name)
-					log.Warn(err)
+					log.Error.Println("Unable to remove " + rdep.Control.Name)
+					log.Warn.Println(err)
 					break
 				} else {
 					fmt.Println("Successfully removed " + rdep.Control.Name)
@@ -486,7 +488,7 @@ func remove(pkgs []string){
 			if err == nil {
 				err = repo.Uninstall(pkgset.PkgInfo, destdirArg.Get())
 				if err != nil {
-					log.Warn(err)
+					log.Warn.Println(err)
 					continue
 				}
 			}
@@ -500,7 +502,7 @@ func upgrade() {
 	pkgs := ForgeWieldArgs(false)
 	
 	if len(pkgs) > 0 {
-		log.ErrorFormat("Invalid options: ", pkgs)
+		log.Error.Format("Invalid options: ", pkgs)
 		argparse.Usage(2)
 	}
 	
@@ -510,7 +512,7 @@ func upgrade() {
 			c, _ := repo.GetLatestControl(pkg.Control.Name)
 			if (c != nil && c.UUID() > pkg.Control.UUID()) {
 				nameList = append(nameList, c.Name)
-				log.DebugFormat("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
+				log.Debug.Format("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
 			}
 		}
 	}
@@ -531,7 +533,7 @@ func refresh(){
 	
 	pkgs := argparse.EvalDefaultArgs()
 	if len(pkgs) > 0 {
-		log.ErrorFormat("Invalid options: ", pkgs)
+		log.Error.Format("Invalid options: ", pkgs)
 		argparse.Usage(2)
 	}
 	
@@ -557,7 +559,7 @@ func search() {
 
 	
 	if len(filters) < 1 {
-		log.Error("Must specify filters")
+		log.Error.Println("Must specify filters")
 		argparse.Usage(2)
 	}
 	
@@ -624,17 +626,16 @@ func search() {
 				action += "s"
 			} else { action += " " }
 			action += strings.Repeat(" ", actionlen - len(action))
-			log.ColorAll(log.White, action)
+			fmt.Print(color.White.String(action))
 			
-			log.ColorAll(log.Green, c.UUID(), strings.Repeat(" ", gap + 2))
+			fmt.Print(color.Green.String(c.UUID(), strings.Repeat(" ", gap + 2)))
 			
 			desc := c.Description
 			totallen := actionlen + longest + 2
 			if totallen + len(desc) >= length {
 				desc = desc[0:(length - totallen)]
 			}
-			log.ColorAll(log.White, desc)
-			fmt.Println()
+			fmt.Println(color.White.String(desc))
 		}
 	}
 }
@@ -683,7 +684,7 @@ func main() {
 			if len(os.Args) > 1 {
 				info(os.Args[1:])
 			} else {
-				log.Error("Must specify package(s) for information")
+				log.Error.Println("Must specify package(s) for information")
 				Usage(2)
 			}
 		default:

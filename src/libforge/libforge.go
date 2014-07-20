@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/flag"
 	"libspack/spakg"
 	"libspack/pkginfo"
@@ -38,7 +38,7 @@ func extractPkgSrc(srcPath string, outDir string) error {
 		default:
 			return errors.New("Unknown archive type: " + outDir)
 	}
-	return RunCommand(cmd, log.DebugWriter(), os.Stderr)
+	return RunCommand(cmd, log.Debug, os.Stderr)
 }
 
 
@@ -57,7 +57,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 		file := basedir + "/" + base
 		switch {
 			case gitRegex.MatchString(url):
-				log.DebugFormat("Fetching '%s' with git", url)
+				log.Debug.Format("Fetching '%s' with git", url)
 				dir := srcdir + base
 				
 				dir = strings.Replace(dir, ".git", "", 1)
@@ -68,7 +68,7 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 				if err != nil { return err }
 				
 			case ftpRegex.MatchString(url):
-				log.DebugFormat("Fetching '%s'", url)
+				log.Debug.Format("Fetching '%s'", url)
 				err := RunCommandToStdOutErr(exec.Command("wget", url, "-O", file))
 				if err != nil { return err }
 				
@@ -76,9 +76,9 @@ func FetchPkgSrc(urls []string, basedir string, srcdir string) error {
 				if err != nil { return err }
 				
 			case httpRegex.MatchString(url):
-				log.DebugFormat("Fetching '%s' with http", url)
+				log.Debug.Format("Fetching '%s' with http", url)
 				
-				err := http.HttpFetchFileProgress(url, file, log.CanDebug())
+				err := http.HttpFetchFileProgress(url, file, log.Debug.IsEnabled())
 				if err != nil { return err }
 				
 				err = extractPkgSrc(file, srcdir)
@@ -133,7 +133,7 @@ func runPart(part, fileName, action, src_dir string, states []flag.Flag) error {
 
 	Header("Running " + part)
 	
-	err := RunCommand(exec.Command("bash", "-ce", forge_helper), log.DebugWriter(), os.Stderr)
+	err := RunCommand(exec.Command("bash", "-ce", forge_helper), log.Debug, os.Stderr)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func StripPackage(destdir string) error {
 			fi
 			`, destdir, filter, strip)
 		
-		return RunCommand(exec.Command("bash", "-c", cmd), log.DebugWriter(), os.Stderr)
+		return RunCommand(exec.Command("bash", "-c", cmd), log.Debug, os.Stderr)
 	}
 	Clean("/bin/", "-s")
 	Clean("/sbin/", "-s")
@@ -200,7 +200,7 @@ func createSums(destdir string) (HashList, error) {
 		if !f.IsDir() {
 			sum, erri := Md5sum(path)
 			if erri == nil {
-				log.DebugFormat("%s:\t%s", sum, path)
+				log.Debug.Format("%s:\t%s", sum, path)
 				hl[path] = sum
 			}
 		}
@@ -228,20 +228,20 @@ exit 0
 func addFsToSpakg(basedir, destdir, outfile string, archive spakg.Spakg) error {
 	fsTarName := spakg.FsName
 	fsTar := basedir + "/" + fsTarName
-	log.Debug("Creating fs.tar: " + fsTar)
+	log.Debug.Println("Creating fs.tar: " + fsTar)
 	
 	var err error
 	InDir(destdir, func() {
-		err = RunCommand(exec.Command("tar", "-cvf", fsTar, "."), log.DebugWriter(), os.Stderr)
+		err = RunCommand(exec.Command("tar", "-cvf", fsTar, "."), log.Debug, os.Stderr)
 	})
 	if err != nil {
 		return err
 	}
-	log.Debug()
+	log.Debug.Println()
 	
 	
 	//Spakg
-	log.DebugFormat("Creating package: %s", outfile)
+	log.Debug.Format("Creating package: %s", outfile)
 	
 	var innererr error
 	err = WithFileReader(fsTar, func(fs io.Reader) {
@@ -324,8 +324,8 @@ func Forge(template, outfile string, states []flag.Flag, test bool, interactive 
 	
 	OnError := func (err error) error {
 		if interactive {
-			log.Error(err)
-			log.Info("Dropping you to a shell")
+			log.Error.Println(err)
+			log.Info.Println("Dropping you to a shell")
 			InDir(basedir, func() {
 				cmd := exec.Command("bash")
 				cmd.Stdout = os.Stdout

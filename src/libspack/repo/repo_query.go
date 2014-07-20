@@ -4,7 +4,7 @@ import (
 	"os"
 	"fmt"
 	"path/filepath"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/control"
 	"libspack/pkginfo"
 )
@@ -138,7 +138,7 @@ func (repo *Repo) GetInstalledByName(name string, basedir string) *PkgInstallSet
 		var err error
 		list, err = installedPackageList(basedir + repo.installedPkgsDir())
 		if err != nil {
-			//log.WarnFormat("Unable to load packages: %s", err)
+			//log.Warn.Format("Unable to load packages: %s", err)
 			return nil
 		}
 	}
@@ -163,7 +163,7 @@ func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *PkgInstallSe
 		file := repo.installSetFile(*p, basedir)
 		s, err := PkgISFromFile(file)
 		if err != nil {
-			log.WarnFormat("Unable to load %s: %s", file, err)
+			log.Warn.Format("Unable to load %s: %s", file, err)
 			return nil
 		} else {
 			return s

@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"libspack/argparse"
 	"libspack/control"
-	"libspack/log"
+	"lumberjack/log"
+	"lumberjack/color"
 	"libforge"
 )
 
@@ -34,7 +35,7 @@ func arguments() string {
 	packages := argparse.EvalDefaultArgs()
 	
 	if len(packages) != 1 {
-		log.Error("Must specify package!")
+		log.Error.Println("Must specify package!")
 		argparse.Usage(2)
 	}
 	pkgName := packages[0]
@@ -68,25 +69,24 @@ func arguments() string {
 func main() {
 	template, err := filepath.Abs(arguments())
 	if err != nil {
-		log.Error(err)
+		log.Error.Println(err)
 		os.Exit(2)
 	}
 	
 	c, err := control.FromTemplateFile(template)
 	if c == nil {
-		log.ErrorFormat("Invalid package %s, %s", template, err)
+		log.Error.Format("Invalid package %s, %s", template, err)
 		os.Exit(2)
 	}
 	
-	log.InfoFormat("Forging %s in the heart of a star.", c.Name)
-	log.Warn("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
-	log.Info()
+	log.Info.Format("Forging %s in the heart of a star.", c.Name)
+	log.Warn.Println("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
+	log.Info.Println()
 	//TODO custom flags/honor globals
 	err = libforge.Forge(template, output, c.DefaultFlags(), test, interactive)
 	if err != nil {
-		log.Error(err)
+		log.Error.Println(err)
 	}
 	
-	log.ColorAll(log.Green, c.Name, " forged successfully")
-	fmt.Println()
+	fmt.Println(color.Green.String(c.Name + " forged successfully"))
 }

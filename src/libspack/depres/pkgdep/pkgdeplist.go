@@ -3,7 +3,7 @@ package pkgdep
 import (
 	"fmt"
 	"libspack"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/misc"
 	"libspack/constraintconfig"
 )
@@ -59,7 +59,7 @@ func (list *PkgDepList) Add(depname string, destdir string) *PkgDep {
 	//Create new pkgdep node
 	_, repo := libspack.GetPackageLatest(depname)
 	if repo == nil {
-		log.Error("Unable to find repo for ", depname)
+		log.Error.Println("Unable to find repo for ", depname)
 		return nil
 	}
 	
@@ -73,7 +73,7 @@ func (list *PkgDepList) Add(depname string, destdir string) *PkgDep {
 	}
 	
 	if !depnode.Exists() {
-		log.Error(depname, " unable to satisfy parents") //TODO more info
+		log.Error.Println(depname, " unable to satisfy parents") //TODO more info
 	}
 	
 	return depnode

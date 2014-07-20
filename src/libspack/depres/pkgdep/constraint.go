@@ -4,7 +4,7 @@ import (
 	"strings"
 	"libspack/dep"
 	"libspack/flag"
-	"libspack/log"
+	"lumberjack/log"
 )
 
 type Constraint struct {
@@ -120,6 +120,7 @@ func (l *ConstraintList) PrintError() {
 	}
 	
 	for _, c := range *l {
-		log.ErrorPrintln(c.dep.String() + strings.Repeat(" ", max - len(c.dep.String())) + "  " + c.reason)
+		str := c.dep.String() + strings.Repeat(" ", max - len(c.dep.String())) + "  " + c.reason
+		log.Error.Write([]byte(str))
 	}
 }

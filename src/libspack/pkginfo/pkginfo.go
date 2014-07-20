@@ -7,7 +7,7 @@ import (
 	"hash/crc32"
 	"libspack/control"
 	"libspack/flag"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/helpers/json"
 )
 
@@ -62,7 +62,7 @@ func (p *PkgInfo) ParsedFlags() []flag.FlagSet {
 		for _, s := range p.Flags {
 			flag, err := flag.FromString(s)
 			if err != nil {
-				log.WarnFormat("Invalid flag in package %s '%s': %s", p.Name, s, err)
+				log.Warn.Format("Invalid flag in package %s '%s': %s", p.Name, s, err)
 				continue
 			}
 			p.parsedFlags = append(p.parsedFlags, flag)
@@ -77,7 +77,7 @@ func (p *PkgInfo) ParsedFlagStates() flag.FlagList {
 		for _, s := range p.FlagStates {
 			flag, err := flag.FlagFromString(s)
 			if err != nil {
-				log.WarnFormat("Invalid flag in package %s '%s': %s", p.Name, s, err)
+				log.Warn.Format("Invalid flag in package %s '%s': %s", p.Name, s, err)
 				continue
 			}
 			p.parsedFlagStates = append(p.parsedFlagStates, *flag)

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 	"net/url"
-	"libspack/log"
+	"lumberjack/log"
 	"libspack/hash"
 	"libspack/spakg"
 	"libspack/pkginfo"
@@ -19,7 +19,7 @@ func (repo *Repo) FetchIfNotCachedSpakg(p *pkginfo.PkgInfo) error {
 	if !PathExists(out) {
 		if(repo.HasRemoteSpakg(p)) {
 			src := repo.RemotePackages + "/pkgs/" + url.QueryEscape(fmt.Sprintf("%s.spakg", p.UUID()))
-			log.InfoFormat("Fetching %s", src)
+			log.Info.Format("Fetching %s", src)
 			err := http.HttpFetchFileProgress(src, out, true)
 			if err != nil {
 				os.Remove(out)
@@ -52,7 +52,7 @@ func (repo *Repo) Install(c control.Control, p pkginfo.PkgInfo, hl hash.HashList
 			if _, exists := hl[file]; !exists {
 				err := os.RemoveAll(file)
 				if err != nil {
-					log.WarnFormat("Unable to remove old file %s: %s", file, err)
+					log.Warn.Format("Unable to remove old file %s: %s", file, err)
 				}
 			}
 		}
@@ -71,12 +71,12 @@ func (repo *Repo) Uninstall(p *pkginfo.PkgInfo, destdir string) error {
 	inst := repo.GetInstalled(p, destdir)
 	basedir := "/"
 	if (inst != nil) {
-		log.InfoFormat("Removing %s", inst.PkgInfo.UUID())
+		log.Info.Format("Removing %s", inst.PkgInfo.UUID())
 		for f, _ := range inst.Hashes {
-			log.Debug("Remove: " + basedir + f)
+			log.Debug.Println("Remove: " + basedir + f)
 			err := os.Remove(basedir + f)
 			if err != nil {
-				log.Warn(err)
+				log.Warn.Println(err)
 				//Do we return or keep trying?
 			}
 		}
