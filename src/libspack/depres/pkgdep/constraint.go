@@ -1,6 +1,7 @@
 package pkgdep
 
 import (
+	"strings"
 	"libspack/dep"
 	"libspack/flag"
 	"libspack/log"
@@ -9,11 +10,11 @@ import (
 type Constraint struct {
 	Parent *PkgDep
 	dep dep.Dep
-	reason *string
+	reason string
 }
 func (c *Constraint) String() string {
 	if c.Parent == nil {
-		return *c.reason
+		return c.reason
 	} else {
 		return c.Parent.String()
 	}
@@ -31,11 +32,11 @@ func (l *ConstraintList) Contains(p *PkgDep) bool {
 }
 
 func (l *ConstraintList) AppendParent(p *PkgDep, deps dep.Dep) {
-	*l = append(*l, Constraint { p, deps, nil });
+	*l = append(*l, Constraint { p, deps, "Required by " + p.Name });
 }
 
 func (l *ConstraintList) AppendOther(reason string, deps dep.Dep) {
-	*l = append(*l, Constraint { nil, deps, &reason });
+	*l = append(*l, Constraint { nil, deps, reason });
 }
 
 func (l *ConstraintList) ComputedFlags(p *PkgDep) (*flag.FlagList) {
@@ -110,7 +111,15 @@ func (l *ConstraintList) RemoveByParent(parent *PkgDep) bool {
 }
 
 func (l *ConstraintList) PrintError() {
-	for _, constraint := range *l {
-		log.ErrorPrintln(constraint.dep.String())
+	max := 0
+	for _, c := range *l {
+		ln := len(c.dep.String())
+		if ln > max {
+			max = ln
+		}
+	}
+	
+	for _, c := range *l {
+		log.ErrorPrintln(c.dep.String() + strings.Repeat(" ", max - len(c.dep.String())) + "  " + c.reason)
 	}
 }
