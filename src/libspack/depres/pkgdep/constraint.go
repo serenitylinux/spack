@@ -3,6 +3,7 @@ package pkgdep
 import (
 	"libspack/dep"
 	"libspack/flag"
+	"libspack/log"
 )
 
 type Constraint struct {
@@ -106,4 +107,10 @@ func (l *ConstraintList) RemoveByParent(parent *PkgDep) bool {
 	}
 	*l = newl
 	return ret
+}
+
+func (l *ConstraintList) PrintError() {
+	for _, constraint := range *l {
+		log.ErrorPrintln(constraint.dep.String())
+	}
 }

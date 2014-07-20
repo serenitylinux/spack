@@ -91,6 +91,12 @@ func levelColor(ll LogLevel) string {
 	panic("Invalid LogLevel")
 }
 
+func Println(lole LogLevel, messages ...interface{}) {
+	if CanLevel(lole) {
+		fmt.Println(messages...)
+	}
+}
+
 func logPrintColor(color string, lole LogLevel, newline bool, messages []interface{}) {
 	if CanLevel(lole) {
 		switch (lole) {
@@ -162,6 +168,11 @@ func ErrorFormat(format string, objs ...interface{}) { Error(fmt.Sprintf(format,
 func WarnFormat (format string, objs ...interface{}) { Warn (fmt.Sprintf(format, objs...)) }
 func InfoFormat (format string, objs ...interface{}) { Info (fmt.Sprintf(format, objs...)) }
 func DebugFormat(format string, objs ...interface{}) { Debug(fmt.Sprintf(format, objs...)) }
+
+func ErrorPrintln(messages ...interface{}) { Println(ErrorLevel, messages...) }
+func WarnPrintln(messages ...interface{}) { Println(WarnLevel, messages...) }
+func InfoPrintln(messages ...interface{}) { Println(InfoLevel, messages...) }
+func DebugPrintln(messages ...interface{}) { Println(DebugLevel, messages) }
 
 func CanError() bool{ return CanLevel(ErrorLevel) }
 func CanWarn () bool{ return CanLevel(WarnLevel)  }

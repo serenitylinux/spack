@@ -90,7 +90,9 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 		//Will set to dirty if changed and add parent constraint
 		if !depnode.AddParent(node, dep) {
 			//We can't add this parent constraint
-			debug("Cannot change " + dep.Name + " to ")
+			debug("Cannot change " + dep.Name + " to " + dep.String())
+			log.ErrorPrintln("Conflicting package constraints on " + dep.Name + ":")
+			depnode.Constraints.PrintError()
 			rethappy = false
 			continue
 		}

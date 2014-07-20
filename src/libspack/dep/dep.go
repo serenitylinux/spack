@@ -41,6 +41,10 @@ type Dep struct {
 	Flags *flag.FlagList
 }
 
+func (d *Dep) String() string {
+	return d.Name + d.Version1.String() + d.Version2.String() + "(" + d.Flags.String() + ")"
+}
+
 const (
 	GT = 1
 	LT = 2
@@ -50,6 +54,22 @@ const (
 type Version struct {
 	typ int
 	ver string
+}
+func (v *Version) String() string {
+	s := ""
+	if v == nil {
+		return s
+	}
+	
+	switch v.typ {
+		case GT:
+			s = ">"
+		case LT:
+			s = "<"
+		case EQ:
+			s = "="
+	}
+	return s + v.ver
 }
 func (v *Version) Accepts(verstr string) bool {
 	switch v.typ {
