@@ -81,7 +81,14 @@ func (repo *Repo) HasSpakg(p *pkginfo.PkgInfo) bool {
 }
 
 func (repo *Repo) HasAnySpakg(c *control.Control) bool {
-	//TODO remove?
+	for _, plist := range *repo.fetchable {
+		for _, p := range plist {
+			if (p.InstanceOf(c)) {
+				return true
+			}
+		}
+	}
+	
 	return false
 }
 

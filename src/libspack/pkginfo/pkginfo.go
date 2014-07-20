@@ -48,6 +48,10 @@ func FromControl(c *control.Control) *PkgInfo {
 	return &p
 }
 
+func (p *PkgInfo) InstanceOf(c *control.Control) bool {
+	return c.Name == p.Name && p.Version == c.Version && c.Iteration == p.Iteration
+}
+
 func (p *PkgInfo) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, p)
 }

@@ -545,91 +545,97 @@ func refresh(){
 func search() {
 	name := true
 	description := true
-	simple := false
 	
 	argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], "search"))
 	
 	nameArg := argparse.RegisterBool("name", name, "")
 	descriptionArg := argparse.RegisterBool("description", description, "")
-	simpleArg := argparse.RegisterBool("simple", simple, "")
-	pkgs := argparse.EvalDefaultArgs()
+	filters := argparse.EvalDefaultArgs()
 	
 	name = nameArg.Get()
 	description = descriptionArg.Get()
-	simple = simpleArg.Get()
 
 	
-	if len(pkgs) < 1 {
-		log.Error("Must specify package(s) for information")
+	if len(filters) < 1 {
+		log.Error("Must specify filters")
 		argparse.Usage(2)
-	} else {
-		var length = misc.GetWidth()
+	}
 	
-		longest := 0
-		var found []string
+	var length = misc.GetWidth()
 	
-		for _, pkg := range pkgs{
-			for _, repo := range libspack.GetAllRepos() {
-				for _, ctrlmap := range repo.GetAllControls() {
-					for _, ctrl := range ctrlmap{
-						if name && strings.Contains(ctrl.Name, pkg) || description && strings.Contains(ctrl.Description, pkg){
-							c, _ := getPkg(ctrl.Name)
-							if (c == nil) {
-								log.ColorAll(log.Yellow,"Unable to find package: ", pkg)
-								continue
-							} else {
-								found = append(found, ctrl.Name)
-								if len(ctrl.UUID()) > longest {
-									longest = len(ctrl.UUID())
-								}
-							}			
+	type pkgset struct {
+		r * repo.Repo
+		ctrls control.ControlList
+	}
+	
+	packages := make([]pkgset, 0)
+	
+	for _, filter := range filters {
+		for _, repo := range libspack.GetAllRepos() {
+			for pkgName, ctrllist := range repo.GetAllControls() {
+				if name && strings.Contains(pkgName, filter) {
+					packages = append(packages, pkgset { repo, ctrllist })
+					continue
+				}
+				
+				if description {
+					for _, ctrl := range ctrllist {
+						if strings.Contains(ctrl.Description, filter) {
+							packages = append(packages, pkgset { repo, ctrllist })
+							break
 						}
 					}
 				}
 			}
 		}
+	}
 	
-		for _, toprint := range found {
-			c, repo := getPkg(toprint)
-			gap := longest - len(c.UUID())
-		
-			if gap < -4{
-				gap = 0
+	if len(packages) == 0 {
+		fmt.Println("No packages found")
+		return
+	}
+	
+	
+	longest := 0
+	
+	for _, ps := range packages {
+		for _, pkg := range ps.ctrls {
+			plen := len(pkg.UUID())
+			if plen > longest {
+				longest = plen
 			}
-			
-			if !simple{log.ColorAll(log.Brown,strings.Repeat("-", length), "\n")}
-			
-			switch{
-				case repo.IsAnyInstalled(c, "/"):
-					log.ColorAll(log.White, "WLD")
-				case repo.HasAnySpakg(c):
-					log.ColorAll(log.White, "BIN")
-				case repo.HasTemplate(c):
-					log.ColorAll(log.White, "SRC")
-			}
-			
-			space := "   "
-			if !simple{space = " | "}
-			
-			log.ColorAll(log.Brown, space)
-			log.ColorAll(log.Green, c.UUID(), strings.Repeat(" ", gap+1))
-			log.ColorAll(log.Brown, space, " ")
-			
-			totalchars := 6 + len(c.UUID()) + gap + 5 + len(c.Description)
-			if totalchars > length{
-				diff := totalchars - length
-				fits := c.Description[:len(c.Description)-diff]
-				overflow := c.Description[len(c.Description)-diff:]
-				log.ColorAll(log.Cyan, fits, "\n")
-				log.ColorAll(log.Brown, "   ", space, strings.Repeat(" ", len(c.UUID()) + gap + 1), space, " ")
-				log.ColorAll(log.Cyan, strings.TrimSpace(overflow), "\n")
-			}else {
-				log.ColorAll(log.Cyan, c.Description, "\n")
-			}
-		
 		}
-		if !simple{log.ColorAll(log.Brown, strings.Repeat("-", length), "\n")}
-
+	}
+	
+	for _, ps := range packages {
+		repo := ps.r;
+		for _, c := range ps.ctrls {
+			gap := longest - len(c.UUID())
+			
+			action := ""
+			actionlen := 5
+			if repo.IsAnyInstalled(&c, "/") {
+				action += "i"
+			}
+			if repo.HasAnySpakg(&c) {
+				action += "b"
+			}
+			if repo.HasTemplate(&c) {
+				action += "s"
+			}
+			action += strings.Repeat(" ", actionlen - len(action))
+			log.ColorAll(log.White, action)
+			
+			log.ColorAll(log.Green, c.UUID(), strings.Repeat(" ", gap + 2))
+			
+			desc := c.Description
+			totallen := actionlen + longest + 2
+			if totallen + len(desc) >= length {
+				desc = desc[0:(length - totallen)]
+			}
+			log.ColorAll(log.White, desc)
+			fmt.Println()
+		}
 	}
 }
 
