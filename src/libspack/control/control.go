@@ -27,7 +27,7 @@ type Control struct {
 	Deps []string
 	Flags []string
 	
-	parsedFlags []flag.FlagSet
+	parsedFlags flag.FlagSetList
 	parsedDeps dep.DepList
 	parsedBDeps dep.DepList
 	
@@ -136,7 +136,7 @@ func FromTemplateFile(template string) (*Control, error) {
 
 
 
-func (c *Control) ParsedFlags() []flag.FlagSet {
+func (c *Control) ParsedFlags() flag.FlagSetList {
 	if c.parsedFlags == nil {
 		c.parsedFlags = make([]flag.FlagSet, 0)
 		for _, s := range c.Flags {

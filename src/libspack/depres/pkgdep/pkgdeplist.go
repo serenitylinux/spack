@@ -89,6 +89,14 @@ func (list *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	
 	return &newl
 }
+func (list *PkgDepList) CheckPackageFlags() bool {
+	for _, pkg := range *list {
+		if !pkg.ValidFlags() {
+			return false
+		}
+	}
+	return true
+}
 func (list *PkgDepList) Find(name string) *PkgDep {
 	for _, pkg := range *list {
 		if pkg.Name == name {

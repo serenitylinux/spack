@@ -3,7 +3,7 @@ package flag
 import (
 
 )
-
+//TODO map[string]Flag
 type FlagList []Flag
 
 func (l FlagList) String() string {
@@ -38,6 +38,15 @@ func (l *FlagList) Contains(f string) (*Flag, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (l *FlagList) IsEnabled(f string) bool {
+	for _, flag := range *l {
+		if flag.Name == f {
+			return flag.Enabled
+		}
+	}
+	return false
 }
 
 func (l *FlagList) Append(f Flag) {

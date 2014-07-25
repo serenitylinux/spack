@@ -291,10 +291,20 @@ func forgewieldPackages(packages []string, isForge bool) {
 		log.Error.Println("Invalid State")
 		for _, pkg := range installgraph {
 			if !pkg.Exists() {
-				log.Info.Println("\t" + pkg.String())
-				for _, parent := range pkg.Constraints {
-					log.Info.Println("\t\t" + parent.String())
-				}
+				log.Info.Println(pkg.String())
+				pkg.Constraints.PrintError("\t")
+			}
+		}
+		os.Exit(-1)
+	}
+	
+	//Check for invalid flag combos
+	if !installgraph.CheckPackageFlags() {
+		log.Error.Println("Conflicting Flag States")
+		for _, pkg := range installgraph {
+			if !pkg.ValidFlags() {
+				log.Info.Println(pkg.String() + "\t" + pkg.Control().ParsedFlags().String())
+				pkg.Constraints.PrintError("\t")
 			}
 		}
 		os.Exit(-1)

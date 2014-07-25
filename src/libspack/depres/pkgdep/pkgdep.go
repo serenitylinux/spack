@@ -74,6 +74,12 @@ func (pd *PkgDep) ComputedFlags() *flag.FlagList {
 	return pd.Constraints.ComputedFlags(pd)
 }
 
+func (pd *PkgDep) ValidFlags() bool {
+	flagexpr := pd.Control().ParsedFlags()
+	flagstates := pd.ComputedFlags()
+	return flagexpr.Verify(flagstates)
+}
+
 func (pd *PkgDep) SpakgExists() bool {
 	return pd.Repo.HasSpakg(pd.PkgInfo())
 }
