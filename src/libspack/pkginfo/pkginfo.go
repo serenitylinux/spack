@@ -98,6 +98,12 @@ func (p *PkgInfo) SetFlagState(f *flag.Flag) {
 	p.FlagStates = append(p.FlagStates, f.String())
 }
 
+func (p *PkgInfo) SetFlagStates(states []flag.Flag) {
+	for _, f := range states {
+		p.SetFlagState(&f)
+	}
+}
+
 //Default + Configured
 func (p *PkgInfo) ComputedFlagStates() flag.FlagList {
 	res := make(flag.FlagList, 0)

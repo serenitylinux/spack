@@ -264,7 +264,7 @@ func addFsToSpakg(basedir, destdir, outfile string, archive spakg.Spakg) error {
 	return nil
 }
 
-func BuildPackage(template string, c *control.Control, destdir, basedir, outfile string) error {
+func BuildPackage(template string, c *control.Control, destdir, basedir, outfile string, states []flag.Flag) error {
 	Header("Building package")
 	
 	//Md5Sums
@@ -273,14 +273,9 @@ func BuildPackage(template string, c *control.Control, destdir, basedir, outfile
 		return errors.New(fmt.Sprintf("Unable to generate md5sums: %s", err))
 	}
 	
-	//Pkginfo
-	//TODO Flags
-	pi := pkginfo.PkgInfo {
-		BuildDate : time.Now(),
-		Name : c.Name,
-		Version : c.Version,
-		Iteration : c.Iteration,
-	}
+	pi := pkginfo.FromControl(c)
+	pi.BuildDate = time.Now()
+	pi.SetFlagStates(states)
 	
 	//Template
 	var templateStr string
@@ -298,7 +293,7 @@ func BuildPackage(template string, c *control.Control, destdir, basedir, outfile
 	}
 	
 	//Create Spakg
-	archive := spakg.Spakg { Md5sums: hl, Control: *c, Template: templateStr, Pkginfo: pi, Pkginstall: pkginstall }
+	archive := spakg.Spakg { Md5sums: hl, Control: *c, Template: templateStr, Pkginfo: *pi, Pkginstall: pkginstall }
 	//FS
 	err = addFsToSpakg(basedir, destdir, outfile, archive)
 	if err != nil {
@@ -346,7 +341,7 @@ func Forge(template, outfile string, states []flag.Flag, test bool, interactive 
 	err = StripPackage(dest_dir)
 	if err != nil { return OnError(err) }
 	
-	err = BuildPackage(template, c, dest_dir, basedir, outfile)
+	err = BuildPackage(template, c, dest_dir, basedir, outfile, states)
 	if err != nil { return OnError(err) }
 	
 	return nil
