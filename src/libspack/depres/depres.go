@@ -3,7 +3,6 @@ package depres
 //Containing the Insanity to a single file (hopefully)
 //Christian Mesh Feb 2014
 
-//TODO version checking
 //TODO check valid set of flags on a per package basis
 
 import (
@@ -36,7 +35,6 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	//And not being built
 	if !params.IsForge && node.IsInstalled(params.DestDir) && !params.IsReinstall {
 		debug("already installed")
-		//TODO Might need to do more here
 		return true
 	}
 	node.IsReinstall = params.IsReinstall;
@@ -64,7 +62,6 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	}
 	
 	setflags := node.ComputedFlags()
-	//TODO check nil setflags
 	deps = deps.EnabledFromFlags(*setflags)
 	
 //	isbdep := params.IsForge //Make a copy of isForge for later
@@ -132,7 +129,6 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 	
 	for _, node := range *graph {
 		debug("Check " + node.PkgInfo().PrettyString())
-		//TODO Does the next function call need to care about params.DestDir?
 		if !node.SpakgExists() && !node.IsInstalled(params.DestDir) || node.ForgeOnly {
 			debug("Build " + node.PkgInfo().PrettyString())
 			tobuild.Append(node)
