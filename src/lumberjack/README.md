@@ -1,5 +1,7 @@
-###go-lumberjack###
+##go-lumberjack##
 Easy to use logging library
+
+[![GoDoc](https://godoc.org/github.com/cam72cam/go-lumberjack?status.svg)](https://godoc.org/github.com/cam72cam/go-lumberjack)
 
 ###Usage: ###
 ```go

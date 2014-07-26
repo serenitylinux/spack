@@ -130,6 +130,13 @@ func UninstallList(p *pkginfo.PkgInfo) []repo.PkgInstallSet {
 	}
 	return res
 }
+func RdepList(p *pkginfo.PkgInfo) []repo.PkgInstallSet {
+	res := make([]repo.PkgInstallSet, 0)
+	for _, repo := range repos {
+		res = append(res, repo.RdepList(p)...)
+	}
+	return res
+}
 
 func Header(str string) {
 	log.Info.Print(str + ": "); log.Debug.Println()

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"libspack/dep"
 	"libspack/flag"
+	"lumberjack/color"
 	"lumberjack/log"
 )
 
@@ -110,17 +111,17 @@ func (l *ConstraintList) RemoveByParent(parent *PkgDep) bool {
 	return ret
 }
 
-func (l *ConstraintList) PrintError() {
+func (l *ConstraintList) PrintError(prefix string) {
 	max := 0
 	for _, c := range *l {
-		ln := len(c.dep.String())
+		ln := len(color.Strip(c.String()))
 		if ln > max {
 			max = ln
 		}
 	}
 	
 	for _, c := range *l {
-		str := c.dep.String() + strings.Repeat(" ", max - len(c.dep.String())) + "  " + c.reason
+		str := prefix + c.String() + ":" + strings.Repeat(" ", max - len(color.Strip(c.String()))) + "  " + c.dep.String() + "\n"
 		log.Error.Write([]byte(str))
 	}
 }

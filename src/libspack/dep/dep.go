@@ -42,7 +42,12 @@ type Dep struct {
 }
 
 func (d *Dep) String() string {
-	return d.Name + d.Version1.String() + d.Version2.String() + "(" + d.Flags.String() + ")"
+	res := d.Name + d.Version1.String() + d.Version2.String()
+	if d.Flags != nil {
+		res += "(" + d.Flags.String() + ")"
+	}
+
+	return res
 }
 
 const (
@@ -104,12 +109,11 @@ func Parse(s string) (Dep, error) {
 func (d *Dep) parse(in *parser.Input) error {
 	if conditionPeek(in) {
 		in.Next(1)
-		var new flag.Flag
 		
-		err := new.Parse(in)
+		new, err := flag.Parse(in)
 		if err != nil { return err }
 		
-		d.Condition = &new
+		d.Condition = new
 		
 		if !in.IsNext("]") {
 			return errors.New("Expected ']' at end of condition")
@@ -160,11 +164,10 @@ func parseFlagSet(s *flag.FlagList, in *parser.Input) error {
 	}
 	
 	for {
-		var flag flag.Flag
-		err := flag.Parse(in)
+		flag, err := flag.Parse(in)
 		if err != nil { return err }
 		
-		*s = append(*s, flag)
+		*s = append(*s, *flag)
 		
 		str, _ := in.Next(1)
 		if str != "," {
@@ -214,4 +217,14 @@ func (list *DepList) EnabledFromFlags(fs flag.FlagList) DepList {
 		}
 	}
 	return res
+}
+
+func (list *DepList) String() string {
+	str := ""
+	
+	for _, d := range *list {
+		str += d.String() + " "
+	}
+	
+	return str
 }

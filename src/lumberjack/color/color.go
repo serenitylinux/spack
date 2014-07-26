@@ -40,3 +40,17 @@ func String(c Code, str ...interface{}) string {
 		return fmt.Sprint(str...)
 	}
 }
+
+//TODO length check for invalid strings
+func Strip(str string) string {
+	for index, c := range str {
+		if c == '\x1b' {
+			offset := 6
+			if str[index:index + 4] == string(base + reset) {
+				offset = 3
+			}
+			return Strip(str[0:index] + str[index+offset+1:])
+		}
+	}
+	return str
+}

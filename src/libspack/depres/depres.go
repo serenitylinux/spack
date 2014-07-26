@@ -21,7 +21,7 @@ type DepResParams struct {
 
 //TODO log.Error.Println(all the things)
 var indent int = 0
-func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams) bool {
+func DepTree(node *pkgdep.PkgDep, params DepResParams) bool {
 	indent++
 	defer func() { indent-- }()
 	
@@ -72,10 +72,13 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 	for _, dep := range deps {
 		debug("Require: " + dep.Name)
 		
-		depnode := graph.Find(dep.Name)
+		depnode := node.Graph.Find(dep.Name)
 		//We are not part of the graph yet
 		if depnode == nil {
-			depnode = graph.Add(dep.Name, params.DestDir)
+			depnode = node.Graph.Add(dep.Name, params.DestDir)
+			if !depnode.ForgeOnly {
+				depnode.AddRdepConstraints(params.DestDir)
+			}
 		}
 		
 		if depnode.ForgeOnly {
@@ -84,18 +87,19 @@ func DepTree(node *pkgdep.PkgDep, graph *pkgdep.PkgDepList, params DepResParams)
 			continue
 		}
 		
+		
 		//Will set to dirty if changed and add parent constraint
 		if !depnode.AddParent(node, dep) {
 			//We can't add this parent constraint
 			debug("Cannot change " + dep.Name + " to " + dep.String())
-			log.Error.Write([]byte("Conflicting package constraints on " + dep.Name + ":"))
-			depnode.Constraints.PrintError()
+			log.Error.Write([]byte("Conflicting package constraints on " + dep.Name + ":" + "\n"))
+			depnode.Constraints.PrintError("\t")
 			rethappy = false
 			continue
 		}
 		
 		//Continue down the rabbit hole ...
-		if !DepTree(depnode, graph, params) {
+		if !DepTree(depnode, params) {
 			debug("Not Happy "+ dep.Name)
 			rethappy = false
 		}
@@ -155,7 +159,7 @@ func findToBuild(graph, orderedtreelist, visitedtreelist *pkgdep.PkgDepList, par
 			//Add ourselves to existing builds
 			visitedtreelist.Append(newroot)
 			
-			if !DepTree(newroot, newroot.Graph, params) {
+			if !DepTree(newroot, params) {
 				happy = false
 				continue
 			}

@@ -66,6 +66,8 @@ func (list *PkgDepList) Add(depname string, destdir string) *PkgDep {
 	depnode := New(depname, repo)
 	list.Append(depnode)
 	
+	depnode.Graph = list
+	
 	//Add global flags to new depnode
 	globalconstraint, exists := constraintconfig.GetAll(destdir)[depname]
 	if exists {
@@ -88,6 +90,14 @@ func (list *PkgDepList) ToInstall(destdir string) *PkgDepList {
 	}
 	
 	return &newl
+}
+func (list *PkgDepList) CheckPackageFlags() bool {
+	for _, pkg := range *list {
+		if !pkg.ValidFlags() {
+			return false
+		}
+	}
+	return true
 }
 func (list *PkgDepList) Find(name string) *PkgDep {
 	for _, pkg := range *list {

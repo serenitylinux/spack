@@ -18,7 +18,7 @@ type PkgInfo struct {
 	Iteration int
 	BuildDate time.Time
 	Flags []string
-	parsedFlags []flag.FlagSet
+	parsedFlags flag.FlagSetList
 	FlagStates []string
 	parsedFlagStates flag.FlagList
 }
@@ -56,7 +56,7 @@ func (p *PkgInfo) ToFile(filename string) error {
 	return json.EncodeFile(filename, true, p)
 }
 
-func (p *PkgInfo) ParsedFlags() []flag.FlagSet {
+func (p *PkgInfo) ParsedFlags() flag.FlagSetList {
 	if p.parsedFlags == nil {
 		p.parsedFlags = make([]flag.FlagSet, 0)
 		for _, s := range p.Flags {

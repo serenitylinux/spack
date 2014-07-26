@@ -2,11 +2,14 @@ package pkgdep
 
 import (
 	"fmt"
+	"libspack"
 	"libspack/dep"
 	"libspack/flag"
 	"libspack/repo"
 	"libspack/control"
 	"libspack/pkginfo"
+	"lumberjack/log"
+	"lumberjack/color"
 )
 
 /******************************************
@@ -44,6 +47,61 @@ func (pd *PkgDep) AddParent(parent *PkgDep, reason dep.Dep) bool {
 	}
 	return pd.Exists()
 }
+
+//Add rdeps if we are already installed
+//We need to do this because changes to us might cause problems with packages that depend on us outside of the delta tree
+//This links us into the existing "graph" on disk
+func (pd *PkgDep) AddRdepConstraints(destdir string) {
+	dep_info := pd.Repo.GetInstalledByName(pd.Name, destdir)
+	if dep_info != nil {
+		for _, rdep := range libspack.RdepList(dep_info.PkgInfo) {
+			if pd.Graph == nil {
+				log.Error.Println("WAT" + pd.Name)
+			}
+			
+			
+			//Copy pasta from depres
+			depnode := pd.Graph.Find(rdep.Control.Name)
+			//We are not part of the graph yet
+			if depnode == nil {
+				depnode = pd.Graph.Add(rdep.Control.Name, destdir)
+				depnode.AddRdepConstraints(destdir)
+			}
+			
+			
+			var reason dep.Dep
+			found := false
+			
+			curr_control := depnode.Control()
+			curr_pkginfo := depnode.PkgInfo()
+			
+			all_flags := curr_pkginfo.ComputedFlagStates() //rdep.PkgInfo.ComputedFlagStates()
+			all_deps := curr_control.ParsedDeps() //rdep.Control.ParsedDeps()
+			
+			for _, d := range all_deps.EnabledFromFlags(all_flags) {
+				if d.Name == pd.Name {
+					reason = d
+					found = true
+					break
+				}
+			}
+			
+			//This really should not happen
+			if !found {
+				log.Error.Printlnf("Unable to figure out why %s is a dep of %s, we may have reconstructed the on disk graph of packages incorrectly",
+					pd.Name, depnode.Name)
+				break
+			}
+			
+			//Should return true, if not we have a serious problem with the packages on disk
+			if !pd.AddParent(depnode, reason) {
+				log.Error.Write([]byte("Conflicting package constraints on " + color.Red.String("already installed") +  " package " + pd.Name + ":" + "\n"))
+				depnode.Constraints.PrintError("\t")
+			}
+		}
+	}
+}
+
 func (pd *PkgDep) RemoveParent(parent *PkgDep) bool {
 	return pd.Constraints.RemoveByParent(parent)
 }
@@ -72,6 +130,12 @@ func (pd *PkgDep) PkgInfo() *pkginfo.PkgInfo {
 
 func (pd *PkgDep) ComputedFlags() *flag.FlagList {
 	return pd.Constraints.ComputedFlags(pd)
+}
+
+func (pd *PkgDep) ValidFlags() bool {
+	flagexpr := pd.Control().ParsedFlags()
+	flagstates := pd.ComputedFlags()
+	return flagexpr.Verify(flagstates)
 }
 
 func (pd *PkgDep) SpakgExists() bool {

@@ -173,6 +173,21 @@ func (repo *Repo) GetInstalled(p *pkginfo.PkgInfo, basedir string) *PkgInstallSe
 }
 
 // TODO actually check if that dep is enabled or not in the pkginfo
+func (repo *Repo) RdepList(p *pkginfo.PkgInfo) []PkgInstallSet {
+	pkgs := make([]PkgInstallSet,0)
+	
+	for _, set := range *repo.installed {
+		for _, dep := range set.Control.Deps {
+			if dep == p.Name {
+				pkgs = append(pkgs, set)
+			}
+		}
+	}
+	
+	return pkgs
+}
+
+// TODO actually check if that dep is enabled or not in the pkginfo
 func (repo *Repo) UninstallList(p *pkginfo.PkgInfo) []PkgInstallSet {
 	pkgs := make([]PkgInstallSet,0)
 	
