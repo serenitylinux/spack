@@ -191,6 +191,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		}
 		
 		if len(toremove) > 0 {
+			log.Info.Println()
 			log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
 			for _, pkgi := range toremove {
 				err := pkgi.Repo.Uninstall(pkgi.PkgInfo, params.DestDir)
@@ -200,6 +201,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			}
 		}
 		if (len(original) > 0) {
+			log.Info.Println()
 			log.Info.Format("Replacing altered packages")
 			wieldGraph(original, params)
 		}
