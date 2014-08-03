@@ -161,10 +161,13 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		depgraph := pkg.Graph.ToInstall(params.DestDir)
 		
 		original := make(InstallList, 0)
+		toremove := make(InstallList, 0)
 		
 		for _, pkgd := range *depgraph {
 			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, params.DestDir); pkgi != nil {
 				original = append(original, Installable { pkgd.Repo, pkgi.PkgInfo })
+			} else {
+				toremove = append(toremove, Installable { pkgd.Repo, pkgi.PkgInfo })
 			}
 		}
 		
@@ -187,10 +190,10 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			}
 		}
 		
-		if len(*depgraph) > 0 {
+		if len(toremove) > 0 {
 			log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
-			for _, pkg := range *depgraph {
-				err := pkg.Repo.Uninstall(pkg.PkgInfo(), params.DestDir)
+			for _, pkgi := range toremove {
+				err := pkgi.Repo.Uninstall(pkgi.PkgInfo, params.DestDir)
 				if err != nil {
 					log.Error.Println(err)
 				}
@@ -251,7 +254,7 @@ func wieldGraph(packages InstallList, params depres.DepResParams) error {
 	for _, pkg := range spkgs {
 		wield.PreInstall(pkg.spkg, params.DestDir)
 	}
-	log.Info.Println()
+	log.Debug.Println()
 	
 	//Install
 	for _ ,pkg := range spkgs {
@@ -263,7 +266,7 @@ func wieldGraph(packages InstallList, params depres.DepResParams) error {
 		
 		pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
 	}
-	log.Info.Println()
+	log.Debug.Println()
 	wield.Ldconfig(params.DestDir)
 	
 	//PostInstall
