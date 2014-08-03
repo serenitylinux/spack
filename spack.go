@@ -333,7 +333,6 @@ func forgewieldPackages(packages []string, isForge bool) {
 			toinstallforpkg := pkg.Graph.ToInstall(params.DestDir)
 			if len(*toinstallforpkg) != 0 {
 				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
-				fmt.Println()
 				toinstallforpkg.Print()
 			}
 		}
@@ -342,7 +341,6 @@ func forgewieldPackages(packages []string, isForge bool) {
 	toinstall := installgraph.ToInstall(params.DestDir)
 	if len(*toinstall) > 0 {
 		fmt.Println(color.White.String("Packages to Wield:"))
-		fmt.Println()
 		toinstall.Print()
 		fmt.Println()
 	}
