@@ -9,6 +9,7 @@ import (
 	"libspack"
 	"libspack/argparse"
 	"libspack/control"
+	"libspack/pkginfo"
 	"libspack/spakg"
 	"libspack/repo"
 	"libspack/wield"
@@ -158,7 +159,16 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		
 		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
 		depgraph := pkg.Graph.ToInstall(params.DestDir)
-		wieldGraph(depgraph, params)
+		
+		original := make(InstallList, 0)
+		
+		for _, pkgd := range *depgraph {
+			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, params.DestDir); pkgi != nil {
+				original = append(original, Installable { pkgd.Repo, pkgi.PkgInfo })
+			}
+		}
+		
+		wieldGraph(DepListToInstallList(depgraph), params)
 		
 		
 		//Forge pkg
@@ -177,12 +187,18 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			}
 		}
 		
-		log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
-		for _, pkg := range *depgraph {
-			err := pkg.Repo.Uninstall(pkg.PkgInfo(), params.DestDir)
-			if err != nil {
-				log.Error.Println(err)
+		if len(*depgraph) > 0 {
+			log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
+			for _, pkg := range *depgraph {
+				err := pkg.Repo.Uninstall(pkg.PkgInfo(), params.DestDir)
+				if err != nil {
+					log.Error.Println(err)
+				}
 			}
+		}
+		if (len(original) > 0) {
+			log.Info.Format("Replacing altered packages")
+			wieldGraph(original, params)
 		}
 		
 		if forgerr != nil {
@@ -192,8 +208,25 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 	return nil
 }
 
+type Installable struct {
+	Repo *repo.Repo
+	PkgInfo *pkginfo.PkgInfo
+}
+type InstallList []Installable
+func DepListToInstallList(packages *pkgdep.PkgDepList) InstallList {
+	if packages == nil {
+		return nil
+	}
+	res := make(InstallList, 0)
+	for _, pkg := range *packages {
+		res = append(res, Installable{ pkg.Repo, pkg.PkgInfo() })
+	}
+	
+	return res
+}
+
 //TODO add rollback
-func wieldGraph(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
+func wieldGraph(packages InstallList, params depres.DepResParams) error {
 	type pkgset struct {
 		spkg *spakg.Spakg
 		repo *repo.Repo
@@ -202,11 +235,11 @@ func wieldGraph(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 	spkgs := make([]pkgset, 0)
 	
 	//Fetch Packages
-	for _, pkg := range *packages {
-		err := pkg.Repo.FetchIfNotCachedSpakg(pkg.PkgInfo())
+	for _, pkg := range packages {
+		err := pkg.Repo.FetchIfNotCachedSpakg(pkg.PkgInfo)
 		if err != nil { return err }
 		
-		pkgfile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo())
+		pkgfile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo)
 		spkg, err := spakg.FromFile(pkgfile, nil)
 		if err != nil { return err }
 		
@@ -368,7 +401,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 	if len(*toinstall) > 0 {
 		log.Info.Println("Wielding required packages: ")
 		LogBar(log.Info, log.Info.Color)
-		err := wieldGraph(toinstall, params)
+		err := wieldGraph(DepListToInstallList(toinstall), params)
 		if err != nil {
 			log.Error.Println(err)
 		} else {
