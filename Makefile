@@ -1,10 +1,6 @@
-DEPS := $(shell find src/ -type f )
+DEPS := $(shell find libspack/ -type f )
 DEST := build
 $(shell mkdir -p $(DEST))
-
-export GOPATH=$(PWD)
-
-
 
 all: $(DEST)/forge $(DEST)/wield $(DEST)/spack $(DEST)/smithy $(DEST)/spackle
 

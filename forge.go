@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"libspack/argparse"
-	"libspack/control"
-	"lumberjack/log"
-	"lumberjack/color"
-	"libforge"
+	"github.com/serenitylinux/spack/libspack/argparse"
+	"github.com/serenitylinux/spack/libspack/control"
+	"github.com/cam72cam/go-lumberjack/log"
+	"github.com/cam72cam/go-lumberjack/color"
+	"github.com/serenitylinux/spack/libforge"
 )
 
 var pretend = false
