@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"errors"
-	"path/filepath"
-	"github.com/serenitylinux/libspack/argparse"
-	"github.com/cam72cam/go-lumberjack/log"
+	"fmt"
 	"github.com/cam72cam/go-lumberjack/color"
+	"github.com/cam72cam/go-lumberjack/log"
+	"github.com/serenitylinux/libspack/argparse"
 	"github.com/serenitylinux/libspack/spakg"
 	"github.com/serenitylinux/libspack/wield"
+	"os"
+	"path/filepath"
 )
 
 var pretend = false
@@ -23,14 +23,14 @@ func args() []string {
 	verboseArg := argparse.RegisterBool("verbose", verbose, "")
 	quietArg := argparse.RegisterBool("quiet", quiet, "")
 	destArg := argparse.RegisterString("destdir", destdir, "Root to install package into")
-	
+
 	packages := argparse.EvalDefaultArgs()
-	
+
 	if len(packages) < 1 {
 		log.Error.Println("Must specify package(s)!")
 		argparse.Usage(2)
 	}
-	
+
 	pretend = pretendArg.Get()
 	verbose = verboseArg.Get()
 	quiet = quietArg.Get()
@@ -40,17 +40,17 @@ func args() []string {
 		log.Error.Println(err)
 		os.Exit(-1)
 	}
-	
+
 	destdir += "/"
-	
+
 	if verbose {
 		log.SetLevel(log.DebugLevel)
 	}
-	
+
 	if quiet {
 		log.SetLevel(log.WarnLevel)
 	}
-	
+
 	return packages
 }
 
@@ -61,26 +61,26 @@ func wrapError(msg string, err error) error {
 func main() {
 	pkgs := args()
 	var err error = nil
-	
+
 	for _, pkg := range pkgs {
 		pkg, err = filepath.Abs(pkg)
-		
+
 		if err != nil {
 			err = wrapError("Cannot access package", err)
 			break
 		}
-		
+
 		spkg, err := spakg.FromFile(pkg, nil)
 		if err != nil {
 			break
 		}
 		fmt.Println(color.Green.Stringf("Wielding %s with the force of a %s", spkg.Control.UUID()), color.Red.String("GOD"))
-		
+
 		err = wield.Wield(pkg, destdir)
 		if err != nil {
 			break
 		}
-		
+
 		log.Info.Println()
 		fmt.Println(color.Green.Stringf("Your heart is pure and accepts the gift of %s", spkg.Control.UUID()))
 	}

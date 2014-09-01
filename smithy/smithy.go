@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/cam72cam/go-lumberjack/log"
+	"github.com/serenitylinux/libspack"
+	"github.com/serenitylinux/libspack/argparse"
+	"github.com/serenitylinux/libspack/control"
+	"github.com/serenitylinux/libspack/pkginfo"
+	"github.com/serenitylinux/libspack/repo"
+	"github.com/serenitylinux/libspack/spakg"
 	"os"
 	"os/exec"
 	"time"
-	"github.com/serenitylinux/libspack"
-	"github.com/cam72cam/go-lumberjack/log"
-	"github.com/serenitylinux/libspack/spakg"
-	"github.com/serenitylinux/libspack/argparse"
-	"github.com/serenitylinux/libspack/pkginfo"
-	"github.com/serenitylinux/libspack/control"
-	"github.com/serenitylinux/libspack/repo"
 )
 
 import . "github.com/serenitylinux/libspack/misc"
@@ -25,7 +25,7 @@ func ExitOnError(err error) {
 
 func ExitOnErrorMessage(err error, message string) {
 	if err != nil {
-		log.Error.Println(message + ":", err)
+		log.Error.Println(message+":", err)
 		os.Exit(-1)
 	}
 }
@@ -43,27 +43,26 @@ func arguments() []string {
 	logfileArg := argparse.RegisterString("logfile", "(stdout)", "File to log to, default to standard out")
 	loglevelArg := argparse.RegisterString("loglevel", loglevel, "Log Level")
 	interactiveArg := argparse.RegisterBool("interactive", interactive, "Drop to a shell on error")
-	
+
 	items := argparse.EvalDefaultArgs()
-	
+
 	interactive = interactiveArg.Get()
-	
+
 	if logfileArg.IsSet() {
 		var err error
 		outstream, err = os.Open(logfileArg.Get())
 		ExitOnErrorMessage(err, "Unable to open log file")
 		//todo errstream
 	}
-	
+
 	outdir = outdirArg.Get()
 	err := log.SetLevelFromString(loglevelArg.Get())
 	ExitOnError(err)
-	
-	
+
 	if log.Debug.IsEnabled() {
 		outarg = "--verbose"
 	}
-	
+
 	if !log.Debug.IsEnabled() && !log.Info.IsEnabled() {
 		outarg = "--quiet"
 	}
@@ -76,24 +75,24 @@ func extractSpakg(file string, infodir string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	//This will be written to for each name-version configuration.  It should be the same for any flagset
 	c := arch.Control
 	c.ToFile(infodir + c.UUID() + ".control")
-	
+
 	pi := arch.Pkginfo
 	pi.ToFile(infodir + pi.UUID() + ".pkginfo")
-	
+
 	return err
 }
 
 func processRepo(repo *repo.Repo) {
 	log.Debug.Println("Repo: ", repo.Name)
-			
-	var err error	
+
+	var err error
 	pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, repo.Name)
 	if !PathExists(pkgdir) {
-		err = os.MkdirAll(pkgdir, 0755)	
+		err = os.MkdirAll(pkgdir, 0755)
 		if err != nil {
 			log.Error.Format("Unable to create %s: %s", pkgdir, err)
 			os.Exit(-1)
@@ -108,12 +107,12 @@ func processRepo(repo *repo.Repo) {
 			os.Exit(-1)
 		}
 	}
-	
+
 	for name, ctrls := range repo.GetAllControls() {
 		if name == "" { //TODO this is a hack for empty templates
 			continue
 		}
-		
+
 		log.Info.Println("Forging: ", name)
 		for _, ctrl := range ctrls {
 			//Temporarily only support building the latestW
@@ -121,27 +120,25 @@ func processRepo(repo *repo.Repo) {
 			if foo.UUID() != ctrl.UUID() {
 				continue
 			}
-			
 
 			p := pkginfo.FromControl(&ctrl)
 			outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.UUID())
 			if PathExists(outfile) {
 				continue
 			}
-			
+
 			hasAllDeps := true
 			missing := make([]string, 0)
-			done := make(map[string] bool) //TODO should be a list but I am lazy
-			
-			
+			done := make(map[string]bool) //TODO should be a list but I am lazy
+
 			//TODO better version checking
-			var depCheck func (*control.Control) bool
-			depCheck = func (ctrl *control.Control) bool {
+			var depCheck func(*control.Control) bool
+			depCheck = func(ctrl *control.Control) bool {
 				if _, exists := done[ctrl.UUID()]; exists {
 					return true
 				}
 				done[ctrl.UUID()] = true
-				
+
 				for _, dep := range ctrl.Bdeps {
 					depC, _ := libspack.GetPackageLatest(dep)
 					if depC == nil {
@@ -149,23 +146,22 @@ func processRepo(repo *repo.Repo) {
 						missing = append(missing, dep)
 						return false
 					}
-					
+
 					if !depCheck(depC) {
 						return false
 					}
 				}
 				return true
 			}
-			
+
 			if !depCheck(&ctrl) {
 				log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
 				continue
 			}
-			
-			
+
 			if hasAllDeps {
 				pkgarg := fmt.Sprintf("%s::%s::%d", ctrl.Name, ctrl.Version, ctrl.Iteration)
-				cmd := exec.Command("spack", "forge", pkgarg, "--outdir=" + pkgdir, "--yes", fmt.Sprintf("--interactive=%t", interactive))
+				cmd := exec.Command("spack", "forge", pkgarg, "--outdir="+pkgdir, "--yes", fmt.Sprintf("--interactive=%t", interactive))
 				fmt.Println(cmd)
 				if outarg != "" {
 					cmd.Args = append(cmd.Args, outarg)
@@ -178,7 +174,7 @@ func processRepo(repo *repo.Repo) {
 					log.Warn.Format("Unable to forge %s: %s", p.UUID(), err)
 					continue
 				}
-				
+
 				err := extractSpakg(outfile, infodir)
 				if err != nil {
 					log.Warn.Format("Unable to load forged %s: %s", p.UUID(), err)
@@ -190,10 +186,9 @@ func processRepo(repo *repo.Repo) {
 
 func main() {
 	repoNames := arguments()
-	
+
 	ExitOnError(libspack.LoadRepos())
-	
-	
+
 	for {
 		libspack.RefreshRepos()
 		//build packages
@@ -205,7 +200,7 @@ func main() {
 					log.Warn.Println("Cannot find " + repoName)
 					continue
 				}
-			
+
 				processRepo(repo)
 			}
 		} else {
@@ -216,6 +211,6 @@ func main() {
 		//Wait "patiently"
 		time.Sleep(time.Second * 30)
 	}
-	
+
 	outstream.Close()
 }
