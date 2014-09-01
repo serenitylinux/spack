@@ -1,4 +1,4 @@
-package libforge
+package forge
 
 import (
 	"fmt"

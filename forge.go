@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"github.com/serenitylinux/spack/libspack/argparse"
 	"github.com/serenitylinux/spack/libspack/control"
+	"github.com/serenitylinux/spack/libspack/forge"
 	"github.com/cam72cam/go-lumberjack/log"
 	"github.com/cam72cam/go-lumberjack/color"
-	"github.com/serenitylinux/spack/libforge"
 )
 
 var pretend = false
@@ -83,7 +83,7 @@ func main() {
 	log.Warn.Println("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
 	log.Info.Println()
 	//TODO custom flags/honor globals
-	err = libforge.Forge(template, output, c.DefaultFlags(), test, interactive)
+	err = forge.Forge(template, output, c.DefaultFlags(), test, interactive)
 	if err != nil {
 		log.Error.Println(err)
 	}

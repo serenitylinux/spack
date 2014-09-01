@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"errors"
 	"strings"
-	"github.com/serenitylinux/spack/libforge"
 	"github.com/serenitylinux/spack/libspack"
 	"github.com/serenitylinux/spack/libspack/argparse"
 	"github.com/serenitylinux/spack/libspack/control"
 	"github.com/serenitylinux/spack/libspack/pkginfo"
+	"github.com/serenitylinux/spack/libspack/forge"
 	"github.com/serenitylinux/spack/libspack/spakg"
 	"github.com/serenitylinux/spack/libspack/repo"
 	"github.com/serenitylinux/spack/libspack/wield"
@@ -178,7 +178,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		log.Info.Format("Forging %s", pkg.PkgInfo().UUID())
 		info := pkg.PkgInfo();
 		spakgFile := pkg.Repo.GetSpakgOutput(info)
-		forgerr := libforge.Forge(template, spakgFile, info.ComputedFlagStates(), false, interactiveArg != nil && interactiveArg.Get())
+		forgerr := forge.Forge(template, spakgFile, info.ComputedFlagStates(), false, interactiveArg != nil && interactiveArg.Get())
 		
 		
 		//copy pkg
