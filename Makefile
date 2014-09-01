@@ -1,4 +1,4 @@
-DEPS := $(shell find libspack/ -type f )
+DEPS := $(shell find ../libspack/ -type f )
 DEST := build
 $(shell mkdir -p $(DEST))
 

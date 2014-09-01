@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"io/ioutil"
 	"github.com/cam72cam/go-lumberjack/log"
-	"github.com/serenitylinux/spack/libspack/misc"
+	"github.com/serenitylinux/libspack/misc"
 )
 
 

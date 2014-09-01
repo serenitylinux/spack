@@ -5,16 +5,16 @@ import (
 	"os"
 	"os/exec"
 	"time"
-	"github.com/serenitylinux/spack/libspack"
+	"github.com/serenitylinux/libspack"
 	"github.com/cam72cam/go-lumberjack/log"
-	"github.com/serenitylinux/spack/libspack/spakg"
-	"github.com/serenitylinux/spack/libspack/argparse"
-	"github.com/serenitylinux/spack/libspack/pkginfo"
-	"github.com/serenitylinux/spack/libspack/control"
-	"github.com/serenitylinux/spack/libspack/repo"
+	"github.com/serenitylinux/libspack/spakg"
+	"github.com/serenitylinux/libspack/argparse"
+	"github.com/serenitylinux/libspack/pkginfo"
+	"github.com/serenitylinux/libspack/control"
+	"github.com/serenitylinux/libspack/repo"
 )
 
-import . "github.com/serenitylinux/spack/libspack/misc"
+import . "github.com/serenitylinux/libspack/misc"
 
 func ExitOnError(err error) {
 	if err != nil {

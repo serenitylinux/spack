@@ -5,11 +5,11 @@ import (
 	"os"
 	"errors"
 	"path/filepath"
-	"github.com/serenitylinux/spack/libspack/argparse"
+	"github.com/serenitylinux/libspack/argparse"
 	"github.com/cam72cam/go-lumberjack/log"
 	"github.com/cam72cam/go-lumberjack/color"
-	"github.com/serenitylinux/spack/libspack/spakg"
-	"github.com/serenitylinux/spack/libspack/wield"
+	"github.com/serenitylinux/libspack/spakg"
+	"github.com/serenitylinux/libspack/wield"
 )
 
 var pretend = false

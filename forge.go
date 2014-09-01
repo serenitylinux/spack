@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"github.com/serenitylinux/spack/libspack/argparse"
-	"github.com/serenitylinux/spack/libspack/control"
-	"github.com/serenitylinux/spack/libspack/forge"
+	"github.com/serenitylinux/libspack/argparse"
+	"github.com/serenitylinux/libspack/control"
+	"github.com/serenitylinux/libspack/forge"
 	"github.com/cam72cam/go-lumberjack/log"
 	"github.com/cam72cam/go-lumberjack/color"
 )
