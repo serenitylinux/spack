@@ -4,16 +4,16 @@ $(shell mkdir -p $(DEST))
 
 all: $(DEST)/forge $(DEST)/wield $(DEST)/spack $(DEST)/smithy $(DEST)/spackle
 
-$(DEST)/forge: forge.go $(DEPS)
-	go build -o $(DEST)/forge forge.go
-$(DEST)/spack: spack.go $(DEPS)
-	go build -o $(DEST)/spack spack.go
-$(DEST)/wield: wield.go $(DEPS)
-	go build -o $(DEST)/wield wield.go
-$(DEST)/smithy: smithy.go $(DEPS)
-	go build -o $(DEST)/smithy smithy.go
-$(DEST)/spackle: spackle.go $(DEPS)
-	go build -o $(DEST)/spackle spackle.go
+$(DEST)/forge: forge/forge.go $(DEPS)
+	go build -o $(DEST)/forge forge/forge.go
+$(DEST)/spack: spack/spack.go $(DEPS)
+	go build -o $(DEST)/spack spack/spack.go
+$(DEST)/wield: wield/wield.go $(DEPS)
+	go build -o $(DEST)/wield wield/wield.go
+$(DEST)/smithy: smithy/smithy.go $(DEPS)
+	go build -o $(DEST)/smithy smithy/smithy.go
+$(DEST)/spackle: spackle/spackle.go $(DEPS)
+	go build -o $(DEST)/spackle spackle/spackle.go
 
 install:
 	mkdir -p $(DESTDIR)/var/lib/spack
