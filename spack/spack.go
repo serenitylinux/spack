@@ -176,7 +176,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		}
 
 		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
-		depgraph := pkg.Graph.ToInstall(params.DestDir)
+		depgraph := pkg.Graph.ToInstallRequired(params.DestDir)
 
 		original := make(InstallList, 0)
 		toremove := make(InstallList, 0)
@@ -310,6 +310,10 @@ func forgewieldPackages(packages []string, isForge bool) {
 		DestDir:     destdirArg.Get(),
 	}
 
+	if params.DestDir[len(params.DestDir)-1] != '/' {
+		params.DestDir += "/"
+	}
+
 	//A set of overlapping "trees" to represent the packages we will be caring about
 	installgraph := make(pkgdep.PkgDepList, 0)
 
@@ -326,7 +330,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 			continue
 		}
 
-		pkgdep.AddRdepConstraints(params.DestDir)
+		pkgdep.AddRdepConstraints(params.DestDir, "")
 
 		pkgdep.ForgeOnly = params.IsForge
 		pkglist.Append(pkgdep)
@@ -389,7 +393,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		fmt.Println(color.White.String("Packages to Forge:"))
 		tobuild.Print()
 		for _, pkg := range *tobuild {
-			toinstallforpkg := pkg.Graph.ToInstall(params.DestDir)
+			toinstallforpkg := pkg.Graph.ToInstallRequired(params.DestDir)
 			if len(*toinstallforpkg) != 0 {
 				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
 				toinstallforpkg.Print()
@@ -397,7 +401,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 		fmt.Println()
 	}
-	toinstall := installgraph.ToInstall(params.DestDir)
+	toinstall := installgraph.ToInstallLatest(params.DestDir)
 	if len(*toinstall) > 0 {
 		fmt.Println(color.White.String("Packages to Wield:"))
 		toinstall.Print()
