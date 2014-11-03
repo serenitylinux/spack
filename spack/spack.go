@@ -176,7 +176,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		}
 
 		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
-		depgraph := pkg.Graph.ToInstallRequired(params.DestDir)
+		depgraph := pkg.Graph.ToInstallRequiredNoGlobal(params.DestDir)
 
 		original := make(InstallList, 0)
 		toremove := make(InstallList, 0)
@@ -185,7 +185,7 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, params.DestDir); pkgi != nil {
 				original = append(original, Installable{pkgd.Repo, pkgi.PkgInfo})
 			} else {
-				toremove = append(toremove, Installable{pkgd.Repo, pkgi.PkgInfo})
+				toremove = append(toremove, Installable{pkgd.Repo, pkgd.PkgInfo()})
 			}
 		}
 
@@ -393,7 +393,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		fmt.Println(color.White.String("Packages to Forge:"))
 		tobuild.Print()
 		for _, pkg := range *tobuild {
-			toinstallforpkg := pkg.Graph.ToInstallRequired(params.DestDir)
+			toinstallforpkg := pkg.Graph.ToInstallRequiredNoGlobal(params.DestDir)
 			if len(*toinstallforpkg) != 0 {
 				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
 				toinstallforpkg.Print()
