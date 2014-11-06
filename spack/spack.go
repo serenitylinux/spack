@@ -167,8 +167,8 @@ func getPkg(pkg string) (*control.Control, *repo.Repo) {
 	}
 }
 
-func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
-	for _, pkg := range *packages {
+func forgeList(graph *pkgdep.Graph) error {
+	for _, pkg := range graph.Nodes {
 		//Find template
 		template, exists := pkg.Repo.GetTemplateByControl(pkg.Control())
 		if !exists {
@@ -176,20 +176,20 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 		}
 
 		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
-		depgraph := pkg.Graph.ToInstallRequiredNoGlobal(params.DestDir)
+		depgraph := pkg.Graph.ToInstall()
 
-		original := make(InstallList, 0)
-		toremove := make(InstallList, 0)
+		original := TmpGraph{DestDir: graph.DestDir}
+		toremove := TmpGraph{DestDir: graph.DestDir}
 
-		for _, pkgd := range *depgraph {
-			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, params.DestDir); pkgi != nil {
-				original = append(original, Installable{pkgd.Repo, pkgi.PkgInfo})
+		for _, pkgd := range depgraph.Nodes {
+			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, depgraph.DestDir); pkgi != nil {
+				original.Nodes = append(original.Nodes, TmpNode{pkgd.Repo, pkgi.PkgInfo})
 			} else {
-				toremove = append(toremove, Installable{pkgd.Repo, pkgd.PkgInfo()})
+				toremove.Nodes = append(toremove.Nodes, TmpNode{pkgd.Repo, pkgd.PkgInfo()})
 			}
 		}
 
-		wieldGraph(DepListToInstallList(depgraph), params)
+		wieldGraph(NewTmpGraph(depgraph))
 
 		//Forge pkg
 		log.Info.Format("Forging %s", pkg.PkgInfo().UUID())
@@ -206,20 +206,20 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 			}
 		}
 
-		if len(toremove) > 0 {
+		if len(toremove.Nodes) > 0 {
 			log.Info.Println()
 			log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
-			for _, pkgi := range toremove {
-				err := pkgi.Repo.Uninstall(pkgi.PkgInfo, params.DestDir)
+			for _, pkgi := range toremove.Nodes {
+				err := pkgi.Repo.Uninstall(pkgi.PkgInfo, depgraph.DestDir)
 				if err != nil {
 					log.Error.Println(err)
 				}
 			}
 		}
-		if len(original) > 0 {
+		if len(original.Nodes) > 0 {
 			log.Info.Println()
 			log.Info.Format("Replacing altered packages")
-			wieldGraph(original, params)
+			wieldGraph(original)
 		}
 
 		if forgerr != nil {
@@ -229,26 +229,26 @@ func forgeList(packages *pkgdep.PkgDepList, params depres.DepResParams) error {
 	return nil
 }
 
-type Installable struct {
+type TmpNode struct {
 	Repo    *repo.Repo
 	PkgInfo *pkginfo.PkgInfo
 }
-type InstallList []Installable
+type TmpGraph struct {
+	DestDir string
+	Nodes   []TmpNode
+}
 
-func DepListToInstallList(packages *pkgdep.PkgDepList) InstallList {
-	if packages == nil {
-		return nil
-	}
-	res := make(InstallList, 0)
-	for _, pkg := range *packages {
-		res = append(res, Installable{pkg.Repo, pkg.PkgInfo()})
+func NewTmpGraph(graph *pkgdep.Graph) TmpGraph {
+	res := make([]TmpNode, graph.Size())
+	for i, pkg := range graph.Nodes {
+		res[i] = TmpNode{pkg.Repo, pkg.PkgInfo()}
 	}
 
-	return res
+	return TmpGraph{DestDir: graph.DestDir, Nodes: res}
 }
 
 //TODO add rollback
-func wieldGraph(packages InstallList, params depres.DepResParams) error {
+func wieldGraph(graph TmpGraph) error {
 	type pkgset struct {
 		spkg *spakg.Spakg
 		repo *repo.Repo
@@ -257,7 +257,7 @@ func wieldGraph(packages InstallList, params depres.DepResParams) error {
 	spkgs := make([]pkgset, 0)
 
 	//Fetch Packages
-	for _, pkg := range packages {
+	for _, pkg := range graph.Nodes {
 		err := pkg.Repo.FetchIfNotCachedSpakg(pkg.PkgInfo)
 		if err != nil {
 			return err
@@ -275,26 +275,28 @@ func wieldGraph(packages InstallList, params depres.DepResParams) error {
 
 	//Preinstall
 	for _, pkg := range spkgs {
-		wield.PreInstall(pkg.spkg, params.DestDir)
+		wield.PreInstall(pkg.spkg, graph.DestDir)
 	}
 	log.Debug.Println()
 
 	//Install
 	for _, pkg := range spkgs {
-		err := wield.ExtractCheckCopy(pkg.file, params.DestDir)
+		err := wield.ExtractCheckCopy(pkg.file, graph.DestDir)
 
 		if err != nil {
 			return err
 		}
 
-		pkg.repo.InstallSpakg(pkg.spkg, params.DestDir)
+		pkg.repo.InstallSpakg(pkg.spkg, graph.DestDir)
 	}
 	log.Debug.Println()
-	wield.Ldconfig(params.DestDir)
+	if len(spkgs) != 0 {
+		wield.Ldconfig(graph.DestDir)
+	}
 
 	//PostInstall
 	for _, pkg := range spkgs {
-		wield.PostInstall(pkg.spkg, params.DestDir)
+		wield.PostInstall(pkg.spkg, graph.DestDir)
 	}
 	log.Info.Println()
 
@@ -302,27 +304,29 @@ func wieldGraph(packages InstallList, params depres.DepResParams) error {
 }
 
 func forgewieldPackages(packages []string, isForge bool) {
-
 	params := depres.DepResParams{
-		IsForge:     isForge,
-		IsReinstall: reinstallArg != nil && reinstallArg.Get(),
 		IgnoreBDeps: noBDepsArg != nil && noBDepsArg.Get(),
-		DestDir:     destdirArg.Get(),
 	}
 
-	if params.DestDir[len(params.DestDir)-1] != '/' {
-		params.DestDir += "/"
+	destdir := destdirArg.Get()
+	isReinstall := reinstallArg != nil && reinstallArg.Get()
+
+	if destdir[len(destdir)-1] != '/' {
+		destdir += "/"
 	}
 
 	//A set of overlapping "trees" to represent the packages we will be caring about
-	installgraph := make(pkgdep.PkgDepList, 0)
+	installgraph := pkgdep.NewGraph(destdir)
 
 	//Create a list of all packages that we want to work with
-	pkglist := make(pkgdep.PkgDepList, 0)
+	pkglist := pkgdep.NewGraph(destdir)
 	happy := true
 	for _, pkg := range packages {
 		//Create pkgdep inside of installgraph with proper flags
-		pkgdep := installgraph.Add(pkg, params.DestDir)
+		pkgdep := installgraph.Add(pkg, isForge)
+		pkgdep.ForgeOnly = isForge
+		pkgdep.IsReinstall = isReinstall
+		pkgdep.IsLatest = true
 
 		if pkgdep == nil {
 			log.Error.Format("Cannot find package %s", pkg)
@@ -330,17 +334,16 @@ func forgewieldPackages(packages []string, isForge bool) {
 			continue
 		}
 
-		pkgdep.AddRdepConstraints(params.DestDir, "")
+		pkgdep.AddRdepConstraints("")
 
-		pkgdep.ForgeOnly = params.IsForge
 		pkglist.Append(pkgdep)
 	}
 	if !happy {
 		os.Exit(1)
 	}
 
-	if !params.IsForge {
-		for _, pd := range pkglist {
+	if !isForge {
+		for _, pd := range pkglist.Nodes {
 			//Fill in the tree for pd
 			//This step also partially fills in the installgraph
 			log.Debug.Format("Building tree for %s", pd.Name)
@@ -354,7 +357,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 
 	if !happy {
 		log.Error.Println("Invalid State")
-		for _, pkg := range installgraph {
+		for _, pkg := range installgraph.Nodes {
 			if !pkg.Exists() {
 				log.Info.Println(pkg.String())
 				pkg.Constraints.PrintError("\t")
@@ -366,7 +369,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 	//Check for invalid flag combos
 	if !installgraph.CheckPackageFlags() {
 		log.Error.Println("Conflicting Flag States")
-		for _, pkg := range installgraph {
+		for _, pkg := range installgraph.Nodes {
 			if !pkg.ValidFlags() {
 				log.Info.Println(pkg.String() + "\t" + pkg.Control().ParsedFlags().String())
 				pkg.Constraints.PrintError("\t")
@@ -375,12 +378,8 @@ func forgewieldPackages(packages []string, isForge bool) {
 		os.Exit(-1)
 	}
 
-	forgeparams := params
-	forgeparams.DestDir = "/"
-	forgeparams.IsForge = true
-
 	//Next we need to check if certain packages must be built
-	tobuild, happy := depres.FindToBuild(&installgraph, forgeparams)
+	tobuild, happy := depres.FindToBuild(installgraph, params, "/")
 	//tobuild is a list of build graphs (root nodes)
 
 	if !happy {
@@ -389,36 +388,36 @@ func forgewieldPackages(packages []string, isForge bool) {
 		os.Exit(-1)
 	}
 
-	if len(*tobuild) > 0 {
+	if tobuild.Size() > 0 {
 		fmt.Println(color.White.String("Packages to Forge:"))
 		tobuild.Print()
-		for _, pkg := range *tobuild {
-			toinstallforpkg := pkg.Graph.ToInstallRequiredNoGlobal(params.DestDir)
-			if len(*toinstallforpkg) != 0 {
+		for _, pkg := range tobuild.Nodes {
+			toinstallforpkg := pkg.Graph.ToInstall()
+			if toinstallforpkg.Size() != 0 {
 				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
 				toinstallforpkg.Print()
 			}
 		}
 		fmt.Println()
 	}
-	toinstall := installgraph.ToInstallLatest(params.DestDir)
-	if len(*toinstall) > 0 {
+	toinstall := installgraph.ToInstall()
+	if toinstall.Size() > 0 {
 		fmt.Println(color.White.String("Packages to Wield:"))
 		toinstall.Print()
 		fmt.Println()
 	}
 
-	if len(*toinstall) > 0 || len(*tobuild) > 0 {
+	if toinstall.Size() > 0 || tobuild.Size() > 0 {
 		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue?", true) {
 			return
 		}
 	}
 
-	if len(*tobuild) > 0 {
+	if tobuild.Size() > 0 {
 		log.Info.Println("Forging required packages: ")
 		LogBar(log.Info, log.Info.Color)
 
-		err := forgeList(tobuild, forgeparams)
+		err := forgeList(tobuild)
 
 		if err != nil {
 			log.Error.Println("Unable to forge: ", err)
@@ -428,10 +427,10 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 	}
 
-	if len(*toinstall) > 0 {
+	if toinstall.Size() > 0 {
 		log.Info.Println("Wielding required packages: ")
 		LogBar(log.Info, log.Info.Color)
-		err := wieldGraph(DepListToInstallList(toinstall), params)
+		err := wieldGraph(NewTmpGraph(toinstall))
 		if err != nil {
 			log.Error.Println(err)
 		} else {
@@ -439,7 +438,7 @@ func forgewieldPackages(packages []string, isForge bool) {
 		}
 	}
 
-	if len(*tobuild)+len(*toinstall) == 0 {
+	if tobuild.Size()+toinstall.Size() == 0 {
 		log.Info.Println("Nothing to do")
 	}
 }
