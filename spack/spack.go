@@ -324,15 +324,15 @@ func forgewieldPackages(packages []string, isForge bool) {
 	for _, pkg := range packages {
 		//Create pkgdep inside of installgraph with proper flags
 		pkgdep := installgraph.Add(pkg, isForge)
-		pkgdep.ForgeOnly = isForge
-		pkgdep.IsReinstall = isReinstall
-		pkgdep.IsLatest = true
-
 		if pkgdep == nil {
 			log.Error.Format("Cannot find package %s", pkg)
 			happy = false
 			continue
 		}
+
+		pkgdep.ForgeOnly = isForge
+		pkgdep.IsReinstall = isReinstall
+		pkgdep.IsLatest = true
 
 		pkgdep.AddRdepConstraints("")
 
