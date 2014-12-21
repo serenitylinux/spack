@@ -119,6 +119,12 @@ func registerSimpleArg() {
 	simpleArg = argparse.RegisterBool("simple", false, "Gets rid of the lines in search")
 }
 
+var localArg *argparse.BoolValue = nil
+
+func registerLocalArg() {
+	localArg = argparse.RegisterBool("local", false, "Does not use remote repositories")
+}
+
 func ForgeWieldArgs(requirePackages bool) []string {
 	registerBaseDir()
 	registerNoBDeps()
@@ -601,6 +607,7 @@ func refresh() {
 	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "refresh"))
 	registerQuiet()
 	registerVerbose()
+	registerLocalArg()
 
 	pkgs := argparse.EvalDefaultArgs()
 	if len(pkgs) > 0 {
@@ -611,8 +618,11 @@ func refresh() {
 	if verboseArg.Get() {
 		log.SetLevel(log.DebugLevel)
 	}
+	if quietArg.Get() {
+		log.SetLevel(log.ErrorLevel)
+	}
 
-	libspack.RefreshRepos()
+	libspack.RefreshRepos(localArg.Get())
 }
 
 func search() {

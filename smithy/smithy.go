@@ -190,7 +190,7 @@ func main() {
 	ExitOnError(libspack.LoadRepos())
 
 	for {
-		libspack.RefreshRepos()
+		libspack.RefreshRepos(false)
 		//build packages
 		repolist := libspack.GetAllRepos()
 		if len(repoNames) > 0 {
