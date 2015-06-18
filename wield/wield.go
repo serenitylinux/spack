@@ -74,7 +74,7 @@ func main() {
 		if err != nil {
 			break
 		}
-		fmt.Println(color.Green.Stringf("Wielding %s with the force of a %s", spkg.Control.UUID()), color.Red.String("GOD"))
+		fmt.Println(color.Green.Stringf("Wielding %s with the force of a %s", spkg.Control.String()), color.Red.String("GOD"))
 
 		err = wield.Wield(pkg, destdir)
 		if err != nil {
@@ -82,7 +82,7 @@ func main() {
 		}
 
 		log.Info.Println()
-		fmt.Println(color.Green.Stringf("Your heart is pure and accepts the gift of %s", spkg.Control.UUID()))
+		fmt.Println(color.Green.Stringf("Your heart is pure and accepts the gift of %s", spkg.Control.String()))
 	}
 	if err != nil {
 		log.Error.Println(err)
