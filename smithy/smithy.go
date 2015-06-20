@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/cam72cam/go-lumberjack/log"
-	"github.com/serenitylinux/libspack"
-	"github.com/serenitylinux/libspack/argparse"
-	"github.com/serenitylinux/libspack/control"
-	"github.com/serenitylinux/libspack/pkginfo"
-	"github.com/serenitylinux/libspack/repo"
-	"github.com/serenitylinux/libspack/spakg"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/cam72cam/go-lumberjack/log"
+	"github.com/serenitylinux/libspack/argparse"
+	"github.com/serenitylinux/libspack/control"
+	"github.com/serenitylinux/libspack/helpers/json"
+	"github.com/serenitylinux/libspack/pkginfo"
+	"github.com/serenitylinux/libspack/repo"
+	"github.com/serenitylinux/libspack/spakg"
 )
 
 import . "github.com/serenitylinux/libspack/misc"
@@ -78,19 +79,20 @@ func extractSpakg(file string, infodir string) error {
 
 	//This will be written to for each name-version configuration.  It should be the same for any flagset
 	c := arch.Control
-	c.ToFile(infodir + c.UUID() + ".control")
+	err = json.EncodeFile(infodir+c.String()+".control", c)
+	if err != nil {
+		return err
+	}
 
 	pi := arch.Pkginfo
-	pi.ToFile(infodir + pi.UUID() + ".pkginfo")
-
-	return err
+	return json.EncodeFile(infodir+pi.String()+".pkginfo", pi)
 }
 
-func processRepo(repo *repo.Repo) {
-	log.Debug.Println("Repo: ", repo.Name)
+func processRepo(r *repo.Repo) {
+	log.Debug.Println("Repo: ", r.Name)
 
 	var err error
-	pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, repo.Name)
+	pkgdir := fmt.Sprintf("%s/%s/pkgs/", outdir, r.Name)
 	if !PathExists(pkgdir) {
 		err = os.MkdirAll(pkgdir, 0755)
 		if err != nil {
@@ -99,7 +101,7 @@ func processRepo(repo *repo.Repo) {
 		}
 	}
 
-	infodir := fmt.Sprintf("%s/%s/info/", outdir, repo.Name)
+	infodir := fmt.Sprintf("%s/%s/info/", outdir, r.Name)
 	err = os.MkdirAll(infodir, 0755)
 	if !PathExists(infodir) {
 		if err != nil {
@@ -108,7 +110,7 @@ func processRepo(repo *repo.Repo) {
 		}
 	}
 
-	for name, ctrls := range repo.GetAllControls() {
+	for name, ctrls := range r.GetAllControls() {
 		if name == "" { //TODO this is a hack for empty templates
 			continue
 		}
@@ -116,13 +118,13 @@ func processRepo(repo *repo.Repo) {
 		log.Info.Println("Forging: ", name)
 		for _, ctrl := range ctrls {
 			//Temporarily only support building the latestW
-			foo, _ := repo.GetLatestControl(ctrl.Name)
-			if foo.UUID() != ctrl.UUID() {
+			foo, _ := r.GetLatestControl(ctrl.Name)
+			if foo.String() != ctrl.String() {
 				continue
 			}
 
 			p := pkginfo.FromControl(&ctrl)
-			outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.UUID())
+			outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.String())
 			if PathExists(outfile) {
 				continue
 			}
@@ -134,16 +136,16 @@ func processRepo(repo *repo.Repo) {
 			//TODO better version checking
 			var depCheck func(*control.Control) bool
 			depCheck = func(ctrl *control.Control) bool {
-				if _, exists := done[ctrl.UUID()]; exists {
+				if _, exists := done[ctrl.String()]; exists {
 					return true
 				}
-				done[ctrl.UUID()] = true
+				done[ctrl.String()] = true
 
 				for _, dep := range ctrl.Bdeps {
-					depC, _ := libspack.GetPackageLatest(dep)
+					depC, _ := repo.GetPackageLatest(dep.Name)
 					if depC == nil {
 						hasAllDeps = false
-						missing = append(missing, dep)
+						missing = append(missing, dep.Name)
 						return false
 					}
 
@@ -155,7 +157,7 @@ func processRepo(repo *repo.Repo) {
 			}
 
 			if !depCheck(&ctrl) {
-				log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.UUID(), missing)
+				log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.String(), missing)
 				continue
 			}
 
@@ -171,13 +173,13 @@ func processRepo(repo *repo.Repo) {
 				cmd.Stdin = os.Stdin
 				err = cmd.Run()
 				if err != nil {
-					log.Warn.Format("Unable to forge %s: %s", p.UUID(), err)
+					log.Warn.Format("Unable to forge %s: %s", p.String(), err)
 					continue
 				}
 
 				err := extractSpakg(outfile, infodir)
 				if err != nil {
-					log.Warn.Format("Unable to load forged %s: %s", p.UUID(), err)
+					log.Warn.Format("Unable to load forged %s: %s", p.String(), err)
 				}
 			}
 		}
@@ -187,12 +189,12 @@ func processRepo(repo *repo.Repo) {
 func main() {
 	repoNames := arguments()
 
-	ExitOnError(libspack.LoadRepos())
+	ExitOnError(repo.LoadRepos())
 
 	for {
-		libspack.RefreshRepos(false)
+		repo.RefreshRepos(false)
 		//build packages
-		repolist := libspack.GetAllRepos()
+		repolist := repo.GetAllRepos()
 		if len(repoNames) > 0 {
 			for _, repoName := range repoNames {
 				repo, exists := repolist[repoName]

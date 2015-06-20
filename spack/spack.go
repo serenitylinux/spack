@@ -1,23 +1,19 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/cam72cam/go-lumberjack/color"
 	"github.com/cam72cam/go-lumberjack/log"
 	"github.com/serenitylinux/libspack"
 	"github.com/serenitylinux/libspack/argparse"
 	"github.com/serenitylinux/libspack/control"
-	"github.com/serenitylinux/libspack/depres"
-	"github.com/serenitylinux/libspack/depres/pkgdep"
-	"github.com/serenitylinux/libspack/forge"
 	"github.com/serenitylinux/libspack/misc"
-	"github.com/serenitylinux/libspack/pkginfo"
+	"github.com/serenitylinux/libspack/pkggraph"
 	"github.com/serenitylinux/libspack/repo"
-	"github.com/serenitylinux/libspack/spakg"
-	"github.com/serenitylinux/libspack/wield"
-	"os"
-	"strings"
+	"github.com/serenitylinux/libspack/spdl"
 )
 
 import . "github.com/serenitylinux/libspack/misc"
@@ -149,6 +145,47 @@ func ForgeWieldArgs(requirePackages bool) []string {
 	return packages
 }
 
+func Root() string {
+
+	destdir := destdirArg.Get()
+	if destdir[len(destdir)-1] != '/' {
+		destdir += "/"
+	}
+	return destdir
+}
+
+func forge(pkgs []string) {
+	//TODO parse pkgs
+
+	var deps []spdl.Dep
+	for _, pkg := range pkgs {
+		deps = append(deps, spdl.Dep{Name: pkg})
+	}
+
+	err := libspack.Forge(deps, Root(), noBDepsArg.Get())
+	if err != nil {
+		log.Error.Format(err.Error())
+		os.Exit(1)
+	}
+	PrintSuccess()
+}
+
+func wield(pkgs []string) {
+	//TODO parse pkgs
+
+	var deps []spdl.Dep
+	for _, pkg := range pkgs {
+		deps = append(deps, spdl.Dep{Name: pkg})
+	}
+
+	err := libspack.Wield(deps, Root(), reinstallArg.Get(), pkggraph.InstallConvenient)
+	if err != nil {
+		log.Error.Format(err.Error())
+		os.Exit(1)
+	}
+	PrintSuccess()
+}
+
 func pkgSplit(pkg string) (name string, version *string, iteration *string) {
 	split := strings.SplitN(pkg, "::", 3)
 	name = split[0]
@@ -163,289 +200,13 @@ func pkgSplit(pkg string) (name string, version *string, iteration *string) {
 func getPkg(pkg string) (*control.Control, *repo.Repo) {
 	name, version, iteration := pkgSplit(pkg)
 	if version == nil {
-		return libspack.GetPackageLatest(name)
+		return repo.GetPackageLatest(name)
 	} else {
 		if iteration == nil {
-			return libspack.GetPackageVersion(name, *version)
+			return repo.GetPackageVersion(name, *version)
 		} else {
-			return libspack.GetPackageVersionIteration(name, *version, *iteration)
+			return repo.GetPackageVersionIteration(name, *version, *iteration)
 		}
-	}
-}
-
-func forgeList(graph *pkgdep.Graph) error {
-	for _, pkg := range graph.Nodes {
-		//Find template
-		template, exists := pkg.Repo.GetTemplateByControl(pkg.Control())
-		if !exists {
-			return errors.New(fmt.Sprintf("Cannot forge package %s, no template available", pkg.Name))
-		}
-
-		log.Info.Format("Installing bdeps for %s", pkg.PkgInfo().UUID())
-		depgraph := pkg.Graph.ToInstall()
-
-		original := TmpGraph{DestDir: graph.DestDir}
-		toremove := TmpGraph{DestDir: graph.DestDir}
-
-		for _, pkgd := range depgraph.Nodes {
-			if pkgi := pkgd.Repo.GetInstalledByName(pkgd.Name, depgraph.DestDir); pkgi != nil {
-				original.Nodes = append(original.Nodes, TmpNode{pkgd.Repo, pkgi.PkgInfo})
-			} else {
-				toremove.Nodes = append(toremove.Nodes, TmpNode{pkgd.Repo, pkgd.PkgInfo()})
-			}
-		}
-
-		wieldGraph(NewTmpGraph(depgraph))
-
-		//Forge pkg
-		log.Info.Format("Forging %s", pkg.PkgInfo().UUID())
-		info := pkg.PkgInfo()
-		spakgFile := pkg.Repo.GetSpakgOutput(info)
-		forgerr := forge.Forge(template, spakgFile, info.ComputedFlagStates(), false, interactiveArg != nil && interactiveArg.Get())
-
-		//copy pkg
-		if forgeoutdirArg != nil && forgeoutdirArg.IsSet() {
-			forgeOutDir := forgeoutdirArg.Get()
-			err := CopyFile(pkg.Repo.GetSpakgOutput(pkg.PkgInfo()), forgeOutDir+pkg.PkgInfo().UUID()+".spakg")
-			if err != nil {
-				log.Warn.Println(err)
-			}
-		}
-
-		if len(toremove.Nodes) > 0 {
-			log.Info.Println()
-			log.Info.Format("Removing bdeps for %s", pkg.PkgInfo().UUID())
-			for _, pkgi := range toremove.Nodes {
-				err := pkgi.Repo.Uninstall(pkgi.PkgInfo, depgraph.DestDir)
-				if err != nil {
-					log.Error.Println(err)
-				}
-			}
-		}
-		if len(original.Nodes) > 0 {
-			log.Info.Println()
-			log.Info.Format("Replacing altered packages")
-			wieldGraph(original)
-		}
-
-		if forgerr != nil {
-			return forgerr
-		}
-	}
-	return nil
-}
-
-type TmpNode struct {
-	Repo    *repo.Repo
-	PkgInfo *pkginfo.PkgInfo
-}
-type TmpGraph struct {
-	DestDir string
-	Nodes   []TmpNode
-}
-
-func NewTmpGraph(graph *pkgdep.Graph) TmpGraph {
-	res := make([]TmpNode, graph.Size())
-	for i, pkg := range graph.Nodes {
-		res[i] = TmpNode{pkg.Repo, pkg.PkgInfo()}
-	}
-
-	return TmpGraph{DestDir: graph.DestDir, Nodes: res}
-}
-
-//TODO add rollback
-func wieldGraph(graph TmpGraph) error {
-	type pkgset struct {
-		spkg *spakg.Spakg
-		repo *repo.Repo
-		file string
-	}
-	spkgs := make([]pkgset, 0)
-
-	//Fetch Packages
-	for _, pkg := range graph.Nodes {
-		err := pkg.Repo.FetchIfNotCachedSpakg(pkg.PkgInfo)
-		if err != nil {
-			return err
-		}
-
-		pkgfile := pkg.Repo.GetSpakgOutput(pkg.PkgInfo)
-		spkg, err := spakg.FromFile(pkgfile, nil)
-		if err != nil {
-			return err
-		}
-
-		spkgs = append(spkgs, pkgset{spkg, pkg.Repo, pkgfile})
-	}
-	log.Info.Println()
-
-	//Preinstall
-	for _, pkg := range spkgs {
-		wield.PreInstall(pkg.spkg, graph.DestDir)
-	}
-	log.Debug.Println()
-
-	//Install
-	for _, pkg := range spkgs {
-		err := wield.ExtractCheckCopy(pkg.file, graph.DestDir)
-
-		if err != nil {
-			return err
-		}
-
-		pkg.repo.InstallSpakg(pkg.spkg, graph.DestDir)
-	}
-	log.Debug.Println()
-	if len(spkgs) != 0 {
-		wield.Ldconfig(graph.DestDir)
-	}
-
-	//PostInstall
-	for _, pkg := range spkgs {
-		wield.PostInstall(pkg.spkg, graph.DestDir)
-	}
-	log.Info.Println()
-
-	return nil
-}
-
-func forgewieldPackages(packages []string, isForge bool) {
-	params := depres.DepResParams{
-		IgnoreBDeps: noBDepsArg != nil && noBDepsArg.Get(),
-	}
-
-	destdir := destdirArg.Get()
-	isReinstall := reinstallArg != nil && reinstallArg.Get()
-
-	if destdir[len(destdir)-1] != '/' {
-		destdir += "/"
-	}
-
-	//A set of overlapping "trees" to represent the packages we will be caring about
-	installgraph := pkgdep.NewGraph(destdir)
-
-	//Create a list of all packages that we want to work with
-	pkglist := pkgdep.NewGraph(destdir)
-	happy := true
-	for _, pkg := range packages {
-		//Create pkgdep inside of installgraph with proper flags
-		pkgdep := installgraph.Add(pkg, isForge)
-		if pkgdep == nil {
-			log.Error.Format("Cannot find package %s", pkg)
-			happy = false
-			continue
-		}
-
-		pkgdep.ForgeOnly = isForge
-		pkgdep.IsReinstall = isReinstall
-		pkgdep.IsLatest = true
-
-		pkgdep.AddRdepConstraints("")
-
-		pkglist.Append(pkgdep)
-	}
-	if !happy {
-		os.Exit(1)
-	}
-
-	if !isForge {
-		for _, pd := range pkglist.Nodes {
-			//Fill in the tree for pd
-			//This step also partially fills in the installgraph
-			log.Debug.Format("Building tree for %s", pd.Name)
-			if !depres.DepTree(pd, params) {
-				happy = false
-				continue
-			}
-			log.Debug.Println()
-		}
-	}
-
-	if !happy {
-		log.Error.Println("Invalid State")
-		for _, pkg := range installgraph.Nodes {
-			if !pkg.Exists() {
-				log.Info.Println(pkg.String())
-				pkg.Constraints.PrintError("\t")
-			}
-		}
-		os.Exit(-1)
-	}
-
-	//Check for invalid flag combos
-	if !installgraph.CheckPackageFlags() {
-		log.Error.Println("Conflicting Flag States")
-		for _, pkg := range installgraph.Nodes {
-			if !pkg.ValidFlags() {
-				log.Info.Println(pkg.String() + "\t" + pkg.Control().ParsedFlags().String())
-				pkg.Constraints.PrintError("\t")
-			}
-		}
-		os.Exit(-1)
-	}
-
-	//Next we need to check if certain packages must be built
-	tobuild, happy := depres.FindToBuild(installgraph, params, "/")
-	//tobuild is a list of build graphs (root nodes)
-
-	if !happy {
-		//TODO verbosify
-		log.Error.Println("Unable to generate build graphs")
-		os.Exit(-1)
-	}
-
-	if tobuild.Size() > 0 {
-		fmt.Println(color.White.String("Packages to Forge:"))
-		tobuild.Print()
-		for _, pkg := range tobuild.Nodes {
-			toinstallforpkg := pkg.Graph.ToInstall()
-			if toinstallforpkg.Size() != 0 {
-				fmt.Println(color.White.Stringf("Packages to Wield during forge %s:", pkg.PkgInfo().PrettyString()))
-				toinstallforpkg.Print()
-			}
-		}
-		fmt.Println()
-	}
-	toinstall := installgraph.ToInstall()
-	if toinstall.Size() > 0 {
-		fmt.Println(color.White.String("Packages to Wield:"))
-		toinstall.Print()
-		fmt.Println()
-	}
-
-	if toinstall.Size() > 0 || tobuild.Size() > 0 {
-		if !yesAll.Get() && !libspack.AskYesNo("Do you wish to continue?", true) {
-			return
-		}
-	}
-
-	if tobuild.Size() > 0 {
-		log.Info.Println("Forging required packages: ")
-		LogBar(log.Info, log.Info.Color)
-
-		err := forgeList(tobuild)
-
-		if err != nil {
-			log.Error.Println("Unable to forge: ", err)
-			os.Exit(-1)
-		} else {
-			libspack.PrintSuccess()
-		}
-	}
-
-	if toinstall.Size() > 0 {
-		log.Info.Println("Wielding required packages: ")
-		LogBar(log.Info, log.Info.Color)
-		err := wieldGraph(NewTmpGraph(toinstall))
-		if err != nil {
-			log.Error.Println(err)
-		} else {
-			libspack.PrintSuccess()
-		}
-	}
-
-	if tobuild.Size()+toinstall.Size() == 0 {
-		log.Info.Println("Nothing to do")
 	}
 }
 
@@ -455,7 +216,7 @@ func list() {
 	repos_list := argparse.EvalDefaultArgs()
 	installed = installedArg.Get()
 
-	repos := libspack.GetAllRepos()
+	repos := repo.GetAllRepos()
 
 	printRepo := func(repoName string) {
 		fmt.Println("Packages in", repoName)
@@ -464,7 +225,7 @@ func list() {
 		for _, pkglist := range list {
 			for _, pkg := range pkglist {
 				if !installed || repo.IsAnyInstalled(&pkg, "/") {
-					fmt.Println(pkg.UUID())
+					fmt.Println(pkg.String())
 				}
 			}
 		}
@@ -487,7 +248,7 @@ func list() {
 
 func info(pkgs []string) {
 	for _, pkg := range pkgs {
-		c, repo := libspack.GetPackageLatest(pkg)
+		c, repo := repo.GetPackageLatest(pkg)
 		if c != nil {
 			fmt.Println(c)
 			i := repo.GetInstalledByName(pkg, "/")
@@ -539,13 +300,13 @@ func remove(pkgs []string) {
 			log.Info.Format("%s has no deps", control.Name)
 		} else {
 			fmt.Println("Packages to remove: ")
-			fmt.Print(control.UUID())
+			fmt.Print(control.String())
 			for _, set := range list {
-				fmt.Print(" ", set.Control.UUID())
+				fmt.Print(" ", set.Control.String())
 			}
 			fmt.Println()
 		}
-		if libspack.AskYesNo("Are you sure you want to continue?", false) {
+		if AskYesNo("Are you sure you want to continue?", false) {
 			var err error
 			for _, rdep := range list {
 				//Edge case
@@ -576,31 +337,32 @@ func remove(pkgs []string) {
 }
 
 func upgrade() {
-	argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "upgrade"))
-	pkgs := ForgeWieldArgs(false)
+	/*
+		argparse.SetBasename(fmt.Sprintf("%s %s [options]", os.Args[0], "upgrade"))
+		pkgs := ForgeWieldArgs(false)
 
-	if len(pkgs) > 0 {
-		log.Error.Format("Invalid options: ", pkgs)
-		argparse.Usage(2)
-	}
+		if len(pkgs) > 0 {
+			log.Error.Format("Invalid options: ", pkgs)
+			argparse.Usage(2)
+		}
 
-	nameList := make([]string, 0)
-	for _, repo := range libspack.GetAllRepos() {
-		for _, pkg := range repo.GetAllInstalled() {
-			c, _ := repo.GetLatestControl(pkg.Control.Name)
-			if c != nil && c.UUID() > pkg.Control.UUID() {
-				nameList = append(nameList, c.Name)
-				log.Debug.Format("%s, %s > %s", repo.Name, c.UUID(), pkg.Control.UUID())
+		nameList := make([]string, 0)
+		for _, repo := range repo.GetAllRepos() {
+			for _, pkg := range repo.GetAllInstalled() {
+				c, _ := repo.GetLatestControl(pkg.Control.Name)
+				if c != nil && c.String() > pkg.Control.String() {
+					nameList = append(nameList, c.Name)
+					log.Debug.Format("%s, %s > %s", repo.Name, c.String(), pkg.Control.String())
+				}
 			}
 		}
-	}
 
-	if len(nameList) > 0 {
-		fmt.Println("The following packages will be upgraded: ")
-		forgewieldPackages(nameList, false)
-	} else {
-		fmt.Println("No packages to upgrade (Horay!)")
-	}
+		if len(nameList) > 0 {
+			fmt.Println("The following packages will be upgraded: ")
+			forgewieldPackages(nameList, false)
+		} else {
+			fmt.Println("No packages to upgrade (Horay!)")
+		}*/
 }
 
 func refresh() {
@@ -622,7 +384,7 @@ func refresh() {
 		log.SetLevel(log.ErrorLevel)
 	}
 
-	libspack.RefreshRepos(localArg.Get())
+	repo.RefreshRepos(localArg.Get())
 }
 
 func search() {
@@ -647,13 +409,13 @@ func search() {
 
 	type pkgset struct {
 		r     *repo.Repo
-		ctrls control.ControlList
+		ctrls []control.Control
 	}
 
 	packages := make([]pkgset, 0)
 
 	for _, filter := range filters {
-		for _, repo := range libspack.GetAllRepos() {
+		for _, repo := range repo.GetAllRepos() {
 			for pkgName, ctrllist := range repo.GetAllControls() {
 				if name && strings.Contains(pkgName, filter) {
 					packages = append(packages, pkgset{repo, ctrllist})
@@ -681,7 +443,7 @@ func search() {
 
 	for _, ps := range packages {
 		for _, pkg := range ps.ctrls {
-			plen := len(pkg.UUID())
+			plen := len(pkg.String())
 			if plen > longest {
 				longest = plen
 			}
@@ -691,7 +453,7 @@ func search() {
 	for _, ps := range packages {
 		repo := ps.r
 		for _, c := range ps.ctrls {
-			gap := longest - len(c.UUID())
+			gap := longest - len(c.String())
 
 			action := ""
 			actionlen := 5
@@ -713,7 +475,7 @@ func search() {
 			action += strings.Repeat(" ", actionlen-len(action))
 			fmt.Print(color.White.String(action))
 
-			fmt.Print(color.Green.String(c.UUID(), strings.Repeat(" ", gap+2)))
+			fmt.Print(color.Green.String(c.String(), strings.Repeat(" ", gap+2)))
 
 			desc := c.Description
 			totallen := actionlen + longest + 2
@@ -739,14 +501,14 @@ func main() {
 		argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 		registerForgeOutDirArg()
 		registerInteractiveArg()
-		forgewieldPackages(ForgeWieldArgs(true), true)
+		forge(ForgeWieldArgs(true))
 
 	case "install":
 		fallthrough
 	case "wield":
 		argparse.SetBasename(fmt.Sprintf("%s %s [options] package(s)", os.Args[0], command))
 		registerReinstallArg()
-		forgewieldPackages(ForgeWieldArgs(true), false)
+		wield(ForgeWieldArgs(true))
 
 	case "purge":
 		fallthrough
@@ -756,7 +518,7 @@ func main() {
 	case "update":
 		fallthrough
 	case "refresh":
-		//libspack.RefreshRepos()
+		//repo.RefreshRepos()
 		refresh()
 
 	case "upgrade":
