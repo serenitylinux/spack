@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -250,7 +251,8 @@ func info(pkgs []string) {
 	for _, pkg := range pkgs {
 		c, repo := repo.GetPackageLatest(pkg)
 		if c != nil {
-			fmt.Println(c)
+			s, _ := json.MarshalIndent(c, "", "\t")
+			fmt.Println(string(s))
 			i := repo.GetInstalledByName(pkg, "/")
 			if i != nil {
 				for f, _ := range i.Hashes {
