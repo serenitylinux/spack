@@ -83,7 +83,7 @@ func main() {
 	log.Warn.Println("This can be a dangerous operation, please read the instruction manual to prevent a black hole.")
 	log.Info.Println()
 	//TODO custom flags/honor globals
-	err = forge.Forge(template, output, c.Flags.Defaults(), test, interactive)
+	err = forge.Forge(template, output, "/", c.Flags.Defaults(), test, interactive)
 	if err != nil {
 		log.Error.Println(err)
 	}
