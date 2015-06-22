@@ -13,6 +13,7 @@ import (
 	"github.com/serenitylinux/libspack/control"
 	"github.com/serenitylinux/libspack/misc"
 	"github.com/serenitylinux/libspack/pkggraph"
+	"github.com/serenitylinux/libspack/pkginfo"
 	"github.com/serenitylinux/libspack/repo"
 	"github.com/serenitylinux/libspack/spdl"
 )
@@ -253,6 +254,10 @@ func info(pkgs []string) {
 		if c != nil {
 			s, _ := json.MarshalIndent(c, "", "\t")
 			fmt.Println(string(s))
+			repo.MapAvailableByName(pkg, func(_ control.Control, p pkginfo.PkgInfo) {
+				fmt.Println("Available: " + p.PrettyString())
+			})
+
 			i := repo.GetInstalledByName(pkg, "/")
 			if i != nil {
 				for f, _ := range i.Hashes {
