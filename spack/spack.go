@@ -13,7 +13,7 @@ import (
 	"github.com/serenitylinux/libspack/argparse"
 	"github.com/serenitylinux/libspack/control"
 	"github.com/serenitylinux/libspack/misc"
-	"github.com/serenitylinux/libspack/pkggraph"
+	"github.com/serenitylinux/libspack/crunch"
 	"github.com/serenitylinux/libspack/repo"
 	"github.com/serenitylinux/libspack/spdl"
 )
@@ -180,7 +180,7 @@ func wield(pkgs []string) {
 		deps = append(deps, spdl.Dep{Name: pkg})
 	}
 
-	err := libspack.Wield(deps, Root(), reinstallArg.Get(), pkggraph.InstallConvenient)
+	err := libspack.Wield(deps, Root(), reinstallArg.Get(), crunch.InstallConvenient)
 	if err != nil {
 		log.Error.Format(err.Error())
 		os.Exit(1)
