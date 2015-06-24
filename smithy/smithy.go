@@ -110,80 +110,77 @@ func processRepo(r *repo.Repo) {
 		}
 	}
 
-	for name, ctrls := range r.GetAllControls() {
-		if name == "" { //TODO this is a hack for empty templates
-			continue
+	r.MapWithName(func(name string, entries []repo.Entry) {
+		log.Info.Println("Forging: ", name)
+		//Temporarily only support building the latestW
+
+		var ctrl control.Control
+		for _, entry := range entries {
+			if ctrl.Name == "" || entry.Control.GreaterThan(ctrl) {
+				ctrl = entry.Control
+			}
 		}
 
-		log.Info.Println("Forging: ", name)
-		for _, ctrl := range ctrls {
-			//Temporarily only support building the latestW
-			foo, _ := r.GetLatestControl(ctrl.Name)
-			if foo.String() != ctrl.String() {
-				continue
-			}
+		p := pkginfo.FromControl(&ctrl)
+		outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.String())
+		if PathExists(outfile) {
+			return
+		}
 
-			p := pkginfo.FromControl(&ctrl)
-			outfile := fmt.Sprintf("%s/%s.spakg", pkgdir, p.String())
-			if PathExists(outfile) {
-				continue
-			}
+		hasAllDeps := true
+		missing := make([]string, 0)
+		done := make(map[string]bool) //TODO should be a list but I am lazy
 
-			hasAllDeps := true
-			missing := make([]string, 0)
-			done := make(map[string]bool) //TODO should be a list but I am lazy
-
-			//TODO better version checking
-			var depCheck func(*control.Control) bool
-			depCheck = func(ctrl *control.Control) bool {
-				if _, exists := done[ctrl.String()]; exists {
-					return true
-				}
-				done[ctrl.String()] = true
-
-				for _, dep := range ctrl.Bdeps {
-					depC, _ := repo.GetPackageLatest(dep.Name)
-					if depC == nil {
-						hasAllDeps = false
-						missing = append(missing, dep.Name)
-						return false
-					}
-
-					if !depCheck(depC) {
-						return false
-					}
-				}
+		//TODO better version checking
+		var depCheck func(*control.Control) bool
+		depCheck = func(ctrl *control.Control) bool {
+			if _, exists := done[ctrl.String()]; exists {
 				return true
 			}
+			done[ctrl.String()] = true
 
-			if !depCheck(&ctrl) {
-				log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.String(), missing)
-				continue
+			for _, dep := range ctrl.Bdeps {
+				depC, _ := repo.GetPackageLatest(dep.Name)
+				if depC == nil {
+					hasAllDeps = false
+					missing = append(missing, dep.Name)
+					return false
+				}
+
+				if !depCheck(depC) {
+					return false
+				}
+			}
+			return true
+		}
+
+		if !depCheck(&ctrl) {
+			log.Warn.Format("Unable to forge %s, unable to find dep(s) %s", p.String(), missing)
+			return
+		}
+
+		if hasAllDeps {
+			pkgarg := fmt.Sprintf("%s::%s::%d", ctrl.Name, ctrl.Version, ctrl.Iteration)
+			cmd := exec.Command("spack", "forge", pkgarg, "--outdir="+pkgdir, "--yes", fmt.Sprintf("--interactive=%t", interactive))
+			fmt.Println(cmd)
+			if outarg != "" {
+				cmd.Args = append(cmd.Args, outarg)
+			}
+			cmd.Stdout = outstream
+			cmd.Stderr = errstream
+			cmd.Stdin = os.Stdin
+			err = cmd.Run()
+			if err != nil {
+				log.Warn.Format("Unable to forge %s: %s", p.String(), err)
+				return
 			}
 
-			if hasAllDeps {
-				pkgarg := fmt.Sprintf("%s::%s::%d", ctrl.Name, ctrl.Version, ctrl.Iteration)
-				cmd := exec.Command("spack", "forge", pkgarg, "--outdir="+pkgdir, "--yes", fmt.Sprintf("--interactive=%t", interactive))
-				fmt.Println(cmd)
-				if outarg != "" {
-					cmd.Args = append(cmd.Args, outarg)
-				}
-				cmd.Stdout = outstream
-				cmd.Stderr = errstream
-				cmd.Stdin = os.Stdin
-				err = cmd.Run()
-				if err != nil {
-					log.Warn.Format("Unable to forge %s: %s", p.String(), err)
-					continue
-				}
-
-				err := extractSpakg(outfile, infodir)
-				if err != nil {
-					log.Warn.Format("Unable to load forged %s: %s", p.String(), err)
-				}
+			err := extractSpakg(outfile, infodir)
+			if err != nil {
+				log.Warn.Format("Unable to load forged %s: %s", p.String(), err)
 			}
 		}
-	}
+	})
 }
 
 func main() {

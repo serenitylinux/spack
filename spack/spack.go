@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/cam72cam/go-lumberjack/color"
@@ -13,7 +14,6 @@ import (
 	"github.com/serenitylinux/libspack/control"
 	"github.com/serenitylinux/libspack/misc"
 	"github.com/serenitylinux/libspack/pkggraph"
-	"github.com/serenitylinux/libspack/pkginfo"
 	"github.com/serenitylinux/libspack/repo"
 	"github.com/serenitylinux/libspack/spdl"
 )
@@ -188,14 +188,15 @@ func wield(pkgs []string) {
 	PrintSuccess()
 }
 
-func pkgSplit(pkg string) (name string, version *string, iteration *string) {
+func pkgSplit(pkg string) (name string, version *string, iteration *int) {
 	split := strings.SplitN(pkg, "::", 3)
 	name = split[0]
 	if len(split) > 1 {
 		version = &split[1]
 	}
 	if len(split) > 2 {
-		iteration = &split[2]
+		i, _ := strconv.Atoi(split[2])
+		iteration = &i
 	}
 	return
 }
@@ -222,14 +223,15 @@ func list() {
 
 	printRepo := func(repoName string) {
 		fmt.Println("Packages in", repoName)
-		repo := repos[repoName]
-		list := repo.GetAllControls()
-		for _, pkglist := range list {
-			for _, pkg := range pkglist {
-				if !installed || repo.IsAnyInstalled(&pkg, "/") {
-					fmt.Println(pkg.String())
-				}
-			}
+		r := repos[repoName]
+		if installed {
+			r.MapInstalled("/", func(p repo.PkgInstallSet) {
+				fmt.Println(p.Control.String())
+			})
+		} else {
+			r.Map(func(e repo.Entry) {
+				fmt.Println(e.Control.String())
+			})
 		}
 	}
 
@@ -250,23 +252,35 @@ func list() {
 
 func info(pkgs []string) {
 	for _, pkg := range pkgs {
-		c, repo := repo.GetPackageLatest(pkg)
-		if c != nil {
-			s, _ := json.MarshalIndent(c, "", "\t")
-			fmt.Println(string(s))
-			repo.MapAvailableByName(pkg, func(_ control.Control, p pkginfo.PkgInfo) {
-				fmt.Println("Available: " + p.PrettyString())
-			})
-
-			i := repo.GetInstalledByName(pkg, "/")
-			if i != nil {
-				for f, _ := range i.Hashes {
-					fmt.Println(f)
-				}
-			}
-		} else {
-			fmt.Println("Package", pkg, "not found")
+		r, err := repo.GetRepoFor(pkg)
+		if err != nil {
+			log.Error.Println(err.Error())
+			continue
 		}
+
+		var entry *repo.Entry
+		r.MapByName(pkg, func(e repo.Entry) {
+			if entry == nil || e.Control.GreaterThan(entry.Control) {
+				entry = &e
+			}
+		})
+		if entry == nil {
+			fmt.Println("Package", pkg, "not found")
+			continue
+		}
+
+		s, _ := json.MarshalIndent(entry.Control, "", "\t")
+		fmt.Println(string(s))
+
+		for _, p := range entry.Available {
+			fmt.Println("Available: " + p.PrettyString())
+		}
+
+		r.MapInstalledByName("/", pkg, func(i repo.PkgInstallSet) {
+			for f, _ := range i.Hashes {
+				fmt.Println(f)
+			}
+		})
 	}
 }
 
@@ -415,30 +429,32 @@ func search() {
 	var length = misc.GetWidth()
 
 	type pkgset struct {
-		r     *repo.Repo
-		ctrls []control.Control
+		repo.Entry
+		installed bool
 	}
 
 	packages := make([]pkgset, 0)
 
-	for _, filter := range filters {
-		for _, repo := range repo.GetAllRepos() {
-			for pkgName, ctrllist := range repo.GetAllControls() {
-				if name && strings.Contains(pkgName, filter) {
-					packages = append(packages, pkgset{repo, ctrllist})
-					continue
+	for _, r := range repo.GetAllRepos() {
+		r.Map(func(e repo.Entry) {
+			match := false
+			for _, filter := range filters {
+				if name && strings.Contains(e.Control.Name, filter) {
+					match = true
 				}
 
-				if description {
-					for _, ctrl := range ctrllist {
-						if strings.Contains(ctrl.Description, filter) {
-							packages = append(packages, pkgset{repo, ctrllist})
-							break
-						}
-					}
+				if description && strings.Contains(e.Control.Description, filter) {
+					match = true
 				}
 			}
-		}
+
+			if match {
+				packages = append(packages, pkgset{
+					Entry:     e,
+					installed: r.IsAnyInstalled(&e.Control, "/"),
+				})
+			}
+		})
 	}
 
 	if len(packages) == 0 {
@@ -448,49 +464,44 @@ func search() {
 
 	longest := 0
 
-	for _, ps := range packages {
-		for _, pkg := range ps.ctrls {
-			plen := len(pkg.String())
-			if plen > longest {
-				longest = plen
-			}
+	for _, pkg := range packages {
+		plen := len(pkg.Control.String())
+		if plen > longest {
+			longest = plen
 		}
 	}
 
-	for _, ps := range packages {
-		repo := ps.r
-		for _, c := range ps.ctrls {
-			gap := longest - len(c.String())
+	for _, pkg := range packages {
+		gap := longest - len(pkg.Control.String())
 
-			action := ""
-			actionlen := 5
-			if repo.IsAnyInstalled(&c, "/") {
-				action += "i"
-			} else {
-				action += " "
-			}
-			if repo.HasAnySpakg(&c) {
-				action += "b"
-			} else {
-				action += " "
-			}
-			if repo.HasTemplate(&c) {
-				action += "s"
-			} else {
-				action += " "
-			}
-			action += strings.Repeat(" ", actionlen-len(action))
-			fmt.Print(color.White.String(action))
-
-			fmt.Print(color.Green.String(c.String(), strings.Repeat(" ", gap+2)))
-
-			desc := c.Description
-			totallen := actionlen + longest + 2
-			if totallen+len(desc) >= length {
-				desc = desc[0:(length - totallen)]
-			}
-			fmt.Println(color.White.String(desc))
+		action := ""
+		actionlen := 5
+		if pkg.installed {
+			action += "i"
+		} else {
+			action += " "
 		}
+		if len(pkg.Available) != 0 {
+			action += "b"
+		} else {
+			action += " "
+		}
+		if pkg.Template != "" {
+			action += "s"
+		} else {
+			action += " "
+		}
+		action += strings.Repeat(" ", actionlen-len(action))
+		fmt.Print(color.White.String(action))
+
+		fmt.Print(color.Green.String(pkg.Control.String(), strings.Repeat(" ", gap+2)))
+
+		desc := pkg.Control.Description
+		totallen := actionlen + longest + 2
+		if totallen+len(desc) >= length {
+			desc = desc[0:(length - totallen)]
+		}
+		fmt.Println(color.White.String(desc))
 	}
 }
 
