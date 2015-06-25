@@ -12,8 +12,8 @@ import (
 	"github.com/serenitylinux/libspack"
 	"github.com/serenitylinux/libspack/argparse"
 	"github.com/serenitylinux/libspack/control"
-	"github.com/serenitylinux/libspack/misc"
 	"github.com/serenitylinux/libspack/crunch"
+	"github.com/serenitylinux/libspack/misc"
 	"github.com/serenitylinux/libspack/repo"
 	"github.com/serenitylinux/libspack/spdl"
 )
@@ -161,7 +161,12 @@ func forge(pkgs []string) {
 
 	var deps []spdl.Dep
 	for _, pkg := range pkgs {
-		deps = append(deps, spdl.Dep{Name: pkg})
+		dep, err := spdl.ParseDep(pkg)
+		if err != nil {
+			log.Error.Format("Unable to parse %v: %v", pkg, err.Error())
+			os.Exit(1)
+		}
+		deps = append(deps, dep)
 	}
 
 	err := libspack.Forge(deps, Root(), noBDepsArg.Get())
