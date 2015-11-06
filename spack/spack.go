@@ -182,10 +182,15 @@ func wield(pkgs []string) {
 
 	var deps []spdl.Dep
 	for _, pkg := range pkgs {
-		deps = append(deps, spdl.Dep{Name: pkg})
+		dep, err := spdl.ParseDep(pkg)
+		if err != nil {
+			log.Error.Format("Unable to parse %v: %v", pkg, err.Error())
+			os.Exit(1)
+		}
+		deps = append(deps, dep)
 	}
 
-	err := libspack.Wield(deps, Root(), reinstallArg.Get(), crunch.InstallConvenient)
+	err := libspack.Wield(deps, Root(), reinstallArg.Get(), noDepsArg.Get(), crunch.InstallConvenient)
 	if err != nil {
 		log.Error.Format(err.Error())
 		os.Exit(1)
