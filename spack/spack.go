@@ -51,6 +51,12 @@ func registerBaseDir() {
 	destdirArg = argparse.RegisterString("destdir", "/", "Help Text")
 }
 
+var buildLocalArg *argparse.BoolValue = nil
+
+func registerBuildLocal() {
+	buildLocalArg = argparse.RegisterBool("build-local", false, "Don't use a container/chroot to build packges")
+}
+
 var noBDepsArg *argparse.BoolValue = nil
 
 func registerNoBDeps() {
@@ -125,6 +131,7 @@ func registerLocalArg() {
 
 func ForgeWieldArgs(requirePackages bool) []string {
 	registerBaseDir()
+	registerBuildLocal()
 	registerNoBDeps()
 	registerNoDeps()
 	registerQuiet()
@@ -169,7 +176,7 @@ func forge(pkgs []string) {
 		deps = append(deps, dep)
 	}
 
-	err := libspack.Forge(deps, Root(), noBDepsArg.Get())
+	err := libspack.Forge(deps, Root(), noBDepsArg.Get(), buildLocalArg.Get())
 	if err != nil {
 		log.Error.Format(err.Error())
 		os.Exit(1)
