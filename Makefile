@@ -27,7 +27,8 @@ install:
 	install -c $(DEST)/smithy $(DESTDIR)/usr/bin/smithy
 	install -c $(DEST)/spackle  $(DESTDIR)/usr/bin/spackle
 
-	install -c conf/* $(DESTDIR)/etc/spack/repos/
+	install -c conf/*.conf $(DESTDIR)/etc/spack/repos/
+	install -c conf/*.sh $(DESTDIR)/etc/spack/
 
 clean:
 	rm $(DEST)/*
